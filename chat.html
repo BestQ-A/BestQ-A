@@ -19,6 +19,18 @@
             --input-bg: #ffffff;
             --border-color: #dee2e6;
             --shadow-color: rgba(0,0,0,0.1);
+            --menu-bg: #ffffff;
+            --hover-bg: #f8f9fa;
+            --accent-color: #007bff;
+            --danger-color: #dc3545;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --reaction-bg: #f8f9fa;
+            --link-color: #0066cc;
+            --link-preview-bg: #f8f9fa;
+            --recorder-bg: rgba(0,0,0,0.9);
+            --visualizer-color: #007bff;
+            --search-highlight: #fff3cd;
         }
 
         [data-theme="dark"] {
@@ -34,6 +46,18 @@
             --input-bg: #404040;
             --border-color: #404040;
             --shadow-color: rgba(0,0,0,0.3);
+            --menu-bg: #363636;
+            --hover-bg: #404040;
+            --accent-color: #1e88e5;
+            --danger-color: #dc3545;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --reaction-bg: #404040;
+            --link-color: #66b3ff;
+            --link-preview-bg: #363636;
+            --recorder-bg: rgba(0,0,0,0.95);
+            --visualizer-color: #1e88e5;
+            --search-highlight: #665e00;
         }
 
         body {
@@ -438,6 +462,374 @@
             font-size: 30px;
             cursor: pointer;
         }
+
+        /* Search Bar */
+        .search-bar {
+            display: none;
+            padding: 10px 20px;
+            background-color: var(--container-bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .search-bar.active {
+            display: block;
+        }
+
+        .search-input-wrapper {
+            display: flex;
+            align-items: center;
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 5px 15px;
+        }
+
+        .search-input-wrapper i {
+            color: var(--text-secondary);
+            margin-right: 10px;
+        }
+
+        .search-input-wrapper input {
+            flex: 1;
+            border: none;
+            outline: none;
+            background: transparent;
+            color: var(--text-color);
+            padding: 5px;
+        }
+
+        /* Message Context Menu */
+        .context-menu {
+            position: fixed;
+            display: none;
+            background-color: var(--menu-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 2px 10px var(--shadow-color);
+            z-index: 1000;
+        }
+
+        .context-menu.active {
+            display: block;
+        }
+
+        .context-menu ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .context-menu li {
+            padding: 10px 20px;
+            cursor: pointer;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .context-menu li:hover {
+            background-color: var(--hover-bg);
+        }
+
+        .context-menu li i {
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Message Reactions */
+        .message-reactions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 5px;
+        }
+
+        .reaction {
+            background-color: var(--reaction-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: background-color 0.2s ease;
+        }
+
+        .reaction:hover {
+            background-color: var(--hover-bg);
+        }
+
+        .reaction.active {
+            background-color: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+        }
+
+        /* Voice Recorder */
+        .voice-recorder {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: var(--recorder-bg);
+            padding: 20px;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .voice-recorder.active {
+            display: flex;
+        }
+
+        .recorder-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            color: white;
+        }
+
+        .recorder-timer {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .recorder-visualizer {
+            width: 300px;
+            height: 60px;
+        }
+
+        .recorder-controls {
+            display: flex;
+            gap: 20px;
+        }
+
+        .recorder-controls .action-button {
+            color: white;
+            font-size: 24px;
+        }
+
+        /* Link Preview */
+        .link-preview {
+            display: none;
+            background-color: var(--link-preview-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+
+        .link-preview.active {
+            display: block;
+        }
+
+        .link-preview-image {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        .link-preview-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: var(--text-color);
+        }
+
+        .link-preview-description {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+        }
+
+        .link-preview-url {
+            font-size: 12px;
+            color: var(--link-color);
+        }
+
+        /* Settings Menu */
+        .menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: flex-end;
+            z-index: 1000;
+        }
+
+        .menu-overlay.active {
+            display: flex;
+        }
+
+        .menu-content {
+            background-color: var(--menu-bg);
+            width: 300px;
+            height: 100%;
+            padding: 20px;
+            box-shadow: -2px 0 10px var(--shadow-color);
+        }
+
+        .menu-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .menu-header h3 {
+            margin: 0;
+            color: var(--text-color);
+        }
+
+        .menu-options {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .menu-option {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-color);
+        }
+
+        /* Switch Toggle */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--text-secondary);
+            transition: .4s;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+        }
+
+        input:checked + .slider {
+            background-color: var(--accent-color);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .slider.round {
+            border-radius: 24px;
+        }
+
+        .slider.round:before {
+            border-radius: 50%;
+        }
+
+        /* Font Size Select */
+        select {
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            outline: none;
+        }
+
+        select option {
+            background-color: var(--menu-bg);
+            color: var(--text-color);
+        }
+
+        /* Message Reply */
+        .reply-to {
+            background-color: var(--hover-bg);
+            border-left: 4px solid var(--accent-color);
+            padding: 8px;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .reply-to .reply-header {
+            color: var(--accent-color);
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+
+        .reply-to .reply-text {
+            color: var(--text-secondary);
+        }
+
+        /* Search Highlight */
+        .search-highlight {
+            background-color: var(--search-highlight);
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+
+        /* Accessibility Focus Styles */
+        button:focus-visible,
+        input:focus-visible,
+        select:focus-visible {
+            outline: 2px solid var(--accent-color);
+            outline-offset: 2px;
+        }
+
+        /* Message Edit Mode */
+        .message-content.editing {
+            padding: 0;
+        }
+
+        .message-content.editing input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            outline: none;
+        }
+
+        /* Read Receipt */
+        .read-receipt {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .read-receipt i {
+            color: var(--accent-color);
+        }
     </style>
 </head>
 <body>
@@ -456,8 +848,24 @@
                 </div>
             </div>
             <div class="chat-header-right">
-                <button class="theme-toggle" id="themeToggle">
+                <button class="action-button" id="searchButton" aria-label="Search messages">
+                    <i class="fas fa-search"></i>
+                </button>
+                <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
                     <i class="fas fa-moon"></i>
+                </button>
+                <button class="action-button" id="menuButton" aria-label="Menu">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="search-bar" id="searchBar">
+            <div class="search-input-wrapper">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="Search messages...">
+                <button class="action-button" id="closeSearch">
+                    <i class="fas fa-times"></i>
                 </button>
             </div>
         </div>
@@ -477,28 +885,50 @@
 
         <div class="chat-input">
             <div class="chat-input-wrapper">
-                <button class="action-button" id="fileButton">
+                <button class="action-button" id="fileButton" aria-label="Attach file">
                     <i class="fas fa-paperclip"></i>
                 </button>
-                <input type="text" id="messageInput" placeholder="Type your message...">
+                <div class="input-area">
+                    <input type="text" id="messageInput" placeholder="Type your message..." aria-label="Message input">
+                    <div id="linkPreview" class="link-preview"></div>
+                </div>
                 <div class="chat-input-actions">
-                    <button class="action-button" id="emojiButton">
+                    <button class="action-button" id="emojiButton" aria-label="Choose emoji">
                         <i class="far fa-smile"></i>
                     </button>
-                    <button class="action-button" id="imageButton">
+                    <button class="action-button" id="imageButton" aria-label="Send image">
                         <i class="far fa-image"></i>
+                    </button>
+                    <button class="action-button" id="voiceButton" aria-label="Record voice message">
+                        <i class="fas fa-microphone"></i>
                     </button>
                 </div>
             </div>
-            <button onclick="sendMessage()">Send</button>
+            <button onclick="sendMessage()" aria-label="Send message">Send</button>
         </div>
 
         <div class="emoji-picker" id="emojiPicker">
             <!-- Emojis will be added here -->
         </div>
 
+        <div class="reactions-picker" id="reactionsPicker">
+            <!-- Reactions will be added here -->
+        </div>
+
+        <div class="context-menu" id="messageContextMenu">
+            <ul>
+                <li id="editMessage"><i class="fas fa-edit"></i> Edit</li>
+                <li id="deleteMessage"><i class="fas fa-trash"></i> Delete</li>
+                <li id="replyMessage"><i class="fas fa-reply"></i> Reply</li>
+                <li id="reactMessage"><i class="far fa-smile"></i> React</li>
+                <li id="copyMessage"><i class="fas fa-copy"></i> Copy</li>
+                <li id="forwardMessage"><i class="fas fa-share"></i> Forward</li>
+            </ul>
+        </div>
+
         <input type="file" id="fileInput" style="display: none" multiple>
         <input type="file" id="imageInput" style="display: none" accept="image/*" multiple>
+        <input type="file" id="audioInput" style="display: none" accept="audio/*">
     </div>
 
     <div class="image-preview" id="imagePreview">
@@ -506,9 +936,368 @@
         <img src="" alt="Preview">
     </div>
 
+    <div class="voice-recorder" id="voiceRecorder">
+        <div class="recorder-content">
+            <div class="recorder-timer">00:00</div>
+            <div class="recorder-visualizer">
+                <canvas id="visualizer"></canvas>
+            </div>
+            <div class="recorder-controls">
+                <button class="action-button" id="cancelRecording">
+                    <i class="fas fa-times"></i>
+                </button>
+                <button class="action-button" id="stopRecording">
+                    <i class="fas fa-stop"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="menu-overlay" id="menuOverlay">
+        <div class="menu-content">
+            <div class="menu-header">
+                <h3>Settings</h3>
+                <button class="action-button" id="closeMenu">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="menu-options">
+                <div class="menu-option">
+                    <label for="notificationToggle">Notifications</label>
+                    <label class="switch">
+                        <input type="checkbox" id="notificationToggle">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                <div class="menu-option">
+                    <label for="soundToggle">Sound</label>
+                    <label class="switch">
+                        <input type="checkbox" id="soundToggle">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                <div class="menu-option">
+                    <label for="fontSize">Font Size</label>
+                    <select id="fontSize">
+                        <option value="small">Small</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="large">Large</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // Theme handling
+        // Initialize Web Audio API for voice recording
+        let audioContext;
+        let mediaRecorder;
+        let audioChunks = [];
+        let recordingStartTime;
+        let recordingTimer;
+        let visualizerContext;
+
+        // Initialize components
+        const searchButton = document.getElementById('searchButton');
+        const searchBar = document.getElementById('searchBar');
+        const searchInput = document.getElementById('searchInput');
+        const closeSearch = document.getElementById('closeSearch');
+        const menuButton = document.getElementById('menuButton');
+        const menuOverlay = document.getElementById('menuOverlay');
+        const closeMenu = document.getElementById('closeMenu');
+        const voiceButton = document.getElementById('voiceButton');
+        const voiceRecorder = document.getElementById('voiceRecorder');
+        const cancelRecording = document.getElementById('cancelRecording');
+        const stopRecording = document.getElementById('stopRecording');
+        const visualizer = document.getElementById('visualizer');
         const themeToggle = document.getElementById('themeToggle');
+        const messageInput = document.getElementById('messageInput');
+        const linkPreview = document.getElementById('linkPreview');
+        const contextMenu = document.getElementById('messageContextMenu');
+        const reactionsPicker = document.getElementById('reactionsPicker');
+
+        // Common reactions
+        const reactions = ['👍', '❤️', '😂', '😮', '😢', '😡'];
+
+        // Initialize reactions picker
+        reactions.forEach(reaction => {
+            const span = document.createElement('span');
+            span.textContent = reaction;
+            span.onclick = () => addReaction(reaction);
+            reactionsPicker.appendChild(span);
+        });
+
+        // Search functionality
+        searchButton.onclick = () => {
+            searchBar.classList.add('active');
+            searchInput.focus();
+        };
+
+        closeSearch.onclick = () => {
+            searchBar.classList.remove('active');
+            clearSearch();
+        };
+
+        searchInput.oninput = () => {
+            const searchTerm = searchInput.value.toLowerCase();
+            const messages = document.querySelectorAll('.message-content');
+            
+            messages.forEach(message => {
+                const text = message.textContent.toLowerCase();
+                if (text.includes(searchTerm) && searchTerm !== '') {
+                    const highlighted = message.textContent.replace(
+                        new RegExp(searchTerm, 'gi'),
+                        match => `<span class="search-highlight">${match}</span>`
+                    );
+                    message.innerHTML = highlighted;
+                } else {
+                    message.textContent = message.textContent;
+                }
+            });
+        };
+
+        function clearSearch() {
+            searchInput.value = '';
+            const messages = document.querySelectorAll('.message-content');
+            messages.forEach(message => {
+                message.textContent = message.textContent;
+            });
+        }
+
+        // Menu functionality
+        menuButton.onclick = () => {
+            menuOverlay.classList.add('active');
+        };
+
+        closeMenu.onclick = () => {
+            menuOverlay.classList.remove('active');
+        };
+
+        // Voice recording
+        voiceButton.onclick = async () => {
+            try {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+                
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    const audio = `
+                        <audio controls>
+                            <source src="${audioUrl}" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    `;
+                    addMessage(audio, true, 'audio');
+                    stopRecordingUI();
+                };
+                
+                startRecordingUI();
+                mediaRecorder.start();
+                
+                // Set up audio visualization
+                const source = audioContext.createMediaStreamSource(stream);
+                const analyser = audioContext.createAnalyser();
+                source.connect(analyser);
+                visualizeAudio(analyser);
+                
+            } catch (err) {
+                console.error('Error accessing microphone:', err);
+                alert('Could not access microphone. Please check permissions.');
+            }
+        };
+
+        function startRecordingUI() {
+            voiceRecorder.classList.add('active');
+            recordingStartTime = Date.now();
+            updateRecordingTimer();
+        }
+
+        function stopRecordingUI() {
+            voiceRecorder.classList.remove('active');
+            clearInterval(recordingTimer);
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            }
+        }
+
+        function updateRecordingTimer() {
+            const timerElement = document.querySelector('.recorder-timer');
+            recordingTimer = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+                const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                const seconds = (elapsed % 60).toString().padStart(2, '0');
+                timerElement.textContent = `${minutes}:${seconds}`;
+            }, 1000);
+        }
+
+        function visualizeAudio(analyser) {
+            if (!visualizerContext) {
+                visualizerContext = visualizer.getContext('2d');
+            }
+            
+            analyser.fftSize = 256;
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            
+            visualizerContext.clearRect(0, 0, visualizer.width, visualizer.height);
+            
+            function draw() {
+                const drawVisual = requestAnimationFrame(draw);
+                
+                analyser.getByteFrequencyData(dataArray);
+                visualizerContext.fillStyle = 'rgb(0, 0, 0)';
+                visualizerContext.fillRect(0, 0, visualizer.width, visualizer.height);
+                
+                const barWidth = (visualizer.width / bufferLength) * 2.5;
+                let barHeight;
+                let x = 0;
+                
+                for(let i = 0; i < bufferLength; i++) {
+                    barHeight = dataArray[i] / 2;
+                    visualizerContext.fillStyle = `rgb(${barHeight + 100},50,50)`;
+                    visualizerContext.fillRect(x, visualizer.height - barHeight, barWidth, barHeight);
+                    x += barWidth + 1;
+                }
+            }
+            
+            draw();
+        }
+
+        cancelRecording.onclick = stopRecordingUI;
+        stopRecording.onclick = () => {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+        };
+
+        // Link preview
+        messageInput.oninput = () => {
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            const urls = messageInput.value.match(urlRegex);
+            
+            if (urls && urls.length > 0) {
+                // In a real application, you would fetch the URL metadata here
+                const previewHtml = `
+                    <div class="link-preview-title">Website Title</div>
+                    <div class="link-preview-description">Website description goes here...</div>
+                    <div class="link-preview-url">${urls[0]}</div>
+                `;
+                linkPreview.innerHTML = previewHtml;
+                linkPreview.classList.add('active');
+            } else {
+                linkPreview.classList.remove('active');
+            }
+        };
+
+        // Context menu
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.context-menu')) {
+                contextMenu.classList.remove('active');
+            }
+            if (!e.target.closest('.reactions-picker') && !e.target.closest('.react-button')) {
+                reactionsPicker.classList.remove('active');
+            }
+        });
+
+        function showContextMenu(e, messageElement) {
+            e.preventDefault();
+            contextMenu.style.top = `${e.pageY}px`;
+            contextMenu.style.left = `${e.pageX}px`;
+            contextMenu.classList.add('active');
+            
+            // Set up context menu actions
+            document.getElementById('editMessage').onclick = () => editMessage(messageElement);
+            document.getElementById('deleteMessage').onclick = () => deleteMessage(messageElement);
+            document.getElementById('replyMessage').onclick = () => replyToMessage(messageElement);
+            document.getElementById('reactMessage').onclick = () => showReactionsPicker(messageElement);
+            document.getElementById('copyMessage').onclick = () => copyMessage(messageElement);
+            document.getElementById('forwardMessage').onclick = () => forwardMessage(messageElement);
+        }
+
+        function editMessage(messageElement) {
+            const content = messageElement.querySelector('.message-content');
+            const text = content.textContent;
+            content.classList.add('editing');
+            content.innerHTML = `<input type="text" value="${text}" onkeypress="handleEditKeypress(event, this)">`;
+            content.querySelector('input').focus();
+        }
+
+        function handleEditKeypress(e, input) {
+            if (e.key === 'Enter') {
+                const messageContent = input.closest('.message-content');
+                messageContent.classList.remove('editing');
+                messageContent.textContent = input.value;
+            }
+        }
+
+        function deleteMessage(messageElement) {
+            messageElement.remove();
+        }
+
+        function replyToMessage(messageElement) {
+            const text = messageElement.querySelector('.message-content').textContent;
+            const replyTo = document.createElement('div');
+            replyTo.className = 'reply-to';
+            replyTo.innerHTML = `
+                <div class="reply-header">Replying to:</div>
+                <div class="reply-text">${text}</div>
+            `;
+            messageInput.parentElement.insertBefore(replyTo, messageInput);
+            messageInput.focus();
+        }
+
+        function showReactionsPicker(messageElement) {
+            const rect = messageElement.getBoundingClientRect();
+            reactionsPicker.style.top = `${rect.top - reactionsPicker.offsetHeight}px`;
+            reactionsPicker.style.left = `${rect.left}px`;
+            reactionsPicker.classList.add('active');
+            reactionsPicker.dataset.messageId = messageElement.dataset.messageId;
+        }
+
+        function addReaction(reaction) {
+            const messageId = reactionsPicker.dataset.messageId;
+            const message = document.querySelector(`[data-message-id="${messageId}"]`);
+            let reactions = message.querySelector('.message-reactions');
+            
+            if (!reactions) {
+                reactions = document.createElement('div');
+                reactions.className = 'message-reactions';
+                message.querySelector('.message-wrapper').appendChild(reactions);
+            }
+            
+            const reactionElement = document.createElement('div');
+            reactionElement.className = 'reaction';
+            reactionElement.innerHTML = `${reaction} <span>1</span>`;
+            reactions.appendChild(reactionElement);
+            
+            reactionsPicker.classList.remove('active');
+        }
+
+        function copyMessage(messageElement) {
+            const text = messageElement.querySelector('.message-content').textContent;
+            navigator.clipboard.writeText(text);
+            contextMenu.classList.remove('active');
+        }
+
+        function forwardMessage(messageElement) {
+            const text = messageElement.querySelector('.message-content').textContent;
+            messageInput.value = text;
+            messageInput.focus();
+            contextMenu.classList.remove('active');
+        }
+
+        // Theme handling
         const body = document.body;
         let isDarkMode = false;
 
@@ -662,10 +1451,13 @@
             typingIndicator.classList.remove('active');
         }
 
+        let messageCounter = 0;
+
         function addMessage(message, isSent, type = 'text') {
             const chatMessages = document.getElementById('chatMessages');
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+            messageDiv.dataset.messageId = `msg-${++messageCounter}`;
             
             // Add avatar
             const avatar = document.createElement('div');
@@ -679,6 +1471,16 @@
             const wrapper = document.createElement('div');
             wrapper.className = 'message-wrapper';
             
+            // Check for reply-to
+            const replyToElement = document.querySelector('.reply-to');
+            if (replyToElement) {
+                const replyDiv = document.createElement('div');
+                replyDiv.className = 'reply-to';
+                replyDiv.innerHTML = replyToElement.innerHTML;
+                wrapper.appendChild(replyDiv);
+                replyToElement.remove();
+            }
+            
             // Message content
             const messageContent = document.createElement('div');
             messageContent.className = 'message-content';
@@ -688,6 +1490,9 @@
             } else {
                 messageContent.innerHTML = message;
             }
+            
+            // Add context menu trigger
+            messageContent.oncontextmenu = (e) => showContextMenu(e, messageDiv);
             
             // Time and status
             const timeDiv = document.createElement('div');
@@ -702,10 +1507,24 @@
                 status.className = 'message-status';
                 status.innerHTML = '<i class="fas fa-check-double"></i>';
                 timeDiv.appendChild(status);
+                
+                // Add read receipt after a delay
+                setTimeout(() => {
+                    const readReceipt = document.createElement('div');
+                    readReceipt.className = 'read-receipt';
+                    readReceipt.innerHTML = '<i class="fas fa-check-double"></i> Read';
+                    wrapper.appendChild(readReceipt);
+                }, 2000);
             }
             
             wrapper.appendChild(messageContent);
             wrapper.appendChild(timeDiv);
+            
+            // Add reactions container
+            const reactionsDiv = document.createElement('div');
+            reactionsDiv.className = 'message-reactions';
+            wrapper.appendChild(reactionsDiv);
+            
             messageDiv.appendChild(wrapper);
             chatMessages.appendChild(messageDiv);
             
@@ -718,6 +1537,13 @@
             
             // Scroll to bottom
             chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            // Focus input after sending
+            if (isSent) {
+                messageInput.focus();
+            }
+            
+            return messageDiv;
         }
 
         function quickReply(message) {
