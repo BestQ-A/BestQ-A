@@ -91,6 +91,17 @@ export {
   createFileStorage,
 } from './storage.js';
 
+// Dual-layer Storage (short-term + long-term)
+export type {
+  FlushResult,
+  DualStorageStats,
+} from './dual-storage.js';
+
+export {
+  DualLayerStorage,
+  createDualStorage,
+} from './dual-storage.js';
+
 // Inducer
 export type { InduceOptions, ClusterStats } from './inducer.js';
 

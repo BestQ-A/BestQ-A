@@ -4,7 +4,7 @@
       "command": "node",
       "args": ["/mnt/e/1_agents_space/9_AGI/BestQ-A/causal-learner/mcp-server/dist/index.js"],
       "env": {
-        "CAUSAL_DB_PATH": "/mnt/e/1_agents_space/9_AGI/BestQ-A/causal-learner/data/causal.db"
+        "CAUSAL_LONGTERM_DB_PATH": "/home/administrator/.claude/causal-learner/longterm.db"
       }
     }
   }

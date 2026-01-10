@@ -21,7 +21,9 @@ import path from 'path';
 // Core imports
 import {
   createStorage,
+  createDualStorage,
   type CausalStorage,
+  type DualLayerStorage,
   type Observation,
   type Regulation,
   type Fact,
@@ -66,11 +68,19 @@ import {
   type FixInfo,
 } from './tools/swebench.js';
 
-// Get database path from environment or use default
+// Get database paths from environment
+// CAUSAL_DB_PATH: legacy single-DB mode (backward compatible)
+// CAUSAL_LONGTERM_DB_PATH: long-term DB for dual-layer mode
 const DB_PATH = process.env.CAUSAL_DB_PATH || path.join(process.cwd(), 'data', 'causal.db');
+const LONGTERM_DB_PATH = process.env.CAUSAL_LONGTERM_DB_PATH;
 
-// Initialize storage
-let storage: CausalStorage;
+// Dual-layer mode: use separate short-term (memory) and long-term (persistent) DBs
+const USE_DUAL_LAYER = !!LONGTERM_DB_PATH;
+
+// Initialize storage (either single or dual-layer)
+// Using 'any' for flexibility - both CausalStorage and DualLayerStorage implement the same public API
+let storage: any;
+let dualStorage: DualLayerStorage | null = null;
 
 // Zod schemas for tool inputs
 const FactSchema = z.object({
@@ -449,6 +459,39 @@ const TOOLS: Tool[] = [
       required: ['issues'],
     },
   },
+  // Dual-layer storage tools
+  {
+    name: 'flush_to_longterm',
+    description: 'Flush short-term learning to long-term storage. Call this before context compaction or session end to persist learned knowledge.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'get_dual_stats',
+    description: 'Get statistics for both short-term and long-term storage (dual-layer mode only).',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'reset_session',
+    description: 'Reset the short-term session storage while keeping long-term knowledge. Use to start a fresh session.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'get_longterm_stats',
+    description: 'Get statistics from long-term storage only.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
 ];
 
 // Generate unique observation ID
@@ -649,6 +692,76 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
       }
 
+      // Dual-layer storage tools
+      case 'flush_to_longterm': {
+        if (!dualStorage) {
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify({
+                error: 'Dual-layer mode not enabled. Set CAUSAL_LONGTERM_DB_PATH environment variable.',
+                mode: 'single',
+              }, null, 2),
+            }],
+          };
+        }
+        const result = dualStorage.flushToLongterm();
+        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      case 'get_dual_stats': {
+        if (!dualStorage) {
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify({
+                mode: 'single',
+                stats: getStatsTool(storage),
+              }, null, 2),
+            }],
+          };
+        }
+        const stats = dualStorage.getDualStats();
+        return { content: [{ type: 'text', text: JSON.stringify({ mode: 'dual', ...stats }, null, 2) }] };
+      }
+
+      case 'reset_session': {
+        if (!dualStorage) {
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify({
+                error: 'Dual-layer mode not enabled. Set CAUSAL_LONGTERM_DB_PATH environment variable.',
+                mode: 'single',
+              }, null, 2),
+            }],
+          };
+        }
+        dualStorage.resetShortTerm();
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify({ success: true, message: 'Session reset. Long-term knowledge preserved.' }, null, 2),
+          }],
+        };
+      }
+
+      case 'get_longterm_stats': {
+        if (!dualStorage) {
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify({
+                error: 'Dual-layer mode not enabled. Set CAUSAL_LONGTERM_DB_PATH environment variable.',
+                mode: 'single',
+              }, null, 2),
+            }],
+          };
+        }
+        const stats = dualStorage.getLongtermStats();
+        return { content: [{ type: 'text', text: JSON.stringify(stats, null, 2) }] };
+      }
+
       default:
         return {
           content: [{ type: 'text', text: `Unknown tool: ${name}` }],
@@ -679,9 +792,19 @@ process.on('SIGTERM', shutdown);
 
 // Main entry point
 async function main() {
-  // Initialize storage (synchronous with better-sqlite3)
-  storage = createStorage(DB_PATH);
-  console.error(`Causal Learner MCP Server initialized with database at: ${DB_PATH}`);
+  // Initialize storage based on mode
+  if (USE_DUAL_LAYER && LONGTERM_DB_PATH) {
+    // Dual-layer mode: short-term (memory) + long-term (persistent)
+    dualStorage = createDualStorage(LONGTERM_DB_PATH);
+    storage = dualStorage;
+    console.error(`Causal Learner MCP Server initialized in DUAL-LAYER mode`);
+    console.error(`  Short-term: in-memory (session-scoped)`);
+    console.error(`  Long-term:  ${LONGTERM_DB_PATH}`);
+  } else {
+    // Single-layer mode (backward compatible)
+    storage = createStorage(DB_PATH);
+    console.error(`Causal Learner MCP Server initialized in SINGLE mode at: ${DB_PATH}`);
+  }
 
   // Start the server
   const transport = new StdioServerTransport();
