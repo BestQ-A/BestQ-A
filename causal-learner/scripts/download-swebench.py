@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Download SWE-bench dataset from Hugging Face
 
@@ -8,7 +9,13 @@ and exports to JSON for causal learner ingestion.
 
 import json
 import os
+import sys
 from pathlib import Path
+
+# Fix Windows console encoding
+if sys.platform == 'win32':
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
 
 def download_swebench_verified():
     """Download SWE-bench Verified dataset"""
