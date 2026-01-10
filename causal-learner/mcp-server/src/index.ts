@@ -679,8 +679,8 @@ process.on('SIGTERM', shutdown);
 
 // Main entry point
 async function main() {
-  // Initialize storage (await async initialization)
-  storage = await createStorage(DB_PATH);
+  // Initialize storage (synchronous with better-sqlite3)
+  storage = createStorage(DB_PATH);
   console.error(`Causal Learner MCP Server initialized with database at: ${DB_PATH}`);
 
   // Start the server

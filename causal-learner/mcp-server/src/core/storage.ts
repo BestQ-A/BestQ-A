@@ -1,11 +1,11 @@
 /**
  * SQLite storage layer for the Causal Learner system
  *
- * Uses sql.js for pure JavaScript SQLite operations.
+ * Uses better-sqlite3 for native SQLite operations (5-10x faster than sql.js).
  * Stores observations, events, and regulations with JSON fields for complex structures.
  */
 
-import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
+import Database, { Database as DatabaseType } from 'better-sqlite3';
 import * as fs from 'fs';
 import * as path from 'path';
 import type {
@@ -47,51 +47,38 @@ export interface ListRegulationsOptions {
 
 /**
  * SQLite storage class for causal learning data
+ * Uses better-sqlite3 for synchronous, high-performance operations
  */
 export class CausalStorage {
-  private db: SqlJsDatabase | null = null;
+  private db: DatabaseType;
   private dbPath: string;
-  private initialized: boolean = false;
 
   constructor(dbPath: string) {
     this.dbPath = dbPath;
-  }
 
-  /**
-   * Initialize the database (must be called before use)
-   */
-  async init(): Promise<void> {
-    if (this.initialized) return;
-
-    const SQL = await initSqlJs();
-
-    // Load existing database or create new one
-    if (this.dbPath !== ':memory:' && fs.existsSync(this.dbPath)) {
-      const buffer = fs.readFileSync(this.dbPath);
-      this.db = new SQL.Database(buffer);
-    } else {
-      this.db = new SQL.Database();
+    // Ensure directory exists for file-based databases
+    if (dbPath !== ':memory:') {
+      const dir = path.dirname(dbPath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
     }
 
+    // Create database connection (synchronous)
+    this.db = new Database(dbPath);
+
+    // Enable WAL mode for better concurrent performance
+    this.db.pragma('journal_mode = WAL');
+
+    // Initialize schema
     this.initSchema();
-    this.initialized = true;
-  }
-
-  /**
-   * Ensure database is initialized
-   */
-  private ensureInit(): void {
-    if (!this.db) {
-      throw new Error('Database not initialized. Call init() first.');
-    }
   }
 
   /**
    * Initialize database schema
    */
   private initSchema(): void {
-    this.ensureInit();
-    this.db!.run(`
+    this.db.exec(`
       -- Observations table
       CREATE TABLE IF NOT EXISTS observations (
         observation_id TEXT PRIMARY KEY,
@@ -131,21 +118,6 @@ export class CausalStorage {
     `);
   }
 
-  /**
-   * Save database to file
-   */
-  save(): void {
-    if (this.dbPath !== ':memory:' && this.db) {
-      const data = this.db.export();
-      const buffer = Buffer.from(data);
-      const dir = path.dirname(this.dbPath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
-      fs.writeFileSync(this.dbPath, buffer);
-    }
-  }
-
   // ===========================================================================
   // Observations
   // ===========================================================================
@@ -154,51 +126,43 @@ export class CausalStorage {
    * Save an observation to the database
    */
   saveObservation(obs: Observation): void {
-    this.ensureInit();
     const data = JSON.stringify(observationToDict(obs));
-    this.db!.run(
-      `INSERT OR REPLACE INTO observations (observation_id, timestamp, data) VALUES (?, ?, ?)`,
-      [obs.observationId, obs.timestamp, data]
+    const stmt = this.db.prepare(
+      `INSERT OR REPLACE INTO observations (observation_id, timestamp, data) VALUES (?, ?, ?)`
     );
-    this.save();
+    stmt.run(obs.observationId, obs.timestamp, data);
   }
 
   /**
    * Get an observation by ID
    */
   getObservation(id: string): Observation | null {
-    this.ensureInit();
-    const result = this.db!.exec(
-      `SELECT data FROM observations WHERE observation_id = ?`,
-      [id]
+    const stmt = this.db.prepare(
+      `SELECT data FROM observations WHERE observation_id = ?`
     );
-    if (result.length === 0 || result[0].values.length === 0) return null;
-    return observationFromDict(JSON.parse(result[0].values[0][0] as string) as Json);
+    const row = stmt.get(id) as { data: string } | undefined;
+    if (!row) return null;
+    return observationFromDict(JSON.parse(row.data) as Json);
   }
 
   /**
    * List observations with optional limit
    */
   listObservations(limit = 100, offset = 0): Observation[] {
-    this.ensureInit();
-    const result = this.db!.exec(
-      `SELECT data FROM observations ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
-      [limit, offset]
+    const stmt = this.db.prepare(
+      `SELECT data FROM observations ORDER BY timestamp DESC LIMIT ? OFFSET ?`
     );
-    if (result.length === 0) return [];
-    return result[0].values.map((row: unknown[]) =>
-      observationFromDict(JSON.parse(row[0] as string) as Json)
-    );
+    const rows = stmt.all(limit, offset) as { data: string }[];
+    return rows.map((row) => observationFromDict(JSON.parse(row.data) as Json));
   }
 
   /**
    * Delete an observation by ID
    */
   deleteObservation(id: string): boolean {
-    this.ensureInit();
-    this.db!.run(`DELETE FROM observations WHERE observation_id = ?`, [id]);
-    this.save();
-    return this.db!.getRowsModified() > 0;
+    const stmt = this.db.prepare(`DELETE FROM observations WHERE observation_id = ?`);
+    const result = stmt.run(id);
+    return result.changes > 0;
   }
 
   // ===========================================================================
@@ -209,42 +173,36 @@ export class CausalStorage {
    * Save an event to the database
    */
   saveEvent(event: Event): void {
-    this.ensureInit();
     const data = JSON.stringify(eventToDict(event));
-    this.db!.run(
+    const stmt = this.db.prepare(
       `INSERT OR REPLACE INTO events
         (event_id, timestamp, status, cluster_id, observation_id, data, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`,
-      [
-        event.eventId,
-        event.timestamp,
-        event.status || 'open',
-        event.clusterId || null,
-        event.observation.observationId,
-        data,
-      ]
+       VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
     );
-    this.save();
+    stmt.run(
+      event.eventId,
+      event.timestamp,
+      event.status || 'open',
+      event.clusterId || null,
+      event.observation.observationId,
+      data
+    );
   }
 
   /**
    * Get an event by ID
    */
   getEvent(id: string): Event | null {
-    this.ensureInit();
-    const result = this.db!.exec(
-      `SELECT data FROM events WHERE event_id = ?`,
-      [id]
-    );
-    if (result.length === 0 || result[0].values.length === 0) return null;
-    return eventFromDict(JSON.parse(result[0].values[0][0] as string) as Json);
+    const stmt = this.db.prepare(`SELECT data FROM events WHERE event_id = ?`);
+    const row = stmt.get(id) as { data: string } | undefined;
+    if (!row) return null;
+    return eventFromDict(JSON.parse(row.data) as Json);
   }
 
   /**
    * List events with optional status filter
    */
   listEvents(options?: ListEventsOptions): Event[] {
-    this.ensureInit();
     const { status, limit = 100, offset = 0 } = options || {};
 
     let sql = 'SELECT data FROM events';
@@ -258,11 +216,9 @@ export class CausalStorage {
     sql += ' ORDER BY timestamp DESC LIMIT ? OFFSET ?';
     params.push(limit, offset);
 
-    const result = this.db!.exec(sql, params);
-    if (result.length === 0) return [];
-    return result[0].values.map((row: unknown[]) =>
-      eventFromDict(JSON.parse(row[0] as string) as Json)
-    );
+    const stmt = this.db.prepare(sql);
+    const rows = stmt.all(...params) as { data: string }[];
+    return rows.map((row) => eventFromDict(JSON.parse(row.data) as Json));
   }
 
   /**
@@ -289,25 +245,20 @@ export class CausalStorage {
    * Get events by cluster ID
    */
   getEventsByCluster(clusterId: string): Event[] {
-    this.ensureInit();
-    const result = this.db!.exec(
-      `SELECT data FROM events WHERE cluster_id = ? ORDER BY timestamp DESC`,
-      [clusterId]
+    const stmt = this.db.prepare(
+      `SELECT data FROM events WHERE cluster_id = ? ORDER BY timestamp DESC`
     );
-    if (result.length === 0) return [];
-    return result[0].values.map((row: unknown[]) =>
-      eventFromDict(JSON.parse(row[0] as string) as Json)
-    );
+    const rows = stmt.all(clusterId) as { data: string }[];
+    return rows.map((row) => eventFromDict(JSON.parse(row.data) as Json));
   }
 
   /**
    * Delete an event by ID
    */
   deleteEvent(id: string): boolean {
-    this.ensureInit();
-    this.db!.run(`DELETE FROM events WHERE event_id = ?`, [id]);
-    this.save();
-    return this.db!.getRowsModified() > 0;
+    const stmt = this.db.prepare(`DELETE FROM events WHERE event_id = ?`);
+    const result = stmt.run(id);
+    return result.changes > 0;
   }
 
   // ===========================================================================
@@ -318,35 +269,31 @@ export class CausalStorage {
    * Save a regulation to the database
    */
   saveRegulation(reg: Regulation): void {
-    this.ensureInit();
     const data = JSON.stringify(regulationToDict(reg));
-    this.db!.run(
+    const stmt = this.db.prepare(
       `INSERT OR REPLACE INTO regulations
         (regulation_id, status, description, data, updated_at)
-       VALUES (?, ?, ?, ?, datetime('now'))`,
-      [reg.regulationId, reg.status, reg.description || null, data]
+       VALUES (?, ?, ?, ?, datetime('now'))`
     );
-    this.save();
+    stmt.run(reg.regulationId, reg.status, reg.description || null, data);
   }
 
   /**
    * Get a regulation by ID
    */
   getRegulation(id: string): Regulation | null {
-    this.ensureInit();
-    const result = this.db!.exec(
-      `SELECT data FROM regulations WHERE regulation_id = ?`,
-      [id]
+    const stmt = this.db.prepare(
+      `SELECT data FROM regulations WHERE regulation_id = ?`
     );
-    if (result.length === 0 || result[0].values.length === 0) return null;
-    return regulationFromDict(JSON.parse(result[0].values[0][0] as string) as Json);
+    const row = stmt.get(id) as { data: string } | undefined;
+    if (!row) return null;
+    return regulationFromDict(JSON.parse(row.data) as Json);
   }
 
   /**
    * List regulations with optional status filter
    */
   listRegulations(options?: ListRegulationsOptions): Regulation[] {
-    this.ensureInit();
     const { status, limit = 100, offset = 0 } = options || {};
 
     let sql = 'SELECT data FROM regulations';
@@ -360,11 +307,9 @@ export class CausalStorage {
     sql += ' ORDER BY updated_at DESC LIMIT ? OFFSET ?';
     params.push(limit, offset);
 
-    const result = this.db!.exec(sql, params);
-    if (result.length === 0) return [];
-    return result[0].values.map((row: unknown[]) =>
-      regulationFromDict(JSON.parse(row[0] as string) as Json)
-    );
+    const stmt = this.db.prepare(sql);
+    const rows = stmt.all(...params) as { data: string }[];
+    return rows.map((row) => regulationFromDict(JSON.parse(row.data) as Json));
   }
 
   /**
@@ -436,10 +381,78 @@ export class CausalStorage {
    * Delete a regulation by ID
    */
   deleteRegulation(id: string): boolean {
-    this.ensureInit();
-    this.db!.run(`DELETE FROM regulations WHERE regulation_id = ?`, [id]);
-    this.save();
-    return this.db!.getRowsModified() > 0;
+    const stmt = this.db.prepare(`DELETE FROM regulations WHERE regulation_id = ?`);
+    const result = stmt.run(id);
+    return result.changes > 0;
+  }
+
+  // ===========================================================================
+  // Batch Operations (optimized with transactions)
+  // ===========================================================================
+
+  /**
+   * Save multiple observations in a transaction
+   */
+  saveObservationsBatch(observations: Observation[]): void {
+    const stmt = this.db.prepare(
+      `INSERT OR REPLACE INTO observations (observation_id, timestamp, data) VALUES (?, ?, ?)`
+    );
+
+    const insertMany = this.db.transaction((items: Observation[]) => {
+      for (const obs of items) {
+        const data = JSON.stringify(observationToDict(obs));
+        stmt.run(obs.observationId, obs.timestamp, data);
+      }
+    });
+
+    insertMany(observations);
+  }
+
+  /**
+   * Save multiple events in a transaction
+   */
+  saveEventsBatch(events: Event[]): void {
+    const stmt = this.db.prepare(
+      `INSERT OR REPLACE INTO events
+        (event_id, timestamp, status, cluster_id, observation_id, data, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
+    );
+
+    const insertMany = this.db.transaction((items: Event[]) => {
+      for (const event of items) {
+        const data = JSON.stringify(eventToDict(event));
+        stmt.run(
+          event.eventId,
+          event.timestamp,
+          event.status || 'open',
+          event.clusterId || null,
+          event.observation.observationId,
+          data
+        );
+      }
+    });
+
+    insertMany(events);
+  }
+
+  /**
+   * Save multiple regulations in a transaction
+   */
+  saveRegulationsBatch(regulations: Regulation[]): void {
+    const stmt = this.db.prepare(
+      `INSERT OR REPLACE INTO regulations
+        (regulation_id, status, description, data, updated_at)
+       VALUES (?, ?, ?, ?, datetime('now'))`
+    );
+
+    const insertMany = this.db.transaction((items: Regulation[]) => {
+      for (const reg of items) {
+        const data = JSON.stringify(regulationToDict(reg));
+        stmt.run(reg.regulationId, reg.status, reg.description || null, data);
+      }
+    });
+
+    insertMany(regulations);
   }
 
   // ===========================================================================
@@ -450,46 +463,42 @@ export class CausalStorage {
    * Get storage statistics
    */
   getStats(): StorageStats {
-    this.ensureInit();
+    const obsCount = this.db.prepare('SELECT COUNT(*) as count FROM observations').get() as { count: number };
+    const eventCount = this.db.prepare('SELECT COUNT(*) as count FROM events').get() as { count: number };
+    const regCount = this.db.prepare('SELECT COUNT(*) as count FROM regulations').get() as { count: number };
 
-    const obsCount = this.db!.exec('SELECT COUNT(*) as count FROM observations');
-    const eventCount = this.db!.exec('SELECT COUNT(*) as count FROM events');
-    const regCount = this.db!.exec('SELECT COUNT(*) as count FROM regulations');
-
-    const eventStatusRows = this.db!.exec(
+    const eventStatusRows = this.db.prepare(
       'SELECT status, COUNT(*) as count FROM events GROUP BY status'
-    );
+    ).all() as { status: EventStatus; count: number }[];
+
     const eventsByStatus: Record<EventStatus, number> = {
       open: 0,
       clustered: 0,
       resolved: 0,
       archived: 0,
     };
-    if (eventStatusRows.length > 0) {
-      for (const row of eventStatusRows[0].values) {
-        eventsByStatus[row[0] as EventStatus] = row[1] as number;
-      }
+    for (const row of eventStatusRows) {
+      eventsByStatus[row.status] = row.count;
     }
 
-    const regStatusRows = this.db!.exec(
+    const regStatusRows = this.db.prepare(
       'SELECT status, COUNT(*) as count FROM regulations GROUP BY status'
-    );
+    ).all() as { status: RegulationStatus; count: number }[];
+
     const regulationsByStatus: Record<RegulationStatus, number> = {
       candidate: 0,
       hypothesis: 0,
       confirmed: 0,
       retired: 0,
     };
-    if (regStatusRows.length > 0) {
-      for (const row of regStatusRows[0].values) {
-        regulationsByStatus[row[0] as RegulationStatus] = row[1] as number;
-      }
+    for (const row of regStatusRows) {
+      regulationsByStatus[row.status] = row.count;
     }
 
     return {
-      observationCount: obsCount.length > 0 ? (obsCount[0].values[0][0] as number) : 0,
-      eventCount: eventCount.length > 0 ? (eventCount[0].values[0][0] as number) : 0,
-      regulationCount: regCount.length > 0 ? (regCount[0].values[0][0] as number) : 0,
+      observationCount: obsCount.count,
+      eventCount: eventCount.count,
+      regulationCount: regCount.count,
       eventsByStatus,
       regulationsByStatus,
     };
@@ -499,15 +508,11 @@ export class CausalStorage {
    * Search regulations by predicate in effects
    */
   searchRegulationsByEffect(pred: string): Regulation[] {
-    this.ensureInit();
-    const result = this.db!.exec(
-      `SELECT data FROM regulations WHERE data LIKE ?`,
-      [`%"${pred}"%`]
+    const stmt = this.db.prepare(
+      `SELECT data FROM regulations WHERE data LIKE ?`
     );
-    if (result.length === 0) return [];
-    return result[0].values.map((row: unknown[]) =>
-      regulationFromDict(JSON.parse(row[0] as string) as Json)
-    );
+    const rows = stmt.all(`%"${pred}"%`) as { data: string }[];
+    return rows.map((row) => regulationFromDict(JSON.parse(row.data) as Json));
   }
 
   /**
@@ -521,40 +526,29 @@ export class CausalStorage {
    * Get active (non-retired) regulations
    */
   getActiveRegulations(): Regulation[] {
-    this.ensureInit();
-    const result = this.db!.exec(
+    const stmt = this.db.prepare(
       `SELECT data FROM regulations WHERE status != 'retired' ORDER BY updated_at DESC`
     );
-    if (result.length === 0) return [];
-    return result[0].values.map((row: unknown[]) =>
-      regulationFromDict(JSON.parse(row[0] as string) as Json)
-    );
+    const rows = stmt.all() as { data: string }[];
+    return rows.map((row) => regulationFromDict(JSON.parse(row.data) as Json));
   }
 
   /**
    * Get open events (not resolved or archived)
    */
   getOpenEvents(): Event[] {
-    this.ensureInit();
-    const result = this.db!.exec(
+    const stmt = this.db.prepare(
       `SELECT data FROM events WHERE status IN ('open', 'clustered') ORDER BY timestamp DESC`
     );
-    if (result.length === 0) return [];
-    return result[0].values.map((row: unknown[]) =>
-      eventFromDict(JSON.parse(row[0] as string) as Json)
-    );
+    const rows = stmt.all() as { data: string }[];
+    return rows.map((row) => eventFromDict(JSON.parse(row.data) as Json));
   }
 
   /**
    * Close the database connection
    */
   close(): void {
-    if (this.db) {
-      this.save();
-      this.db.close();
-      this.db = null;
-      this.initialized = false;
-    }
+    this.db.close();
   }
 
   /**
@@ -565,21 +559,14 @@ export class CausalStorage {
     events: Json[];
     regulations: Json[];
   } {
-    this.ensureInit();
-    const observations = this.db!.exec('SELECT data FROM observations');
-    const events = this.db!.exec('SELECT data FROM events');
-    const regulations = this.db!.exec('SELECT data FROM regulations');
+    const observations = this.db.prepare('SELECT data FROM observations').all() as { data: string }[];
+    const events = this.db.prepare('SELECT data FROM events').all() as { data: string }[];
+    const regulations = this.db.prepare('SELECT data FROM regulations').all() as { data: string }[];
 
     return {
-      observations: observations.length > 0
-        ? observations[0].values.map((r: unknown[]) => JSON.parse(r[0] as string) as Json)
-        : [],
-      events: events.length > 0
-        ? events[0].values.map((r: unknown[]) => JSON.parse(r[0] as string) as Json)
-        : [],
-      regulations: regulations.length > 0
-        ? regulations[0].values.map((r: unknown[]) => JSON.parse(r[0] as string) as Json)
-        : [],
+      observations: observations.map((r) => JSON.parse(r.data) as Json),
+      events: events.map((r) => JSON.parse(r.data) as Json),
+      regulations: regulations.map((r) => JSON.parse(r.data) as Json),
     };
   }
 
@@ -591,46 +578,46 @@ export class CausalStorage {
     events?: Json[];
     regulations?: Json[];
   }): void {
-    if (data.observations) {
-      for (const obs of data.observations) {
-        this.saveObservation(observationFromDict(obs));
+    const importAll = this.db.transaction(() => {
+      if (data.observations) {
+        for (const obs of data.observations) {
+          this.saveObservation(observationFromDict(obs));
+        }
       }
-    }
-    if (data.events) {
-      for (const evt of data.events) {
-        this.saveEvent(eventFromDict(evt));
+      if (data.events) {
+        for (const evt of data.events) {
+          this.saveEvent(eventFromDict(evt));
+        }
       }
-    }
-    if (data.regulations) {
-      for (const reg of data.regulations) {
-        this.saveRegulation(regulationFromDict(reg));
+      if (data.regulations) {
+        for (const reg of data.regulations) {
+          this.saveRegulation(regulationFromDict(reg));
+        }
       }
-    }
+    });
+
+    importAll();
   }
 }
 
 /**
  * Create an in-memory storage instance (useful for testing)
  */
-export async function createMemoryStorage(): Promise<CausalStorage> {
-  const storage = new CausalStorage(':memory:');
-  await storage.init();
-  return storage;
+export function createMemoryStorage(): CausalStorage {
+  return new CausalStorage(':memory:');
 }
 
 /**
  * Create a file-based storage instance
  */
-export async function createFileStorage(dbPath: string): Promise<CausalStorage> {
-  const storage = new CausalStorage(dbPath);
-  await storage.init();
-  return storage;
+export function createFileStorage(dbPath: string): CausalStorage {
+  return new CausalStorage(dbPath);
 }
 
 /**
  * Create a storage instance (auto-detects memory vs file based on path)
  */
-export async function createStorage(dbPath?: string): Promise<CausalStorage> {
+export function createStorage(dbPath?: string): CausalStorage {
   if (!dbPath || dbPath === ':memory:') {
     return createMemoryStorage();
   }

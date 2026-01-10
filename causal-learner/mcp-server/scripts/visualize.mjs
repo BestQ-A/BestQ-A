@@ -14,7 +14,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 async function generateVisualization(dbPath) {
   console.log('📊 Generating visualization dashboard...\n');
 
-  const storage = await createStorage(dbPath);
+  const storage = createStorage(dbPath);
   const stats = storage.getStats();
   const events = storage.listEvents({ limit: 500 });
   const regulations = storage.listRegulations({ limit: 500 });

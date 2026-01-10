@@ -97,9 +97,9 @@ async function importSWEBench(jsonFile, limit = 50) {
 
   console.log(`📊 Found ${issues.length} issues, processing ${toProcess.length}`);
 
-  // Initialize storage
+  // Initialize storage (synchronous with better-sqlite3)
   const dbPath = path.join(__dirname, '../../data/causal.db');
-  const storage = await createStorage(dbPath);
+  const storage = createStorage(dbPath);
 
   // Import each issue
   let created = 0;

@@ -3,7 +3,7 @@ import { submitObservationTool } from './dist/tools/observation.js';
 import { clusterEvents, induceRegulation } from './dist/core/inducer.js';
 
 async function debug() {
-  const storage = await createStorage(':memory:');
+  const storage = createStorage(':memory:');
   
   // Submit 3 similar observations
   for (let i = 1; i <= 3; i++) {

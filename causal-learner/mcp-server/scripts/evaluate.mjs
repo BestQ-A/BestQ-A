@@ -98,12 +98,12 @@ async function evaluateSWEBench(dataFile, batchSize = 100) {
 
   console.log(`📊 Dataset: ${dataset.length} issues`);
 
-  // Create storage
+  // Create storage (synchronous with better-sqlite3)
   const dbPath = path.join(__dirname, '../../data/causal_eval.db');
   if (fs.existsSync(dbPath)) {
     fs.unlinkSync(dbPath);  // Fresh start
   }
-  const storage = await createStorage(dbPath);
+  const storage = createStorage(dbPath);
 
   // Process in batches
   const batches = Math.ceil(Math.min(dataset.length, batchSize) / 10);

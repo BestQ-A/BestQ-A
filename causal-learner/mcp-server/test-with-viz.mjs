@@ -6,7 +6,7 @@ import { exec } from 'child_process';
 async function testWithVisualization() {
   console.log('🧪 Running test with visualization...\n');
 
-  const storage = await createStorage('./data/test_viz.db');
+  const storage = createStorage('./data/test_viz.db');
 
   // Submit 5 similar observations
   for (let i = 1; i <= 5; i++) {

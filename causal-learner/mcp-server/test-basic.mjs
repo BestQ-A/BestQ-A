@@ -12,9 +12,9 @@ import { getStatsTool } from './dist/tools/query.js';
 async function test() {
   console.log('🧪 Testing Causal Learner MCP Server...\n');
 
-  // 1. Create storage
+  // 1. Create storage (synchronous with better-sqlite3)
   console.log('1️⃣ Creating in-memory storage...');
-  const storage = await createStorage(':memory:');
+  const storage = createStorage(':memory:');
   console.log('✅ Storage created\n');
 
   // 2. Submit test observations
