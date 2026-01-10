@@ -5,7 +5,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import type { Event, Regulation, Fact } from '../core/index.js';
-import { factSignature, dedupFacts, induceFromEvents as coreInduceFromEvents, clusterEvents as coreClusterEvents, validateCandidate } from '../core/index.js';
+import { factSignature, dedupFacts, induceRegulation as coreInduceRegulation, clusterEvents as coreClusterEvents, validateCandidate } from '../core/index.js';
 import type { CausalStorage } from '../core/index.js';
 
 /**
@@ -354,13 +354,22 @@ export function triggerInductionTool(
     };
   }
 
-  // Use core inducer for clustering and induction
-  const coreOptions = {
-    minEvents: opts.minClusterSize || 2,
-    contextKeys: ['repo', 'error.type', 'test.framework', 'env.os'],
-  };
+  // Use similarity-based clustering for better coverage
+  const minClusterSize = opts.minClusterSize || 2;
+  const minSimilarity = opts.minSimilarity || 0.5;
 
-  const eventClusters = coreClusterEvents(openEvents, coreOptions);
+  // First try similarity-based clustering
+  const similarityClusters = clusterEvents(openEvents, minSimilarity);
+
+  // Filter clusters by minimum size
+  const validClusters = similarityClusters.filter(c => c.eventIds.length >= minClusterSize);
+
+  // Convert to Event[][] format for compatibility with core inducer
+  const eventClusters: Event[][] = validClusters.map(cluster =>
+    cluster.eventIds
+      .map(id => openEvents.find(e => e.eventId === id))
+      .filter((e): e is Event => e !== undefined)
+  );
 
   if (eventClusters.length === 0) {
     return {
@@ -368,9 +377,14 @@ export function triggerInductionTool(
       regulationsCreated: [],
       eventsResolved: [],
       clusters: [],
-      message: `No clusters found with minimum size ${opts.minClusterSize}`,
+      message: `No clusters found with minimum size ${minClusterSize} and similarity ${minSimilarity}`,
     };
   }
+
+  const coreOptions = {
+    minEvents: minClusterSize,
+    contextKeys: ['repo', 'error.type', 'test.framework', 'env.os'],
+  };
 
   // Induce regulations from each cluster
   const createdRegulations: Regulation[] = [];
@@ -380,10 +394,16 @@ export function triggerInductionTool(
   for (const cluster of eventClusters) {
     const clusterId = newClusterId();
 
-    // Induce regulation from this cluster
-    const regulations = coreInduceFromEvents(cluster, coreOptions);
+    // Directly induce regulation from this already-clustered events
+    const reg = coreInduceRegulation(cluster, coreOptions);
 
-    for (const reg of regulations.slice(0, opts.maxRegulationsPerCluster || 3)) {
+    // Skip if no valid effect produced
+    if (!reg || reg.eff.length === 0) continue;
+
+    const regulations = [reg];
+
+    for (const regulation of regulations.slice(0, opts.maxRegulationsPerCluster || 3)) {
+      const reg = regulation;
       // Validate if requested
       if (opts.autoValidate) {
         const validation = validateCandidate(reg, cluster);

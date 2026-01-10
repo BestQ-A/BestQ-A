@@ -64,7 +64,8 @@ function issueToObservation(issue, index) {
       base_commit: issue.base_commit,
       version: issue.version,
     },
-    focusFacts: [{ pred: 'has_issue', value: true }],
+    // Include all facts as goals for better clustering
+    focusFacts: facts,
     rawRefs: [
       issue.problem_statement?.substring(0, 1000),
       fullText.substring(0, 2000),
@@ -81,18 +82,25 @@ async function importSWEBench(jsonFile, limit = 50) {
   console.log(`📥 Importing SWE-bench data from: ${jsonFile}`);
   console.log(`   Limit: ${limit} issues\n`);
 
-  // Load JSON file
-  let data;
+  // Load JSON/JSONL file
+  let issues;
   try {
     const content = fs.readFileSync(jsonFile, 'utf-8');
-    data = JSON.parse(content);
+    // Try parsing as JSON array first
+    try {
+      const data = JSON.parse(content);
+      issues = Array.isArray(data) ? data : [data];
+    } catch {
+      // If that fails, parse as JSONL (one JSON per line)
+      issues = content
+        .split('\n')
+        .filter(line => line.trim())
+        .map(line => JSON.parse(line));
+    }
   } catch (err) {
     console.error(`❌ Failed to load ${jsonFile}:`, err.message);
     return;
   }
-
-  // Handle both array and JSONL format
-  const issues = Array.isArray(data) ? data : [data];
   const toProcess = issues.slice(0, limit);
 
   console.log(`📊 Found ${issues.length} issues, processing ${toProcess.length}`);
