@@ -1,0 +1,495 @@
+/**
+ * Induction tool for the Causal Learner
+ * Triggers induction to create new regulations from clustered events
+ */
+
+import { v4 as uuidv4 } from 'uuid';
+import type { Event, Regulation, Fact } from '../core/index.js';
+import { factSignature, dedupFacts, induceFromEvents as coreInduceFromEvents, clusterEvents as coreClusterEvents, validateCandidate } from '../core/index.js';
+import type { CausalStorage } from '../core/index.js';
+
+/**
+ * Options for induction
+ */
+export interface InduceOptions {
+  minClusterSize?: number;
+  minSimilarity?: number;
+  maxRegulationsPerCluster?: number;
+  autoValidate?: boolean;
+  resolveEvents?: boolean;
+}
+
+/**
+ * Default induction options
+ */
+export const DEFAULT_INDUCE_OPTIONS: InduceOptions = {
+  minClusterSize: 2,
+  minSimilarity: 0.5,
+  maxRegulationsPerCluster: 3,
+  autoValidate: true,
+  resolveEvents: true,
+};
+
+/**
+ * Result of an induction run
+ */
+export interface InductionResult {
+  clustersFound: number;
+  regulationsCreated: Regulation[];
+  eventsResolved: string[];
+  clusters: EventCluster[];
+  message: string;
+}
+
+/**
+ * A cluster of similar events
+ */
+export interface EventCluster {
+  clusterId: string;
+  eventIds: string[];
+  commonPredicates: string[];
+  similarity: number;
+}
+
+/**
+ * Generate a new cluster ID
+ */
+function newClusterId(): string {
+  return 'clust_' + uuidv4().substring(0, 8);
+}
+
+/**
+ * Generate a new regulation ID
+ */
+function newRegulationId(): string {
+  return 'reg_' + uuidv4().substring(0, 8);
+}
+
+/**
+ * Extract predicate signatures from facts
+ */
+function extractPredicates(facts: Fact[]): Set<string> {
+  return new Set(facts.map(f => `${f.pred}|${JSON.stringify(f.value)}`));
+}
+
+/**
+ * Calculate Jaccard similarity between two fact sets
+ */
+function jaccardSimilarity(set1: Set<string>, set2: Set<string>): number {
+  const intersection = new Set([...set1].filter(x => set2.has(x)));
+  const union = new Set([...set1, ...set2]);
+  if (union.size === 0) return 0;
+  return intersection.size / union.size;
+}
+
+/**
+ * Cluster events by similarity of their unexplained aspects
+ */
+function clusterEvents(
+  events: Event[],
+  minSimilarity: number
+): EventCluster[] {
+  const clusters: EventCluster[] = [];
+  const assigned = new Set<string>();
+
+  // Extract predicates for each event
+  const eventPredicates = new Map<string, Set<string>>();
+  for (const event of events) {
+    const preds = extractPredicates(event.unexplainedAspects);
+    eventPredicates.set(event.eventId, preds);
+  }
+
+  // Simple greedy clustering
+  for (const event of events) {
+    if (assigned.has(event.eventId)) continue;
+
+    const cluster: EventCluster = {
+      clusterId: newClusterId(),
+      eventIds: [event.eventId],
+      commonPredicates: [],
+      similarity: 1.0,
+    };
+
+    const eventPreds = eventPredicates.get(event.eventId)!;
+
+    // Find similar events
+    for (const other of events) {
+      if (other.eventId === event.eventId || assigned.has(other.eventId)) continue;
+
+      const otherPreds = eventPredicates.get(other.eventId)!;
+      const similarity = jaccardSimilarity(eventPreds, otherPreds);
+
+      if (similarity >= minSimilarity) {
+        cluster.eventIds.push(other.eventId);
+        cluster.similarity = Math.min(cluster.similarity, similarity);
+      }
+    }
+
+    if (cluster.eventIds.length > 0) {
+      // Mark all events in cluster as assigned
+      for (const eid of cluster.eventIds) {
+        assigned.add(eid);
+      }
+
+      // Find common predicates
+      if (cluster.eventIds.length > 1) {
+        let common = eventPredicates.get(cluster.eventIds[0])!;
+        for (let i = 1; i < cluster.eventIds.length; i++) {
+          const other = eventPredicates.get(cluster.eventIds[i])!;
+          common = new Set([...common].filter(x => other.has(x)));
+        }
+        cluster.commonPredicates = [...common];
+      }
+
+      clusters.push(cluster);
+    }
+  }
+
+  return clusters;
+}
+
+/**
+ * Find common context across events in a cluster
+ */
+function findCommonContext(events: Event[]): Record<string, unknown> {
+  if (events.length === 0) return {};
+
+  const firstContext = events[0].context || {};
+  const common: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(firstContext)) {
+    let isCommon = true;
+    for (let i = 1; i < events.length; i++) {
+      const ctx = events[i].context || {};
+      if (ctx[key] !== value) {
+        isCommon = false;
+        break;
+      }
+    }
+    if (isCommon) {
+      common[key] = value;
+    }
+  }
+
+  return common;
+}
+
+/**
+ * Find common facts from observations
+ */
+function findCommonFacts(events: Event[]): Fact[] {
+  if (events.length === 0) return [];
+
+  // Get all facts from first event's observation
+  const firstFacts = events[0].observation.facts;
+  const firstSigs = new Set(firstFacts.map(f => factSignature(f)));
+
+  // Find facts that appear in all events
+  const commonFacts: Fact[] = [];
+
+  for (const fact of firstFacts) {
+    const sig = factSignature(fact);
+    let isCommon = true;
+
+    for (let i = 1; i < events.length; i++) {
+      const otherSigs = new Set(
+        events[i].observation.facts.map(f => factSignature(f))
+      );
+      if (!otherSigs.has(sig)) {
+        isCommon = false;
+        break;
+      }
+    }
+
+    if (isCommon) {
+      commonFacts.push(fact);
+    }
+  }
+
+  return dedupFacts(commonFacts);
+}
+
+/**
+ * Generate candidate regulations from a cluster
+ */
+function generateRegulationsFromCluster(
+  cluster: EventCluster,
+  events: Event[],
+  maxRegulations: number
+): Regulation[] {
+  const clusterEvents = events.filter(e => cluster.eventIds.includes(e.eventId));
+  if (clusterEvents.length < 2) return [];
+
+  const regulations: Regulation[] = [];
+
+  // Find common unexplained aspects (these become the effect)
+  const commonUnexplained: Fact[] = [];
+  const firstUnexplained = clusterEvents[0].unexplainedAspects;
+
+  for (const fact of firstUnexplained) {
+    const sig = factSignature(fact);
+    let isCommon = true;
+
+    for (let i = 1; i < clusterEvents.length; i++) {
+      const otherSigs = new Set(
+        clusterEvents[i].unexplainedAspects.map(f => factSignature(f))
+      );
+      if (!otherSigs.has(sig)) {
+        isCommon = false;
+        break;
+      }
+    }
+
+    if (isCommon) {
+      commonUnexplained.push(fact);
+    }
+  }
+
+  if (commonUnexplained.length === 0) return [];
+
+  // Find common facts from observations (potential preconditions)
+  const commonFacts = findCommonFacts(clusterEvents);
+  const commonContext = findCommonContext(clusterEvents);
+
+  // Generate a regulation: commonFacts -> commonUnexplained
+  if (commonFacts.length > 0) {
+    const regulation: Regulation = {
+      regulationId: newRegulationId(),
+      status: 'candidate',
+      pre: dedupFacts(commonFacts).slice(0, 5), // Limit preconditions
+      eff: dedupFacts(commonUnexplained).slice(0, 3), // Limit effects
+      evidenceKind: 'observational',
+      supportN: clusterEvents.length,
+      counterexampleN: 0,
+      explainedCount: 0,
+      failedPredictions: 0,
+      scope: Object.keys(commonContext).length > 0 ? commonContext : undefined,
+      description: `Induced from cluster ${cluster.clusterId} with ${clusterEvents.length} events`,
+      origin: {
+        source: 'induction',
+        clusterId: cluster.clusterId,
+        eventIds: cluster.eventIds,
+        created: new Date().toISOString(),
+      },
+      tags: ['induced'],
+    };
+
+    regulations.push(regulation);
+  }
+
+  return regulations.slice(0, maxRegulations);
+}
+
+/**
+ * Validate a candidate regulation against storage
+ * Checks if the regulation would explain existing events without conflicts
+ */
+function validateRegulation(
+  regulation: Regulation,
+  storage: CausalStorage
+): { valid: boolean; supportCount: number; conflictCount: number } {
+  // Simple validation: check if pre-conditions appear together in observations
+  const observations = storage.listObservations(100);
+  let supportCount = 0;
+  let conflictCount = 0;
+
+  for (const obs of observations) {
+    const obsFacts = new Set(obs.facts.map(f => factSignature(f)));
+    const preSatisfied = regulation.pre.every(pre =>
+      obsFacts.has(factSignature(pre))
+    );
+
+    if (preSatisfied) {
+      // Check if effect is also present (supports the regulation)
+      const effPresent = regulation.eff.some(eff =>
+        obsFacts.has(factSignature(eff))
+      );
+
+      if (effPresent) {
+        supportCount++;
+      } else {
+        conflictCount++;
+      }
+    }
+  }
+
+  return {
+    valid: supportCount > 0 && conflictCount === 0,
+    supportCount,
+    conflictCount,
+  };
+}
+
+/**
+ * Trigger induction to create new regulations from open events
+ *
+ * Flow:
+ * 1. Get open events
+ * 2. Cluster events by similarity
+ * 3. Generate candidate regulations from clusters
+ * 4. Optionally validate regulations
+ * 5. Save valid regulations
+ * 6. Optionally resolve explained events
+ *
+ * @param storage - The causal storage instance
+ * @param options - Induction options
+ * @returns Result of the induction process
+ */
+export function triggerInductionTool(
+  storage: CausalStorage,
+  options?: InduceOptions
+): InductionResult {
+  const opts = { ...DEFAULT_INDUCE_OPTIONS, ...options };
+
+  // Get open events
+  const openEvents = storage.listEvents({ status: 'open', limit: 500 });
+
+  if (openEvents.length < (opts.minClusterSize || 2)) {
+    return {
+      clustersFound: 0,
+      regulationsCreated: [],
+      eventsResolved: [],
+      clusters: [],
+      message: `Not enough open events for induction (found ${openEvents.length}, need at least ${opts.minClusterSize})`,
+    };
+  }
+
+  // Use core inducer for clustering and induction
+  const coreOptions = {
+    minEvents: opts.minClusterSize || 2,
+    contextKeys: ['repo', 'error.type', 'test.framework', 'env.os'],
+  };
+
+  const eventClusters = coreClusterEvents(openEvents, coreOptions);
+
+  if (eventClusters.length === 0) {
+    return {
+      clustersFound: 0,
+      regulationsCreated: [],
+      eventsResolved: [],
+      clusters: [],
+      message: `No clusters found with minimum size ${opts.minClusterSize}`,
+    };
+  }
+
+  // Induce regulations from each cluster
+  const createdRegulations: Regulation[] = [];
+  const resolvedEvents: string[] = [];
+  const clusterInfo: EventCluster[] = [];
+
+  for (const cluster of eventClusters) {
+    const clusterId = newClusterId();
+
+    // Induce regulation from this cluster
+    const regulations = coreInduceFromEvents(cluster, coreOptions);
+
+    for (const reg of regulations.slice(0, opts.maxRegulationsPerCluster || 3)) {
+      // Validate if requested
+      if (opts.autoValidate) {
+        const validation = validateCandidate(reg, cluster);
+        if (!validation.valid) {
+          continue;
+        }
+      }
+
+      // Save regulation
+      storage.saveRegulation(reg);
+      createdRegulations.push(reg);
+
+      // Create cluster info
+      clusterInfo.push({
+        clusterId,
+        eventIds: cluster.map(e => e.eventId),
+        commonPredicates: reg.eff.map(f => `${f.pred}=${JSON.stringify(f.value)}`),
+        similarity: 1.0,
+      });
+
+      // Optionally resolve events
+      if (opts.resolveEvents) {
+        for (const event of cluster) {
+          storage.updateEventStatus(event.eventId, 'resolved', clusterId);
+          resolvedEvents.push(event.eventId);
+        }
+      }
+    }
+  }
+
+  return {
+    clustersFound: eventClusters.length,
+    regulationsCreated: createdRegulations,
+    eventsResolved: resolvedEvents,
+    clusters: clusterInfo,
+    message: `Found ${eventClusters.length} cluster(s), created ${createdRegulations.length} regulation(s), resolved ${resolvedEvents.length} event(s)`,
+  };
+}
+
+/**
+ * Manually create a cluster from specified events
+ *
+ * @param storage - The causal storage instance
+ * @param eventIds - Event IDs to cluster
+ * @returns The created cluster
+ */
+export function createManualCluster(
+  storage: CausalStorage,
+  eventIds: string[]
+): EventCluster | null {
+  const events = eventIds
+    .map(id => storage.getEvent(id))
+    .filter((e): e is Event => e !== null);
+
+  if (events.length < 2) {
+    return null;
+  }
+
+  const cluster: EventCluster = {
+    clusterId: newClusterId(),
+    eventIds: events.map(e => e.eventId),
+    commonPredicates: [],
+    similarity: 1.0,
+  };
+
+  // Find common predicates
+  const predSets = events.map(e => extractPredicates(e.unexplainedAspects));
+  let common = predSets[0];
+  for (let i = 1; i < predSets.length; i++) {
+    common = new Set([...common].filter(x => predSets[i].has(x)));
+  }
+  cluster.commonPredicates = [...common];
+
+  // Update events with cluster ID
+  for (const event of events) {
+    storage.updateEventStatus(event.eventId, 'clustered', cluster.clusterId);
+  }
+
+  return cluster;
+}
+
+/**
+ * Generate regulation from a manual cluster
+ *
+ * @param storage - The causal storage instance
+ * @param cluster - The cluster to generate from
+ * @returns The created regulation or null
+ */
+export function generateRegulationFromManualCluster(
+  storage: CausalStorage,
+  cluster: EventCluster
+): Regulation | null {
+  const events = cluster.eventIds
+    .map(id => storage.getEvent(id))
+    .filter((e): e is Event => e !== null);
+
+  if (events.length < 2) {
+    return null;
+  }
+
+  const regulations = generateRegulationsFromCluster(cluster, events, 1);
+  if (regulations.length === 0) {
+    return null;
+  }
+
+  const reg = regulations[0];
+  storage.saveRegulation(reg);
+  return reg;
+}

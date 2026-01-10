@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "causal-learner": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server/dist/index.js"],
+      "env": {
+        "CAUSAL_DB_PATH": "${CLAUDE_PLUGIN_ROOT}/mcp-server/data/causal.db"
+      }
+    }
+  }
+}

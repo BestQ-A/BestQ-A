@@ -1,0 +1,9 @@
+{
+  "name": "causal-learner",
+  "version": "0.1.0",
+  "description": "Exception-driven causal learning system for Claude Code. Learn causal patterns from anomalies and use them to diagnose and fix issues.",
+  "author": {
+    "name": "BestQ-A"
+  },
+  "keywords": ["causal-learning", "debugging", "swe-bench", "anomaly-detection"]
+}
