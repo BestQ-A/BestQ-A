@@ -117,3 +117,19 @@ export {
   promoteOrDemote,
   getEvidenceSummary,
 } from './validator.js';
+
+// Keywords (Phase 1: Search engine approach)
+export type {
+  Keyword,
+  Document,
+} from './keywords.js';
+
+export {
+  extractKeywords,
+  extractKeywordsWithTFIDF,
+  keywordSimilarity,
+  clusterByKeywords,
+  discoverPredicatesFromCluster,
+  extractErrorPatterns,
+  extractHybridFeatures,
+} from './keywords.js';

@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/test_result.schema.json",
+  "title": "TestResult",
+  "type": "object",
+  "required": [
+    "test_result_id",
+    "timestamp",
+    "applied",
+    "produced_facts"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "test_result_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "episode_id": {
+      "type": "string"
+    },
+    "linked_event_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "linked_regulation_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "applied": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "probe",
+            "intervention"
+          ]
+        },
+        "probe_id": {
+          "type": "string"
+        },
+        "action_id": {
+          "type": "string"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "produced_facts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Fact"
+      }
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "$defs": {
+    "Fact": {
+      "title": "Fact",
+      "type": "object",
+      "required": [
+        "pred",
+        "value"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "pred": {
+          "type": "string",
+          "minLength": 1
+        },
+        "args": {
+          "type": "object",
+          "description": "Predicate arguments. Values can be concrete or variables like '?x' or wildcard '*'.",
+          "default": {},
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "value": {
+          "description": "Fact value (often boolean, but may be string/number/enum).",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

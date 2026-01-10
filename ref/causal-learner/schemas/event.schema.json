@@ -1,0 +1,240 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/event.schema.json",
+  "title": "Event",
+  "type": "object",
+  "required": [
+    "event_id",
+    "timestamp",
+    "observation",
+    "attempted_explanations",
+    "unexplained_aspects"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "clustered",
+        "resolved",
+        "archived"
+      ],
+      "default": "open"
+    },
+    "cluster_id": {
+      "type": "string"
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "number",
+          "boolean",
+          "null"
+        ]
+      }
+    },
+    "observation": {
+      "description": "The originating observation (embedded) or a reference id.",
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "$ref": "#/$defs/Observation"
+        }
+      ]
+    },
+    "attempted_explanations": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "$ref": "#/$defs/ExplanationAttempt"
+      }
+    },
+    "unexplained_aspects": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/Fact"
+      }
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "$defs": {
+    "Fact": {
+      "title": "Fact",
+      "type": "object",
+      "required": [
+        "pred",
+        "value"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "pred": {
+          "type": "string",
+          "minLength": 1
+        },
+        "args": {
+          "type": "object",
+          "description": "Predicate arguments. Values can be concrete or variables like '?x' or wildcard '*'.",
+          "default": {},
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "value": {
+          "description": "Fact value (often boolean, but may be string/number/enum).",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "Observation": {
+      "type": "object",
+      "required": [
+        "observation_id",
+        "timestamp",
+        "facts"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "observation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "context": {
+          "type": "object",
+          "description": "Structured environment/context key-values (OS, driver, device, version...)",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "facts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/Fact"
+          }
+        },
+        "focus_facts": {
+          "type": "array",
+          "description": "Optional subset of facts to prioritize as 'goals' when explaining. If omitted, the system may use all facts or heuristics.",
+          "items": {
+            "$ref": "#/$defs/Fact"
+          }
+        },
+        "raw_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "URIs or paths to raw logs/metrics artifacts"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "ExplanationAttempt": {
+      "type": "object",
+      "required": [
+        "regulation_id",
+        "score",
+        "failure_reason"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "regulation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "score": {
+          "type": "number"
+        },
+        "failure_reason": {
+          "type": "string",
+          "enum": [
+            "low_score",
+            "pre_not_satisfied",
+            "no_covering_rule",
+            "conflict",
+            "unknown"
+          ]
+        },
+        "used_rules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "missing_pres": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Fact"
+          }
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Fact"
+          }
+        },
+        "uncovered_goals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Fact"
+          }
+        },
+        "storyline": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Optional: ordered rule ids as a storyline"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

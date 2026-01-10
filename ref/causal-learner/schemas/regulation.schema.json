@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/regulation.schema.json",
+  "title": "Regulation",
+  "type": "object",
+  "required": [
+    "regulation_id",
+    "status",
+    "pattern"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "regulation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "candidate",
+        "hypothesis",
+        "confirmed",
+        "retired"
+      ],
+      "default": "hypothesis"
+    },
+    "description": {
+      "type": "string"
+    },
+    "pattern": {
+      "type": "object",
+      "required": [
+        "pre",
+        "eff"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "pre": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Fact"
+          }
+        },
+        "eff": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Fact"
+          }
+        },
+        "do": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "action_id": {
+              "type": "string"
+            },
+            "params": {
+              "type": "object",
+              "additionalProperties": {
+                "type": [
+                  "string",
+                  "number",
+                  "boolean",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "scope": {
+      "description": "Constraints on when the regulation applies. Either a list of Facts or a key-value object.",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Fact"
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean",
+              "null"
+            ]
+          }
+        }
+      ]
+    },
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "induced_from_events": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "induced_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "induced_method": {
+          "type": "string"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "observational",
+            "intervention",
+            "quasi_experiment"
+          ],
+          "default": "observational"
+        },
+        "explained_count": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "failed_predictions": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "support_n": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "counterexample_n": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "last_used": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "cost": {
+      "type": "number",
+      "minimum": 0,
+      "default": 1
+    },
+    "risk": {
+      "type": "number",
+      "minimum": 0,
+      "default": 1
+    },
+    "next_tests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "test_type": {
+            "type": "string",
+            "enum": [
+              "probe",
+              "intervention"
+            ]
+          },
+          "probe_id": {
+            "type": "string"
+          },
+          "action_id": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "Fact": {
+      "title": "Fact",
+      "type": "object",
+      "required": [
+        "pred",
+        "value"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "pred": {
+          "type": "string",
+          "minLength": 1
+        },
+        "args": {
+          "type": "object",
+          "description": "Predicate arguments. Values can be concrete or variables like '?x' or wildcard '*'.",
+          "default": {},
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "value": {
+          "description": "Fact value (often boolean, but may be string/number/enum).",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}
