@@ -1,0 +1,65 @@
+# ============================================================
+# BestQ-A 项目根 .gitignore
+# ============================================================
+
+# --- 依赖 ---
+node_modules/
+package-lock.json
+
+# --- 编译产物 ---
+dist/
+*.tsbuildinfo
+
+# --- 数据库文件（运行时产生，不入版本控制） ---
+*.db
+*.db-shm
+*.db-wal
+
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# --- 日志 ---
+npm-debug.log*
+*.log
+
+# --- OS 文件 ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# --- 临时文件 ---
+*.tmp
+*.temp
+
+# --- OMC / Claude Code 插件临时目录 ---
+.omc/
+.omx/
+
+# --- 项目级 MCP 配置（已迁移到 user level） ---
+causal-learner/mcp-server/.mcp.json
+
+# --- 运行时数据目录 ---
+data/
+causal-learner/data/
+causal-learner/mcp-server/data/
+
+# --- SWE-bench 大型数据集（按需下载，不入库） ---
+swe-bench/
+swe-bench-eval/logs/
+swe-bench-eval/predictions/
+swe-bench-eval/results/
+
+# --- 独立 git 子仓库（不嵌套跟踪） ---
+claudecode-swebench-mcp/

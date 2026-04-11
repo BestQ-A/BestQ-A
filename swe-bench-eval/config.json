@@ -1,0 +1,11 @@
+{
+  "eval_name": "claude-code-mcp-eval",
+  "test_set_path": "/mnt/e/1_agents_space/9_AGI/BestQ-A/causal-learner/data/swebench-test-set.json",
+  "longterm_db_path": "/mnt/e/1_agents_space/9_AGI/BestQ-A/causal-learner/data/eval-longterm.db",
+  "predictions_dir": "/mnt/e/1_agents_space/9_AGI/BestQ-A/swe-bench-eval/predictions",
+  "results_dir": "/mnt/e/1_agents_space/9_AGI/BestQ-A/swe-bench-eval/results",
+  "max_workers": 2,
+  "timeout": 1800,
+  "model": "claude-opus-4-5",
+  "use_mcp": true
+}
