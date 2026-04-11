@@ -1,0 +1,1942 @@
+diff --git a/docs/current/architecture-overview.md b/docs/current/architecture-overview.md
+new file mode 100644
+index 0000000..1c41e13
+--- /dev/null
++++ b/docs/current/architecture-overview.md
+@@ -0,0 +1,525 @@
++# BestQ-A 架构总览
++
++> 本文讲"模块怎么连、读写路径怎么走"。语义约束见 [`metamodel.md`](metamodel.md)，复合规则见 [`ref-algebra-contract.md`](ref-algebra-contract.md)。
++
++---
++
++## 1. 四层架构
++
++```
++接口层（Interface）
++    ↓
++Pipeline / MCP 工具 / Legacy Regulation 兼容
++    ↓
++流程层（Process）
++    ↓
++Pipeline / Story / Hypothesis / ProblemClass / Strategy / Skill
++    ↓
++真相层（Ground Truth）
++    ↓
++AtomGraph (Atom/Ref/Shortcut) / RefAlgebra / PatternTemplate
++    ↓
++证据层（Evidence）
++    ↓
++Evidence (append-only 不可篡改日志)
++```
++
++### 层级说明
++
++| 层级 | 职责 | 特征 |
++|------|------|------|
++| **接口层** | 暴露 MCP 工具、HTTP/RPC 接口、兼容旧 Regulation API | 多态适配 |
++| **流程层** | 运行时推理闭环：分类→理解→约束→搜索→执行→编译 | 编排状态机 |
++| **真相层** | 知识图谱、关系代数、模式模板——系统的单一事实源 SSOT | 永久存储 |
++| **证据层** | 所有因果声明的支撑依据，审计日志，不可篡改 | append-only |
++
++---
++
++## 2. 模块依赖图
++
++```mermaid
++graph TB
++    subgraph Interface["接口层"]
++        A[MCP工具<br/>RegulationView<br/>Legacy兼容]
++    end
++    
++    subgraph Process["流程层"]
++        B[Pipeline<br/>CausalPipeline编排]
++        C[ProblemClass<br/>路由/分类]
++        D[Strategy<br/>理解协议]
++        E[Skill<br/>执行能力]
++        F[Story<br/>学习样本]
++        G[Hypothesis<br/>跨层产物]
++    end
++    
++    subgraph GroundTruth["真相层"]
++        H[AtomGraph<br/>Atom/Ref/Shortcut]
++        I[RefAlgebra<br/>关系代数检查]
++        J[PatternTemplate<br/>小范畴模板]
++        K[DualStorage<br/>会话/长期内存]
++    end
++    
++    subgraph Evidence["证据层"]
++        L[EvidenceStore<br/>append-only日志]
++    end
++    
++    A -->|调用| B
++    B -->|分类| C
++    B -->|理解| D
++    B -->|执行| E
++    B -->|记录| F
++    B -->|编译| G
++    
++    F -->|submit| H
++    G -->|validate| I
++    G -->|match| J
++    
++    I -->|通过| H
++    J -->|通过| H
++    
++    F -->|recordFix| L
++    G -->|证据| L
++    
++    B -.->|config| C
++    B -.->|config| D
++    B -.->|config| E
++    
++    H -->|查询| I
++    H -->|查询| J
++    
++    style H fill:#ffd700
++    style I fill:#ffd700
++    style J fill:#ffd700
++    style L fill:#ff6b6b
++```
++
++### 核心依赖关系
++
++```
++Pipeline（编排中枢）
++  ├─ ProblemClass（路由）
++  ├─ Strategy（理解协议）
++  ├─ Skill（执行）
++  ├─ Story（学习样本）
++  └─ Hypothesis（跨层产物）
++       ├─ AtomGraph（图查询/更新）
++       │    ├─ RefAlgebra（路径合法性检查）
++       │    └─ Shortcut（编译缓存）
++       ├─ PatternTemplate（模式匹配）
++       ├─ EvidenceStore（记录证据）
++       └─ DualStorage（会话/长期存储）
++
++RegulationViewBuilder（只读投影）
++  └─ AtomGraph.db（查询已编译 Ref）
++
++FuzzyMatcher（模糊搜索）
++  └─ Regulation / Event 表
++
++MonteCarloSampler（大文档采样）
++  └─ 独立算法模块
++
++ReactSearch（ReAct 搜索）
++  └─ AtomGraph + PatternTemplate + KnowledgeCluster
++```
++
++---
++
++## 3. 写路径（数据如何进入系统）
++
++### 3.1 submitObservation 路径
++
++```mermaid
++graph LR
++    A["raw input<br/>问题描述"] 
++    --> B["ingest_facts<br/>拆解成原子"]
++    --> C["Atom 集合<br/>FACT/CONCEPT"]
++    --> D["AtomGraph<br/>write"]
++    --> E["Story<br/>记录观测"]
++    --> F["explore<br/>发散搜索"]
++    --> G["Hypothesis 集合<br/>候选路径"]
++```
++
++**约束**：
++- 原子可修改内容（updateAtom），修改即全局传播（SSOT 原则）
++- Atom 可从任何模块创建，但删除权在 prune（基于 compile 结果）
++- Story 是不可变的学习样本容器
++
++### 3.2 recordFix 路径
++
++```mermaid
++graph LR
++    A["Story<br/>完整案例"]
++    --> B["Story.resolve<br/>标记结果"]
++    --> C["compile<br/>编译模式"]
++    --> D["RefAlgebra<br/>路径合法性"]
++    --> E{合法?}
++    --> |是| F["Ref<br/>tentative→compiled"]
++    --> G["Evidence<br/>append-only"]
++    --> H["myelinate<br/>高频路径"]
++    --> I["Shortcut<br/>编译缓存"]
++    
++    E -->|否| J["reject<br/>记录失败"]
++    --> G
++```
++
++**关键约束**：
++- 图是唯一写模型：所有知识变更先落 Atom/Ref
++- Regulation 只是 compiled Ref 的投影（不直接维护）
++- compile 前必须通过 RefAlgebra 合法性检查
++- Evidence 是 append-only，不可篡改
++- 跨层证据（evidential Ref）不能直接写入 compiled，必须经 Hypothesis → validate → promote
++
++### 3.3 手动写入路径
++
++```
++add_atom(content, kind, provenance='manual')
++  → AtomGraph.atoms 表
++  
++add_ref(fromId, toId, kind, provenance='manual')
++  → AtomGraph.refs 表
++  → 若 mode='compiled'，需 RefAlgebra.validatePathRich 通过
++```
++
++---
++
++## 4. 读路径（数据如何流出）
++
++### 4.1 搜索读路径
++
++```mermaid
++graph LR
++    A["search / causal_search<br/>查询请求"]
++    --> B["ProblemClass.classify<br/>路由"]
++    --> C["subgraph 约束<br/>缩小范围"]
++    --> D["AtomGraph.explore<br/>发散搜索"]
++    --> E["PatternTemplate.match<br/>模式匹配"]
++    --> F["候选路径<br/>Atom/Ref 序列"]
++    
++    D -.->|优化| G["Shortcut<br/>缓存直命中"]
++    F --> H["fuzzy_search<br/>模糊排序"]
++```
++
++### 4.2 列表读路径
++
++```mermaid
++graph LR
++    A["list_regulations<br/>读 API"]
++    --> B["RegulationViewBuilder<br/>.buildAll"]
++    --> C["AtomGraph<br/>查询 compiled Ref"]
++    --> D["RefAlgebra<br/>投影为 Regulation"]
++    --> E["兼容旧接口<br/>返回"]
++```
++
++### 4.3 统计读路径
++
++```
++graph_stats / get_stats
++  ├─ AtomGraph.getStats() → atom/ref/shortcut 计数、orphan 率
++  ├─ EvidenceStore.getStats() → 证据覆盖率、矛盾率
++  ├─ Story.getStats() → 编译成功率、路径选择分布
++  └─ Hypothesis.getStats() → 假设晋升率、编译失败原因
++```
++
++---
++
++## 5. 模块 Ownership Matrix
++
++| 对象 | 创建权 | 修改权 | 删除权 | 说明 |
++|------|--------|--------|--------|------|
++| **Atom** | 任何模块 | updateAtom(id, patch) | prune(orphanOnly) | SSOT：修改即传播 |
++| **Ref (tentative)** | explore / 手动 | explore (weight/scope) | prune (weight < 阈值) | 假设性边 |
++| **Ref (compiled)** | compile | compile (需回放 proof) | compile 自动裁剪 | 因果事实 |
++| **Shortcut** | myelinate | 无 | 底层 Ref 变更时自动失效 | 缓存，不是事实 |
++| **Story** | submitObservation | 状态机方法 (resolve/reject/abandon) | 不可删除 | 学习样本 |
++| **Evidence** | recordFix / 手动 add_evidence | **不可修改** | **不可删除** | **append-only 审计日志** |
++| **Hypothesis** | explore / submitObservation | validate / reject / supersede | 不可删除 | 跨层产物 |
++| **RegulationView** | RegulationViewBuilder | 每次 buildAll 重新物化 | 无持久化 | 读-only 投影 |
++| **ProblemClass** | 手动 seedDefaults | 手动 | 手动 | 路由器，在图外 |
++| **PatternTemplate** | 手动 seedDefaults / 涌现 | 手动 | 手动 | 模式库 |
++| **Strategy** | 手动 seedDefaults | 手动 | 手动 | 理解协议 |
++| **Skill** | 手动 seedDefaults | 手动 + recordExecution | 手动 | 执行能力 |
++| **SkillExecution** | Skill.execute | 无 | 无 | 执行记录（统计用） |
++| **KnowledgeCluster** | trigger_induction | 无 | prune (empty) | 事件聚类 |
++
++---
++
++## 6. 存储分层
++
++```mermaid
++graph TB
++    subgraph DualLayer["DualStorage 双层存储"]
++        A["短期存储<br/>会话 In-Memory"]
++        B["长期存储<br/>SQLite 持久化"]
++    end
++    
++    subgraph CoreTables["真相层表"]
++        H["atoms(id, content, kind, canonicalKey, refCount, provenance)"]
++        I["refs(id, fromAtomId, toAtomId, kind, weight, mode, force, contextScope)"]
++        J["shortcuts(id, fromAtomId, toAtomId, viaPath, derivedFromRefIds, stalenessScore, invalidatedAt)"]
++    end
++    
++    subgraph ProcessTables["流程层表"]
++        K["stories(id, rawInput, problemClassId, observationAtomIds, chosenPath, executedSkillIds, outcome)"]
++        L["hypotheses(id, candidateRefs, interventionOutcomes, confidence, mode, canPromote)"]
++        M["problem_classes(id, name, signatures, defaultStrategy, subgraphConstraint)"]
++        N["strategies(id, name, steps, applicableTo)"]
++        O["skills(id, name, inputs, outputs, sideEffects, idempotent, autoExecutable)"]
++    end
++    
++    subgraph EvidenceTables["证据层表"]
++        P["evidence(id, refId, sourceType, sourceId, contextSnapshot, supportsOrContradicts, confidence)"]
++    end
++    
++    DualLayer --> CoreTables
++    DualLayer --> ProcessTables
++    DualLayer --> EvidenceTables
++    
++    style A fill:#e8f4f8
++    style B fill:#d4e9f0
++    style H fill:#ffd700
++    style I fill:#ffd700
++    style J fill:#ffd700
++    style P fill:#ff6b6b
++```
++
++### 存储特性
++
++| 存储 | 类型 | 所有权 | 访问模式 | 说明 |
++|------|------|--------|----------|------|
++| **短期** | In-Memory (Map/Set) | DualStorage | 读写快速 | 会话内缓存，生命周期绑定 Session |
++| **长期** | better-sqlite3 | DualStorage | ACID 事务 | 持久化，flush 时同步 |
++| **atoms** | 永久表 | AtomGraph | 可读写（SSOT） | 修改即全局传播，删除需 prune |
++| **refs** | 永久表 | AtomGraph | 版本化更新 | 支持 tentative↔compiled 转换 |
++| **shortcuts** | 缓存表 | AtomGraph | 自动失效 | 底层 Ref 变更时 invalidatedAt 自动更新 |
++| **stories** | 永久表 | Pipeline | 不可删除 | 学习样本，支撑 compile 决策 |
++| **evidence** | append-only | EvidenceStore | 只增 | 审计日志，支持矛盾检测 |
++| **hypotheses** | 临时表 | Pipeline | 生命周期 | explore 产物，可回放验证 |
++
++---
++
++## 7. 文件清单
++
++### 核心模块（24 个）
++
++| 文件 | 行数 | 职责 |
++|------|------|------|
++| `atom-graph.ts` | 1,325 | Atom/Ref/Shortcut 存储、图操作（add/update/prune）、去重（canonicalKey）、计数统计 |
++| `ref-algebra.ts` | 420 | 关系代数：四族分类、复合规则、force 约束、evidence policy、proof-carrying |
++| `pattern-template.ts` | 963 | 小范畴模板：SlotFingerprint、InvariantCheck、canCompile 门控、涌现治理 |
++| `hypothesis.ts` | 691 | 一等假设对象、interventionOutcome、canPromote 门控、跨层产物管理 |
++| `evidence.ts` | 560 | append-only EvidenceStore、支撑/反驳/摘要、矛盾检测、健康指标 |
++| `story.ts` | 749 | Story 完整生命周期、状态机（open→clustered→resolved→archived）、compile 服务接口 |
++| `pipeline.ts` | 479 | CausalPipeline 编排、submitObservation→classify→explore→compile 闭环 |
++| `problem-class.ts` | 734 | 问题分类（6 子类）、路由、签名匹配、子图约束、seedDefaults |
++| `skill.ts` | 530 | SkillRegistry、执行契约（inputs/outputs/sideEffects）、种子库、execution 统计 |
++| `regulation-view.ts` | 595 | 从 compiled Ref 投影 Regulation、RegulationViewBuilder、兼容旧接口 |
++| `fuzzy-matcher.ts` | 633 | FuzzyMatcher：token 分解、Levenshtein、Regulation/Event 模糊搜索 |
++| `monte-carlo-sampler.ts` | 536 | 大文档 Monte Carlo 采样、IDF 权重、topK 摘录 |
++| `react-search.ts` | 1,005 | ReAct 搜索框架、思考→行动→观察循环、深度限制、策略选择 |
++| `knowledge-cluster.ts` | 842 | KnowledgeCluster：事件聚类、相似度计算、规则归纳、涌现治理 |
++| `types.ts` | 579 | 全系统类型定义、Atom/Ref/Evidence/Story/Hypothesis 接口 |
++| `storage.ts` | 628 | 通用存储层接口、better-sqlite3 实现、SQL 生成、事务管理 |
++| `dual-storage.ts` | 509 | 双层存储：短期 In-Memory + 长期 SQLite、flush/load/reset 协调 |
++| `explainer.ts` | 251 | 路径解释、证据追溯、"为什么" 问答 |
++| `detector.ts` | 196 | 异常检测、循环检测、悬空点检测 |
++| `inducer.ts` | 222 | 规则归纳、聚类→规律提取 |
++| `validator.ts` | 319 | Ref 有效性验证、proof 回放、Evidence 矛盾检查 |
++| `keywords.ts` | 320 | 关键词提取、TF-IDF、签名匹配 |
++| `unify.ts` | 138 | Atom 去重统一、canonicalKey 规范化 |
++| `index.ts` (core) | 354 | 核心模块导出、核心 API 聚合 |
++
++### 工具模块（6 个）
++
++| 文件 | 行数 | 职责 |
++|------|------|------|
++| `graph.ts` | 570 | 图工具：neighbors/reachable/find_path/query_graph |
++| `search.ts` | 780 | 搜索工具：search_events / search_regulations / fuzzy_search_* |
++| `induction.ts` | 515 | 归纳工具：trigger_induction、knowledge_cluster 涌现 |
++| `observation.ts` | 168 | 观测工具：submit_observation、import_swe_issue |
++| `query.ts` | 300 | 查询工具：list_events / list_regulations / get_stats |
++| `swebench.ts` | 542 | SWE-Bench 评估：导入、训练/测试分离、指标计算 |
++
++### 入口（1 个）
++
++| 文件 | 行数 | 职责 |
++|------|------|------|
++| `index.ts` | 1,100 | MCP 工具注册、RPC 端点、兼容 Legacy API、错误处理 |
++
++**总计：17,553 行** | 31 个文件
++
++---
++
++## 8. 关键不变量
++
++| 不变量 | 映射文件 | 约束 |
++|--------|----------|------|
++| **图是唯一写模型** | atom-graph.ts, pipeline.ts | 所有知识变更先落 Atom/Ref，再物化为 Regulation 视图 |
++| **Regulation 只读投影** | regulation-view.ts | 不可直接手工维护 Regulation 表 |
++| **Shortcut 不可写入真相** | atom-graph.ts | Shortcut 是缓存，由 myelinate 创建，底层 Ref 变更时自动失效 |
++| **compile 基于 Story/Evidence** | pipeline.ts, evidence.ts | 不可凭空强化/弱化 Ref，必须 recordFix 或 add_evidence |
++| **Ref 变更自动失效 Shortcut** | atom-graph.ts | 底层 Ref kind/weight/scope 改变时，invalidatedAt 自动标记 |
++| **ProblemClass 在图外** | problem-class.ts | 路由器，不是 Atom，不被 Ref 连接 |
++| **Atom 写自由，删受限** | atom-graph.ts | 任何模块可创建 Atom，只有 prune 可删除 |
++| **Evidence append-only** | evidence.ts | 不可篡改，只增不改不删 |
++| **RefAlgebra 路径合法性** | ref-algebra.ts, pipeline.ts | compile 前必须通过 validatePathRich 门控 |
++| **evidential 禁止直接升级** | ref-algebra.ts, hypothesis.ts | indicates/cooccurs 只能产生 Hypothesis，不能直接写 compiled Ref |
++
++---
++
++## 9. 系统流量图
++
++```mermaid
++graph TB
++    subgraph ClientRequest["客户端请求"]
++        A["HTTP POST<br/>RPC 调用"]
++        B["MCP 工具<br/>定义的接口"]
++    end
++    
++    subgraph Router["接口路由"]
++        C["index.ts<br/>MCP 端点注册"]
++    end
++    
++    subgraph Tools["工具层"]
++        D["observation.ts<br/>submit_observation"]
++        E["search.ts<br/>search/causal_search"]
++        F["graph.ts<br/>graph_query"]
++        G["query.ts<br/>list_regulations"]
++    end
++    
++    subgraph Process["流程层"]
++        H["Pipeline.submitObservation<br/>分类→理解→搜索"]
++        I["Pipeline.compile<br/>结果→编译"]
++        J["ProblemClass.classify<br/>路由"]
++        K["Strategy.contextualize<br/>理解"]
++        L["Skill.execute<br/>执行"]
++    end
++    
++    subgraph Truth["真相层"]
++        M["AtomGraph<br/>add_atom/add_ref"]
++        N["RefAlgebra.validatePathRich<br/>合法性检查"]
++        O["PatternTemplate.match<br/>模式匹配"]
++    end
++    
++    subgraph Evidence["证据层"]
++        P["EvidenceStore<br/>recordFix"]
++        Q["Evidence<br/>append-only"]
++    end
++    
++    A --> C
++    B --> C
++    
++    C --> D
++    C --> E
++    C --> F
++    C --> G
++    
++    D --> H
++    E --> H
++    F --> M
++    G --> M
++    
++    H --> J
++    H --> K
++    H --> L
++    H --> I
++    
++    I --> N
++    I --> O
++    I --> P
++    
++    N --> M
++    O --> M
++    P --> Q
++    
++    style C fill:#87ceeb
++    style H fill:#87ceeb
++    style I fill:#87ceeb
++    style M fill:#ffd700
++    style N fill:#ffd700
++    style O fill:#ffd700
++    style P fill:#ff6b6b
++    style Q fill:#ff6b6b
++```
++
++---
++
++## 10. 性能特性
++
++### 读性能
++
++| 操作 | 最坏情况 | 优化 |
++|------|---------|------|
++| **explore(graph)** | O(V + E) BFS/DFS | Shortcut 缓存命中 → O(1) |
++| **PatternTemplate.match** | O(candidates × slots) | 预计算 SlotFingerprint |
++| **fuzzy_search** | O(n × m) token 距离 | FuzzyMatcher 优化排序 |
++| **list_regulations** | O(compiled_refs) | 物化视图缓存 |
++| **graph_stats** | O(atoms + refs) | 增量统计 |
++
++### 写性能
++
++| 操作 | 约束 | 说明 |
++|------|------|------|
++| **add_atom** | SSOT 同步 | 修改传播全局（快速） |
++| **add_ref** | RefAlgebra 验证 | 路径合法性检查 |
++| **recordFix** | compile 编译 | 引发 myelinate（按需） |
++| **flush** | 双层同步 | In-Memory → SQLite（事务） |
++
++---
++
++## 11. 扩展点
++
++### 新增 ProblemClass
++
++```
++problem-class.ts:
++  ├─ Seed data: id, name, signatures, subgraphConstraint
++  └─ classify(input) → route to explore(constrainedSubgraph)
++```
++
++### 新增 Skill
++
++```
++skill.ts:
++  ├─ Seed: id, name, inputs, outputs, toolBinding
++  ├─ execute(params) → side effect
++  └─ recordExecution(params, result) → statistics
++```
++
++### 新增 PatternTemplate
++
++```
++pattern-template.ts:
++  ├─ SlotFingerprint: 模板签名
++  ├─ InvariantCheck: 不变量验证
++  └─ seed/induct(events) → new pattern
++```
++
++### 新增 Strategy
++
++```
++problem-class.ts:
++  ├─ Strategy.steps: [classify, contextualize, constrain, retrieve, execute]
++  └─ context-aware step hints
++```
++
++---
++
++## 12. 版本历史
++
++| 版本 | 日期 | 主要变更 |
++|------|------|---------|
++| v1 | 2025-01-10 | 递归分解、原子任务 |
++| v2 | 2025-01-15 | 问题本体（ProblemClass） |
++| v3 | 2025-02-01 | 语义接龙（Strategy） |
++| v4 | 2025-02-10 | 组合树、执行结构（Skill） |
++| v5 | 2025-03-01 | Zettelkasten 模式（Atom/Ref） |
++| v6 | 2025-03-20 | 范畴论（RefAlgebra、PatternTemplate） |
++| **现版本** | 2025-04-10 | 五模块并列、Story 学习样本、Evidence 一等证据、双层存储 |
++
++---
++
++## 相关文档
++
++- [`metamodel.md`](metamodel.md) — 元模型：五模块语义定义
++- [`ref-algebra-contract.md`](ref-algebra-contract.md) — RefAlgebra 合同：复合规则、force 约束
++- [`template-invariant-contract.md`](template-invariant-contract.md) — 模板不变量合同
+diff --git a/docs/current/compile-promotion-contract.md b/docs/current/compile-promotion-contract.md
+new file mode 100644
+index 0000000..66ca6e4
+--- /dev/null
++++ b/docs/current/compile-promotion-contract.md
+@@ -0,0 +1,264 @@
++# Compile 晋升合同：路径编译与引用强化规范
++
++> 本文档是 `metamodel.md` 的局部合同，管辖 Ref 编译（compile）、Hypothesis 晋升、证据记录、Shortcut 创建及失效传播。
++> RefAlgebra 管"能不能推"，本文管"什么时候落盘、怎么晋升、怎么失效"。
++> 代码位置：`core/atom-graph.ts + core/pipeline.ts`
++
++---
++
++## 1. Compile 的输入前提
++
++compile 接受一条 `correctPath`（有序 Atom IDs）和可选的 `failedPaths`。
++
++### 前提检查
++
++| 检查项 | 条件 | 失败后果 |
++|--------|------|---------|
++| **路径最小长度** | correctPath 至少 2 个 Atom | 返回零结果，不写入变更 |
++| **相邻关系存在** | 相邻 Atom 对之间必须有 Ref | 返回零结果，不写入变更 |
++| **路径合法性** | Ref kind 序列通过 `isPathLegal(refKinds)` (RefAlgebra) | 返回零结果，不写入变更 |
++| **晋升资格** | 如果来自 Hypothesis，`canPromote` 必须通过 | 返回零结果，不写入变更 |
++
++**执行顺序**：按上述顺序逐项检查，首次失败立即返回。
++
++---
++
++## 2. Compile 执行步骤
++
++### 2.1 对 correctPath 强化
++
++```
++对每对相邻 (atomIds[i], atomIds[i+1]):
++  1. 找到对应 Ref
++  2. weight = min(1.0, weight + 0.1)
++  3. evidence += 1
++  4. mode = 'compiled'
++  5. lastUsedAt = now
++  6. 写入数据库
++```
++
++### 2.2 对 failedPaths 削弱
++
++```
++对每条 failedPath 中的 tentative Ref:
++  1. weight = max(0.0, weight - 0.05)
++  2. 如果 weight < 0.1 → 删除该 Ref
++  3. 写入数据库
++```
++
++### 2.3 执行顺序保证
++
++| 阶段 | 操作 | 约束 |
++|------|------|------|
++| **Phase 1: 预检查** | 检查上述 4 项前提 | 全部通过才进入 Phase 2 |
++| **Phase 2: 写入 Ref** | 强化 correctPath，削弱 failedPaths | 原子批处理 |
++| **Phase 3: 记录证据** | 调用 `Evidence.recordSupport` | 仅对 correctPath 上的 compiled Ref |
++| **Phase 4: 创建 Shortcut** | 可选，执行 myelinate | 在 Phase 3 之后 |
++
++---
++
++## 3. Hypothesis → Compiled Ref 晋升
++
++### 3.1 Canine.Promote 四项检查
++
++```typescript
++canPromote(hypothesis: Hypothesis): boolean {
++  ✅ hypothesis.status == 'validated'
++  ✅ hypothesis.interventionOutcome >= 'symptom_relieved'
++  ✅ hypothesis.validatedByEvidenceIds.length > 0
++  ✅ hypothesis.forceUpperBound != 'analogical'
++  
++  return 全部通过;
++}
++```
++
++**全部通过** → 允许 compile 将 claim 对应的 Ref 写入 mode='compiled'
++
++### 3.2 InterventionOutcome 晋升矩阵
++
++| Outcome | Explanatory Ref | Interventional Ref | Shortcut |
++|---------|-----------------|-------------------|----------|
++| **mechanism_confirmed** | ✅ 可晋升 | ✅ 可晋升 | ✅ 可创建 |
++| **symptom_relieved** | ❌ 不可 | ✅ 可晋升 | ⚠️ 需 3+ 次 |
++| **workaround_only** | ❌ 不可 | ⚠️ candidate only | ❌ 不可 |
++| **no_effect** | ❌ 降权 | ❌ 降权 | ❌ 不可 |
++| **side_effect** | ❌ 降权+标记 | ❌ 降权+标记 | ❌ 不可 |
++
++**矩阵说明**：
++- `mechanism_confirmed`：全面晋升，可创建 Shortcut
++- `symptom_relieved`：interventional Ref 可晋升，但 Shortcut 需 3 次及以上成功示例
++- `workaround_only`：only candidate，无法 compile 到 confirmed
++- `no_effect` / `side_effect`：降权或标记，不允许晋升
++
++---
++
++## 4. Evidence 追加顺序
++
++### 4.1 执行序列（不可颠倒）
++
++```
++1. compile 执行完毕
++   ↓
++2. Ref 已更新（weight、mode、evidence 计数）
++   ↓
++3. 对 correctPath 上每条 compiled Ref 调用 Evidence.recordSupport
++   ↓
++4. 设置：
++   - sourceType = 'fix'
++   - sourceId = storyId
++   - contextSnapshot = 当时的 ContextScope
++```
++
++### 4.2 约束
++
++| 约束 | 说明 |
++|------|------|
++| **不可提前写 Evidence** | 必须先确认路径合法，再记录证据 |
++| **Evidence 只关联 compiled Ref** | failedPaths 对应的削弱 Ref 不记录证据 |
++| **sourceType 固定为 'fix'** | 来源必须是修复故事 |
++| **contextSnapshot 必须捕获** | 记录 compile 时的 ContextScope |
++
++---
++
++## 5. Shortcut 创建（Myelinate）
++
++### 5.1 创建条件
++
++| 条件 | 阈值 | 说明 |
++|------|------|------|
++| **路径长度** | >= 3 | 首尾 + 至少 1 个中间节点 |
++| **Ref Mode** | all = 'compiled' | 路径上每条 Ref 的 mode 必须是 compiled |
++| **Ref Weight** | all >= minWeight | 默认 minWeight = 0.6 |
++| **Evidence 总和** | >= minUseCount | 默认 minUseCount = 3 |
++
++### 5.2 Shortcut 结构
++
++```typescript
++interface Shortcut {
++  fromAtom: string;
++  toAtom: string;
++  viaPath: string[];              // 中间节点 IDs（必须保留）
++  derivedFromRefIds: string[];    // 来源 Ref IDs（必须保留）
++  weight: number;                 // 聚合权重
++  createdAt: Date;
++  invalidatedAt?: Date;           // 失效时戳（如果已失效）
++}
++```
++
++### 5.3 失效规则
++
++| 触发 | 失效动作 |
++|------|---------|
++| 底层 Ref.kind 变更 | 标记 invalidatedAt |
++| 底层 Ref.weight 降到 < 0.3 | 标记 invalidatedAt |
++| 底层 Ref 被删除 | Shortcut 及其引用全部删除 |
++
++**约束**：Shortcut 不能直接提高底层 Ref 的因果置信度。
++
++---
++
++## 6. RegulationView 投影
++
++### 6.1 投影时机
++
++| 事件 | 动作 |
++|------|------|
++| compile 完成后 | 调用 `RegulationViewBuilder.buildAll()` 刷新 |
++| myelinate 完成后 | 调用 `RegulationViewBuilder.buildAll()` 刷新 |
++| Ref 被删除 | 自动触发下次 buildAll |
++
++### 6.2 投影逻辑
++
++```
++1. 扫描所有 compiled Ref (kind IN {causes, fixes, requires})
++2. 展开 CONJUNCTION Atom 对应的 PART_OF 入边
++3. 按 (precondition set, effect) 分组聚合
++4. 映射 status:
++   - avgWeight >= 0.7 && evidence >= 3 → confirmed
++   - avgWeight >= 0.4 && evidence >= 1 → hypothesis
++   - else → candidate
++```
++
++### 6.3 投影约束
++
++| 约束 | 说明 |
++|------|------|
++| **只投影 compiled Ref** | candidate/hypothesis Ref 不参与 |
++| **CONJUNCTION 展开必须** | 复合原子的完整语义需展开 |
++| **status 严格由计数驱动** | 不受 Ref.force 影响 |
++
++---
++
++## 7. 失效传播
++
++### 7.1 失效矩阵
++
++| 触发 | 影响范围 | 动作 | 级联 |
++|------|---------|------|------|
++| 修改 Ref.kind | 依赖此 Ref 的 Shortcut | 标记 invalidatedAt | ❌ 无级联 |
++| 修改 Ref.weight 降到 < 0.3 | 依赖此 Ref 的 Shortcut | 标记 invalidatedAt | ❌ 无级联 |
++| **删除 Ref** | **依赖此 Ref 的 Shortcut + RegulationView** | **删除 Shortcut，View 下次 buildAll 自动更新** | ✅ 触发 ComposeRule 失效检查 |
++| 修改 ComposeRule | 所有依赖此规则的 compiled Ref | 需回放 proof 验证 | ✅ 级联失效 Shortcut |
++| **删除 Atom** | **入出边的所有 Ref + 依赖 Ref 的 Shortcut** | **级联删除 Ref (ON DELETE CASCADE)** | ✅ 触发上述 Ref 删除的连锁 |
++
++### 7.2 失效检查职责分工
++
++| 组件 | 职责 |
++|------|------|
++| **Ref 修改** | 检查依赖 Shortcut，标记 invalidatedAt |
++| **Shortcut 查询** | 筛出 invalidatedAt 为 null 的有效 Shortcut |
++| **RegulationView** | 下次 buildAll 时自动排除失效 Ref（不需显式触发） |
++| **ComposeRule 变更** | 调用 `validateProof` 回放受影响的 Ref 序列 |
++
++---
++
++## 8. 不变量
++
++| 不变量 | 强度 | 检查点 |
++|--------|------|--------|
++| **compile 前必须通过 RefAlgebra 路径合法性检查** | 硬约束 | `validatePath` 在 Phase 1 执行 |
++| **compile 只能基于 Story/Evidence，不可凭空强化** | 硬约束 | canPromote 检查 validatedByEvidenceIds.length > 0 |
++| **Evidence 写在 compile 之后** | 硬约束 | Phase 顺序执行，Phase 3 在 Phase 2 后 |
++| **Shortcut 写在 compile 之后** | 硬约束 | myelinate 在 recordSupport 后执行 |
++| **analogical force 的 Hypothesis 永远不能触发 compile** | 硬约束 | canPromote 检查 forceUpperBound != 'analogical' |
++| **Regulation 只是投影，不参与写路径** | 硬约束 | RegulationView 仅读取已有 Ref，不创建新 Ref |
++| **Shortcut 不能直接提高底层 Ref 置信度** | 软约束 | Shortcut 仅作导航加速，权重独立 |
++| **失效 Shortcut 标记 invalidatedAt，不删除** | 软约束 | 保留历史审计跟踪 |
++
++---
++
++## 9. 决策树：Compile 能否执行
++
++```
++输入: correctPath, failedPaths, maybeHypothesis
++
++├─ len(correctPath) < 2?
++│  └─ YES → 返回 {ok: false, reason: "path too short"}
++│
++├─ ∃ 相邻 pair 无 Ref?
++│  └─ YES → 返回 {ok: false, reason: "disconnected path"}
++│
++├─ isPathLegal(refKinds)? (RefAlgebra 检查)
++│  └─ NO → 返回 {ok: false, reason: "illegal path"}
++│
++├─ maybeHypothesis exists?
++│  ├─ YES
++│  │  ├─ canPromote(hypothesis)?
++│  │  │  ├─ NO → 返回 {ok: false, reason: "promotion failed"}
++│  │  │  └─ YES → 继续
++│  │  └─ 否则 hypothesis = null
++│  └─
++│
++└─ 执行 compile（Phase 2-4）
++   └─ 返回 {ok: true, result: ...}
++```
++
++---
++
++## 10. 风格指南
++
++- **表格优先**：复杂逻辑用表格展示，清晰明确
++- **编号精确**：步骤编号顺序，不能乱序
++- **无废话**：每句话都是约束或规则，删除过渡说明
++- **数字化**：阈值、计数、百分比等显式写出
++- **链接 RefAlgebra**：涉及 Ref 复合必须明确指向 RefAlgebra 合同
+diff --git a/docs/current/hypothesis-contract.md b/docs/current/hypothesis-contract.md
+new file mode 100644
+index 0000000..6d5526b
+--- /dev/null
++++ b/docs/current/hypothesis-contract.md
+@@ -0,0 +1,187 @@
++# Hypothesis 合同：门控与状态机规范
++
++> 本文档是 `metamodel.md` 的局部合同，管辖假设生命周期、验证门控、晋升规则。
++> 代码位置：`core/hypothesis.ts`
++
++---
++
++## 1. Schema
++
++```typescript
++interface Hypothesis {
++  id: string;                           // "hyp_xxxxxxxx"
++  claim: { 
++    fromAtomId: string; 
++    toAtomId: string; 
++    kind: string;                       // Ref 类型（causes, fixes, indicates 等）
++  };
++  forceUpperBound: RefForce;            // 不能超过此强度
++  evidencePolicy: EvidencePolicy;       // 证据继承策略
++  derivation: HypothesisDerivation[];   // 推导步骤（proof-carrying）
++  scope: HypothesisScope;               // 适用范围（project/domain/universal）
++  status: HypothesisStatus;             // open | validated | rejected | superseded
++  storyId?: string;                     // 关联 Story ID
++  blockedBy?: string[];                 // 阻塞的 Hypothesis IDs
++  validatedByEvidenceIds?: string[];    // 验证依据的 Evidence IDs
++  interventionOutcome?: InterventionOutcome;  // 干预结果语义
++}
++
++interface HypothesisDerivation {
++  stepIndex: number;
++  refKind: string;
++  force: RefForce;
++  position: number;                     // Atom 在路径中的位置
++}
++
++type HypothesisStatus = 'open' | 'validated' | 'rejected' | 'superseded';
++type HypothesisScope = 'project' | 'domain' | 'universal';
++type InterventionOutcome = 
++  | 'mechanism_confirmed'
++  | 'symptom_relieved'
++  | 'workaround_only'
++  | 'no_effect'
++  | 'side_effect';
++```
++
++---
++
++## 2. 状态机
++
++```
++┌─────┐    validate()      ┌───────────┐    supersede()    ┌────────────┐
++│open │ ─────────────────→ │validated  │ ──────────────→ │superseded │
++└─────┘                    └───────────┘                  └────────────┘
++  │                              │
++  │                              │
++  └──────reject()────→ ┌─────────┴──────┐
++                      │                 │
++                    ┌────────┐     ┌─────────┐
++                    │rejected│     │terminal │
++                    └────────┘     └─────────┘
++```
++
++| 流转 | 条件 | 说明 |
++|------|------|------|
++| `open → validated` | validate(evidenceIds, outcome) | 提供证据 ID 和干预结果，门控通过 |
++| `open → rejected` | reject(reason) | 证据不足或推导无效，永久阻止 |
++| `validated → superseded` | supersede(newHypothesisId) | 被更好的假设取代 |
++| `rejected → (终态)` | - | 不可逆，审计日志保留 |
++| `superseded → (终态)` | - | 不可逆，新假设继承此线索 |
++
++**禁止流转**：
++- `validated → open`（验证不可撤销）
++- `rejected → validated`（驳回不可复活）
++- `superseded → validated`（已取代不可重启）
++
++---
++
++## 3. InterventionOutcome 语义
++
++| 值 | 含义 | 对 explanatory Ref 的影响 | 对 interventional Ref 的影响 |
++|----|------|--------------------------|---------------------------|
++| `mechanism_confirmed` | 机理被确认，修复成功 | 允许大幅提升置信度（necessary/sufficient） | 允许推 interventional |
++| `symptom_relieved` | 症状缓解但机理未确认 | 允许保守提升（contributory） | 允许推 interventional |
++| `workaround_only` | 只是绕过，非根治 | 禁止推 explanatory | 仅允许记录 interventional（标记 workaround） |
++| `no_effect` | 干预无效果 | 降低相关 Ref 权重 | 降低权重，标记无效 |
++| `side_effect` | 有副作用 | 降低权重 + 标记风险 | 标记有害，禁止推荐 |
++
++**核心原则**：修复成功 ≠ 解释正确。`symptom_relieved` 只说明修复有效，不说明机理理解正确。
++
++---
++
++## 4. canPromote 门控矩阵
++
++四项检查全部通过才允许晋升为 compiled Ref：
++
++| 检查项 | 门控条件 | 失败时 | 说明 |
++|--------|---------|--------|------|
++| **状态** | `status === 'validated'` | 阻止晋升 | 仅 validated 假设可晋升 |
++| **干预强度** | `outcome >= 'symptom_relieved'` | 阻止晋升 | no_effect/side_effect 禁止晋升 |
++| **证据支撑** | `validatedByEvidenceIds.length > 0` | 阻止晋升 | 必须有至少一个证据 ID |
++| **force 上界** | `forceUpperBound !== 'analogical'` | 阻止晋升 | analogical 边永不晋升为世界模型 |
++
++**门控逻辑**（伪代码）：
++```typescript
++canPromote(hyp: Hypothesis): boolean {
++  return hyp.status === 'validated' &&
++         hyp.interventionOutcome &&
++         ['mechanism_confirmed', 'symptom_relieved'].includes(hyp.interventionOutcome) &&
++         hyp.validatedByEvidenceIds?.length > 0 &&
++         hyp.forceUpperBound !== 'analogical';
++}
++```
++
++---
++
++## 5. derivation 与 proof-carrying
++
++每个 Hypothesis 携带完整推导记录：
++
++```typescript
++interface HypothesisDerivation {
++  stepIndex: number;        // 路径中的第 N 步
++  refKind: string;          // 此步的 Ref 类型（causes, fixes 等）
++  force: RefForce;          // 此步的 force 值
++  position: number;         // Atom 序号（用于 Ref 查询）
++}
++```
++
++**失效规则**：
++- 底层 Ref 的 `kind` 或 `force` 或 `scope` 变更时，所有依赖它的 Hypothesis 的 derivation 必须回放验证
++- 若回放失败（path no longer legal），Hypothesis 标记为 `rejected`（reason='derivation replay failed'），不再参与编译
++
++---
++
++## 6. 与其他模块的关系
++
++| 模块 | 交互点 | 说明 |
++|------|--------|------|
++| **Pipeline** | submitObservation 中的 explore 跨层 | 产生 Hypothesis |
++| **Pipeline** | recordFix 调用 validate | 验证假设，绑定 Evidence 与 outcome |
++| **RefAlgebra** | compile 晋升前验证 path 合法性 | isPathLegal 门控 |
++| **Evidence** | validatedByEvidenceIds 关联 | 每次 validate 链接证据 |
++| **PatternTemplate** | 模板实例化产生 Hypothesis | 模板的 arrows 约束 claim.kind |
++
++---
++
++## 7. 不变量
++
++| 不变量 | 说明 | 执行者 |
++|--------|------|--------|
++| Hypothesis 不可删除 | 永久审计日志，状态标记 rejected 不删除 | 存储层 |
++| 状态流转不可逆 | open→validated 后不能重置为 open | validate/reject 守卫 |
++| analogical force 永远无法晋升 | canPromote 中的 force 上界检查 | compile 门控 |
++| 没有 Evidence 的 Hypothesis 不能 validate | validatedByEvidenceIds.length > 0 | validate 守卫 |
++| derivation 回放失败 → Hypothesis 标记 rejected | proof-carrying 机制 | derivation replay 函数 |
++| 一个 Hypothesis 不能同时 validated 和 rejected | 状态机独占性 | 状态转移函数 |
++
++---
++
++## 8. 验证流程（Pipeline.recordFix）
++
++```
++recordFix(eventId, fix) →
++  ├─ 查询关联的 Hypothesis 列表 (by storyId)
++  ├─ 获取 InterventionOutcome（从修复结果推断）
++  ├─ 逐个调用 hypothesis.validate(evidenceIds, outcome)
++  │  ├─ 检查 evidence 合法性
++  │  ├─ 状态转移 open → validated
++  │  └─ 保存 validatedByEvidenceIds
++  ├─ 遍历所有 validated hypothesis
++  ├─ 逐个调用 compile(hyp)
++  │  ├─ canPromote 门控
++  │  ├─ derivation 回放验证
++  │  └─ 如果通过，写入 compiled Ref
++  └─ 标记 Event 为 resolved
++```
++
++---
++
++## 9. 角色边界
++
++| 角色 | 职责 | 不负责 |
++|------|------|--------|
++| **Hypothesis** | 候选解释、推导记录、状态机 | 不管理 Evidence 生命周期 |
++| **Evidence** | 观察事实、支撑力度 | 不判断假设有效性 |
++| **Ref** | 编译后的世界模型边 | 不追踪假设来源 |
++| **Story** | 事件群聚 + 解释线索 | 不管理单个假设状态 |
+diff --git a/docs/current/metamodel.md b/docs/current/metamodel.md
+new file mode 100644
+index 0000000..d3ce7e6
+--- /dev/null
++++ b/docs/current/metamodel.md
+@@ -0,0 +1,424 @@
++# BestQ-A 元模型：当前语义合同
++
++> 本文档是系统的**唯一语义底座**。所有代码、表结构、MCP 工具名必须与本文档对齐。
++> 不是 v6，而是 v1-v5 的收束。
++
++---
++
++## 0. 五个并列模块
++
++```
++┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
++│ ProblemClass │  │  Strategy    │  │    Skill     │  │  Story/Case  │  │ Atom/Ref/    │
++│  (是什么)    │  │  (怎么想)    │  │  (怎么做)    │  │  (经历了什么) │  │  Shortcut    │
++│              │  │              │  │              │  │              │  │  (知道什么)   │
++│  问题本体论  │  │  理解协议    │  │  执行结构    │  │  学习样本    │  │  图真相层    │
++│  (v2)        │  │  (v3)        │  │  (v1/v4)     │  │  (新增)      │  │  (v5)        │
++└──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘
++       │                 │                 │                 │                 │
++       │    classify     │  contextualize  │    execute      │    compile      │
++       └────────→────────┴────────→────────┴────────→────────┴────────→────────┘
++```
++
++**关键约束**：每个模块独立建模，不互相吞并。`ProblemClass` 不是 Atom，`Skill` 不是 ActionAtom，`Story` 不是 Event。
++
++---
++
++## 1. ProblemClass — 问题本体论
++
++### 是什么
++
++对"这是什么类型的问题"的抽象分类。**不是图搜索的副作用，而是图搜索之前的先验约束。**
++
++```typescript
++interface ProblemClass {
++  id: string;                    // "PC_null_deref"
++  name: string;                  // "空指针解引用类问题"
++  description: string;
++  signatures: string[];          // 匹配特征：["AttributeError", "NoneType", "null", "undefined"]
++  defaultStrategy: string;       // 默认策略 ID
++  subgraphConstraint: string;    // 图查询时的子图约束条件
++}
++```
++
++### 不是什么
++
++- 不是 Atom（不在图中被 Ref 连接）
++- 不是 tag/label（它有自己的匹配逻辑和策略绑定）
++- 不是 Regulation（它不描述因果，只描述归类）
++
++### 在系统中的位置
++
++```
++输入 → ProblemClass.classify() → 缩小子图范围 → explore()
++```
++
++ProblemClass 是**路由器**，决定了 explore 在图的哪个区域搜索，而非搜索整个图。
++
++---
++
++## 2. Strategy / Archetype — 理解协议
++
++### 是什么
++
++收到问题后"怎么理解、怎么检索"的思考协议。来自 v3 的语义接龙。
++
++```typescript
++interface Strategy {
++  id: string;                    // "STR_diagnose_error"
++  name: string;                  // "错误诊断策略"
++  steps: StrategyStep[];         // 有序步骤
++  applicableTo: string[];        // 适用的 ProblemClass IDs
++}
++
++interface StrategyStep {
++  phase: 'classify' | 'contextualize' | 'constrain' | 'retrieve' | 'execute';
++  description: string;
++  toolHint?: string;             // 建议使用的 MCP 工具名
++}
++```
++
++### 不是什么
++
++- 不是可执行代码（那是 Skill 的职责）
++- 不是因果规则（那是 Ref 的职责）
++- 不是 Composite Tree（v4 的组合树映射到 Strategy + Skill 的组合）
++
++### 典型实例
++
++```
++Strategy: "错误诊断"
++  Step 1: classify — 这是什么类型的错误？
++  Step 2: contextualize — 在什么技术栈/版本下发生？
++  Step 3: constrain — 缩小到相关子图
++  Step 4: retrieve — 在子图中 explore 候选路径
++  Step 5: execute — 按最高权重路径执行修复 Skill
++```
++
++---
++
++## 3. Skill — 可执行技能
++
++### 是什么
++
++具有明确输入输出契约的可执行操作。v1 的原子任务 + v4 的 Atom 中的执行部分。
++
++```typescript
++interface Skill {
++  id: string;                    // "SKL_add_null_check"
++  name: string;                  // "添加空指针检查"
++  description: string;
++
++  // 执行契约
++  inputs: SkillParam[];          // 输入参数
++  outputs: SkillParam[];         // 输出
++  sideEffects: boolean;          // 是否有副作用
++  idempotent: boolean;           // 是否幂等
++  autoExecutable: boolean;       // 是否允许自动执行（vs 需要人工确认）
++
++  // 绑定
++  boundAtomId?: string;          // 关联的 ACTION Atom（知识层面的"建议"）
++  toolBinding?: string;          // 绑定的 MCP 工具或 CLI 命令
++}
++
++interface SkillParam {
++  name: string;
++  type: string;
++  description: string;
++  required: boolean;
++}
++```
++
++### 不是什么
++
++- 不是 ACTION Atom（Atom 是知识层面的"建议"，Skill 是执行层面的"能力"）
++- 不是 Strategy step（Strategy 说"该做什么"，Skill 说"怎么做"）
++
++### 与 Atom 的关系
++
++```
++ActionAtom("add null check") ← 知识：这是一个可能的修复建议
++          ↓ boundAtomId
++Skill("SKL_add_null_check")  ← 执行：输入 file+line，输出 patch，可自动执行
++```
++
++图能告诉你"add null check"是个修复动作，Skill 让系统知道怎么真正去做。
++
++---
++
++## 4. Story / Case — 学习样本
++
++### 是什么
++
++一次完整的"遇到问题 → 尝试解释 → 实际修复"的全过程记录。compile 的输入不是抽象图操作，而是具体的 Case。
++
++```typescript
++interface Story {
++  id: string;                    // "STORY_20260410_001"
++
++  // 输入
++  rawInput: string;              // 原始问题描述
++  problemClassId: string;        // 归类结果
++  context: ContextScope;         // 上下文快照
++
++  // 过程
++  observationAtomIds: string[];  // 观测拆解出的 Atom IDs
++  candidatePaths: PathResult[];  // 发散模式产生的候选路径
++  chosenPath?: PathResult;       // 最终选择的路径
++  executedSkillIds: string[];    // 实际执行的 Skill IDs
++
++  // 结果
++  outcome: 'success' | 'partial' | 'failure' | 'abandoned';
++  outcomeNotes?: string;
++
++  // 元数据
++  operator: string;              // 操作者（人/agent）
++  createdAt: string;
++  resolvedAt?: string;
++}
++```
++
++### 不是什么
++
++- 不是 Event（Event 是"未解释的观测"，Story 是完整闭环的案例）
++- 不是 Regulation（Regulation 是 compiled Ref 的视图，Story 是学习样本）
++
++### 与 compile 的关系
++
++```
++compile 不直接面对抽象图，而是面对具体的 Story：
++
++Story.chosenPath  → compile: 强化这条路径
++Story.candidatePaths - chosenPath → compile: 弱化未选路径
++Story.outcome == 'failure' → compile: 弱化 chosenPath
++```
++
++**图是知识，Story 是学习样本。两者分开后，系统会稳很多。**
++
++---
++
++## 5. Atom / Ref / Shortcut — 图真相层
++
++### 5.1 Atom — 知识节点
++
++不可再分的单一事实/概念。**SSOT：修改即传播。**
++
++```typescript
++interface Atom {
++  id: string;
++  content: string;
++  kind: AtomKind;
++  canonicalKey: string;         // 规范化 key，用于同义去重
++  refCount: number;
++}
++
++enum AtomKind {
++  FACT        // 观测事实（不可执行）
++  CONCEPT     // 抽象概念（不可执行）
++  ACTION      // 修复建议（知识层面，不直接执行 → 需绑定 Skill）
++  CONTEXT     // 环境上下文（作为 ContextScope 的一部分）
++  PATTERN     // 模式标签
++  CONJUNCTION // 合取节点（A && B）
++}
++```
++
++**写权限**：任何模块可创建 Atom，但只有 compile 可以删除（通过 prune）。
++
++### 5.2 Ref — 引用边
++
++卡片之间的关系。**关系本身就是知识。**
++
++```typescript
++interface Ref {
++  id: string;
++  fromAtomId: string;
++  toAtomId: string;
++  kind: RefKind;
++  weight: number;               // 0.0-1.0
++  mode: 'tentative' | 'compiled';
++  provenance: RefProvenance;    // 来源追溯
++  contextScope: ContextScope;   // 此关系成立的上下文条件
++  evidenceIds: string[];        // 支撑此关系的 Evidence IDs
++}
++```
++
++**写权限**：
++- explore 可创建 `tentative` 边
++- compile 可升级为 `compiled` 或删除
++- 手动添加标记为 `provenance: 'manual'`
++
++**失效规则**：
++- 修改 Ref.kind → 依赖此 Ref 的 Shortcut 全部失效
++- 删除 Ref → 两端 Atom.refCount 自动减 1
++- 删除 Atom → 级联删除所有关联 Ref
++
++### 5.3 Shortcut — 编译缓存
++
++高频路径的压缩。**不是一等因果事实，是 cache。**
++
++```typescript
++interface Shortcut {
++  id: string;
++  fromAtomId: string;
++  toAtomId: string;
++  viaPath: string[];            // 完整中间路径（必须保留）
++  derivedFromRefIds: string[];  // 来源 Ref IDs（溯源）
++  applicableIf: ContextScope;   // 适用条件
++  stalenessScore: number;       // 0.0-1.0，越高越可能过期
++  invalidatedAt?: string;       // 失效时间戳
++}
++```
++
++**硬约束**：
++- Shortcut 只能加速检索，不能直接提高底层因果置信度
++- Shortcut 必须保留 `viaPath` 和 `derivedFromRefIds`
++- 底层 Ref 被修改或删除时，相关 Shortcut 自动标记失效
++- Shortcut 不可直接写入真相层（只能由 myelinate 创建）
++
++---
++
++## 6. Evidence — 一等证据
++
++### 是什么
++
++支撑一条 Ref 存在的具体证据。不是计数器，是可溯源的一等对象。
++
++```typescript
++interface Evidence {
++  id: string;
++  refId: string;                // 所支撑的 Ref
++
++  sourceType: 'observation' | 'test' | 'fix' | 'user_confirmed' | 'benchmark';
++  sourceId: string;             // Story ID / Test ID / Fix commit
++  contextSnapshot: ContextScope; // 证据产生时的上下文
++  supportsOrContradicts: 'supports' | 'contradicts';
++  reproducible: boolean;
++  confidence: number;           // 0.0-1.0
++  capturedAt: string;
++}
++```
++
++### 价值
++
++有了 Evidence，系统可以回答：
++- 这条边**为什么**存在？→ `Evidence.sourceId`
++- 它在**哪些上下文**里成立？→ `Evidence.contextSnapshot`
++- 是**谁**验证过？→ `Evidence.sourceType`
++- 有**哪些反例**？→ `supportsOrContradicts == 'contradicts'`
++
++没有这层，compiled Ref 会变成"系统好像知道，但说不清凭什么知道"。
++
++---
++
++## 7. ContextScope — 作用域系统
++
++### 是什么
++
++不是 AtomKind，是结构化的条件谓词。
++
++```typescript
++interface ContextScope {
++  env?: string;                 // dev / prod / ci
++  stack?: string[];             // ["django", "postgresql", "linux"]
++  version?: string;             // "django>=4.0"
++  timeRange?: {                 // 此知识的有效时间窗口
++    from?: string;
++    to?: string;
++  };
++  project?: string;             // 项目/租户
++  custom?: Record<string, unknown>; // 扩展字段
++}
++```
++
++### 用途
++
++```
++Ref:      A causes B under {stack: ["django"], env: "prod"}
++Shortcut: A → D applicable_if {stack: ["django"]}
++Evidence: 在 {env: "prod", version: "4.2"} 下观测到 A→B
++```
++
++**ContextScope 让"A causes B"从普适真理变成有条件的命题。**
++
++---
++
++## 8. 运行时流程
++
++```mermaid
++graph TD
++    INPUT[原始输入] --> CLASSIFY[ProblemClass.classify]
++    CLASSIFY --> STRATEGY[Strategy.select]
++    STRATEGY --> CTX[ContextScope.build]
++    CTX --> CONSTRAIN[缩小子图范围]
++    CONSTRAIN --> EXPLORE[explore: 发散模式]
++    EXPLORE --> CANDIDATES[候选路径]
++    CANDIDATES --> SELECT[选择最优路径]
++    SELECT --> EXECUTE[Skill.execute]
++    EXECUTE --> OUTCOME[结果]
++    OUTCOME --> STORY[Story.record]
++    STORY --> COMPILE[compile: 编译模式]
++    COMPILE --> GRAPH[更新 Atom/Ref]
++    COMPILE --> EVIDENCE[创建 Evidence]
++    COMPILE --> MYELINATE{高频?}
++    MYELINATE -->|是| SHORTCUT[创建 Shortcut]
++```
++
++**关键**：`classify → contextualize → constrain subgraph → explore`，不是 `raw input → whole graph search`。
++
++---
++
++## 9. 系统不变量
++
++以下约束在任何情况下不可违反：
++
++| 不变量 | 说明 |
++|--------|------|
++| **图是唯一写模型** | 所有知识变更先落 Atom/Ref，再物化为 Regulation 视图 |
++| **Regulation 只是读视图** | 不可直接手工维护 Regulation 表，它是 compiled Ref 的投影 |
++| **Shortcut 不可写入真相层** | Shortcut 是缓存，不是因果事实，只由 myelinate 创建 |
++| **compile 只能基于 Story/Evidence** | 不可凭空强化/弱化 Ref，必须有具体案例支撑 |
++| **删除 Ref 必须联动 Shortcut 失效** | 底层 Ref 变动时，依赖的 Shortcut 自动标记 invalidatedAt |
++| **ProblemClass 在图外** | ProblemClass 是路由器，不是 Atom，不被 Ref 连接 |
++| **Atom 写自由，删受限** | 任何模块可创建 Atom，只有 prune（基于 compile 结果）可删除 |
++| **Evidence 不可篡改** | Evidence 是 append-only 日志，只增不改不删 |
++
++---
++
++## 10. 关键指标
++
++| 指标 | 含义 | 健康范围 |
++|------|------|---------|
++| `problem_class_router_accuracy` | ProblemClass 归类准确率 | > 80% |
++| `atom_dedup_precision` | Atom 去重精度（同义合并正确率） | > 90% |
++| `orphan_atom_rate` | 孤立卡片比例（refCount=0） | < 20% |
++| `explore_branching_factor` | 发散模式平均候选路径数 | 3-15 |
++| `compile_acceptance_rate` | compile 后保留的路径比例 | 30-70% |
++| `shortcut_hit_rate` | 探索时直接命中 Shortcut 的比例 | 随使用逐步上升 |
++| `contradiction_rate` | 同一 Ref 上的矛盾证据比例 | < 10% |
++| `evidence_freshness_coverage` | 有近 30 天 Evidence 的 compiled Ref 占比 | > 50% |
++
++---
++
++## 11. 与代码的映射
++
++| 元模型对象 | 当前代码位置 | 状态 |
++|-----------|-------------|------|
++| Atom / Ref / Shortcut | `core/atom-graph.ts` | ✅ 已实现（含 canonicalKey 去重、provenance、contextScope、CONJUNCTION） |
++| Evidence | `core/evidence.ts` | ✅ 已实现（append-only EvidenceStore，支撑/反驳/摘要/健康检查） |
++| Story / Case | `core/story.ts` | ✅ 已实现（完整生命周期、compile 服务接口、ContextScope 工具函数） |
++| ProblemClass | `core/problem-class.ts` | ✅ 已实现（6 种子分类、签名匹配、子图约束） |
++| Strategy | `core/problem-class.ts` | ✅ 已实现（步骤化协议、与 ProblemClass 绑定） |
++| Skill | `core/skill.ts` | ✅ 已实现（SkillRegistry、执行契约、种子数据、执行统计） |
++| ContextScope | `core/story.ts` (结构化接口 + 工具函数) | ✅ 已实现（scopeContains/Overlaps/Merge） |
++| Regulation (view) | `core/regulation-view.ts` | ✅ 已实现（RegulationViewBuilder：从 compiled Ref 投影，兼容旧接口） |
++| RefAlgebra | `core/ref-algebra.ts` | ✅ 已实现（四族分类、复合规则、RefForce、EvidencePolicy、proof-carrying） |
++| PatternTemplate | `core/pattern-template.ts` | ✅ 已实现（小范畴模板、SlotFingerprint、InvariantCheck、canCompile 门控） |
++| Hypothesis | `core/hypothesis.ts` | ✅ 已实现（一等假设对象、InterventionOutcome、canPromote 门控） |
++| Pipeline | `core/pipeline.ts` | ✅ 已实现（CausalPipeline：submit→classify→explore→compile 闭环编排） |
++
++### 局部合同
++
++| 合同 | 文件 | 管辖 |
++|------|------|------|
++| RefAlgebra 合同 | `current/ref-algebra-contract.md` | 复合规则、force 约束、evidencePolicy、proof 失效 |
++| Template 不变量合同 | `current/template-invariant-contract.md` | SlotFingerprint、InvariantCheck、模板生命周期、涌现治理 |
+diff --git a/docs/current/pipeline-contract.md b/docs/current/pipeline-contract.md
+new file mode 100644
+index 0000000..24d6821
+--- /dev/null
++++ b/docs/current/pipeline-contract.md
+@@ -0,0 +1,287 @@
++# CausalPipeline 编排合同：调用序列与失败语义
++
++> 本文档定义 Pipeline 的三条核心流程、事务边界、幂等性约束、错误处理策略与不变量。
++> Pipeline 是闭环编排器，没有这份合同，调用顺序、失败语义、事务边界容易漂移。
++> 代码位置：`core/pipeline.ts`
++
++---
++
++## 1. 三条核心流程
++
++### 1.1 submitObservation 流程
++
++```
++观测输入 (ObservationInput)
++  ↓
++1. AtomGraph.ingestFacts(facts, context) → Atoms
++  ↓
++2. ProblemClass.classify(rawInput) → 分类结果
++  ↓
++3. StoryStorage.create() → Story (status=open)
++  ↓
++4. AtomGraph.explore(factAtomIds) → 候选路径
++   （受 RefAlgebra 剪枝，非法复合被丢弃）
++  ↓
++5. PatternEngine.matchTemplates(atoms, refChecker) → 模板匹配
++  ↓
++6. StoryStorage.startExploring(storyId, candidatePaths)
++  ↓
++7. 返回 ObservationResult {atoms, classification, story, candidatePaths, templateMatches, suggestions}
++```
++
++**关键约束**：
++- classify 失败 → 跳过分类，继续后续步骤
++- explore 无结果 → Story 保持 open，suggestions 提示"等待更多数据"
++- 图是唯一写模型，ingestFacts 是唯一的 Atom 写入口
++
++---
++
++### 1.2 recordFix 流程
++
++```
++Fix 信息 (FixInput: storyId + fixDescription + chosenPathAtomIds)
++  ↓
++1. AtomGraph.addAtom(fixDescription, ACTION) → 修复 Atom
++  ↓
++2. AtomGraph.compile(correctPath, failedPaths)
++   → RefAlgebra 路径预检（不合法则返回零结果）
++   → 正确路径: weight↑, mode='compiled'
++   → 失败路径: weight↓, 低于阈值则删除
++  ↓
++3. StoryStorage.resolve(storyId, 'success')
++  ↓
++4. EvidenceStore.recordSupport() → 为路径上每条 compiled Ref 记录证据
++  ↓
++5. StoryStorage.markCompiled(storyId)
++  ↓
++6. AtomGraph.myelinate() → 尝试创建 Shortcut（尽力而为）
++  ↓
++7. RegulationViewBuilder.buildAll() → 刷新只读视图
++  ↓
++8. 返回 FixResult {story, compile, evidenceCount, regulationViews}
++```
++
++**关键约束**：
++- compile 前必须通过 RefAlgebra 路径合法性检查
++- Evidence 写在 compile 之后（先确认合法，再记录证据）
++- Regulation 只是投影，不直接写入
++
++---
++
++### 1.3 search 流程
++
++```
++查询 Query
++  ↓
++1. ProblemClass.classify(query) → 问题分类
++  ↓
++2. AtomGraph.findAtoms(query) → 查找相关原子知识
++  ↓
++3. AtomGraph.explore(atomIds) → 从原子出发找候选路径
++   ├─ divergent 模式：找所有可达解释
++   └─ tentative/compiled 边混合使用
++  ↓
++4. RegulationViewBuilder.search(query) → 查找匹配的规律视图
++  ↓
++5. 返回 SearchResult
++   {
++     classification: string,
++     paths: Path[],
++     regulations: RegulationView[],
++     suggestions: string[]
++   }
++```
++
++---
++
++## 2. 事务边界与失败语义
++
++| 操作 | 原子性 | 失败语义 |
++|------|--------|---------|
++| `ingestFacts` | 单 DB 事务 | Atom 创建全成功或全失败 |
++| `classify` | 无事务（纯计算） | 失败则跳过，不阻塞 |
++| `explore` | 非原子（只读 + tentative 创建） | 部分 tentative 可能已写入 |
++| `compile` | 单 DB 事务 | 路径不合法则全部不写 |
++| `Story.create/resolve` | 单 DB 事务 | 状态要么更新要么不动 |
++| `Evidence.record` | 单 DB 事务 + append-only | 不可回滚 |
++| `myelinate` | 尽力而为 | 失败不影响主流程 |
++
++---
++
++## 3. 幂等性约束
++
++| 操作 | 幂等 | 说明 |
++|------|------|------|
++| `ingestFacts` | ✅ | canonicalKey 去重 |
++| `addRef` | ✅ | UNIQUE(from, to, kind) 冲突时更新 weight |
++| `classify` | ✅ | 纯计算无副作用 |
++| `compile` | ❌ | weight 会累加 |
++| `recordFix` | ❌ | 会创建新 Evidence |
++| `myelinate` | ✅ | Shortcut 存在则跳过 |
++| `Story.create` | ❌ | 每次创建新 Story |
++
++---
++
++## 4. 错误处理策略
++
++### 4.1 分类失败（classify 返回 null 或异常）
++
++```
++流程位置：submitObservation 开头
++处理方式：跳过分类，继续后续步骤
++结果：observation 保存，照常尝试解释
++```
++
++**不中断管道**：分类失败不妨碍问题解决，只是缺少问题类别标签。
++
++### 4.2 探索无结果（explore 返回空路径）
++
++```
++流程位置：submitObservation 核心
++处理方式：Story 保持 open，suggestions 提示等待更多数据
++结果：Story 保持 open，建议告知用户"需要更多数据"
++```
++
++**后续路径**：
++- 等待更多相关观测加入，可用 `reevaluateEvent` 周期性重试
++- 或手动 `recordFix` 来提供修复证据
++
++### 4.3 编译路径非法（compile 拒绝）
++
++```
++流程位置：recordFix 中调用 compile 前
++处理方式：返回零结果，不写入任何 Ref
++结果：Story 不标记 resolved，Regulation 视图不更新
++```
++
++**原因例**：
++- 路径中存在禁止的复合（如 `indicates` → `causes`）
++- RefForce 约束违反（力度不单调下降）
++- 证据策略冲突
++
++### 4.4 Evidence 写入失败
++
++```
++流程位置：recordFix 的 EvidenceStore.recordSupport 调用
++处理方式：记录错误，compile 结果仍保留
++结果：部分 Ref 的 Evidence 未记录，但路径已编译
++```
++
++**日志建议**：
++```
++log.warn('Evidence 写入失败', {
++  refId: refId,
++  storyId: storyId,
++  error: e.message
++});
++```
++
++---
++
++## 5. 版本戳与校准（Versioning & Calibration）
++
++Pipeline 每次操作应记录当前系统版本信息以支持后续校准：
++
++```typescript
++interface PipelineContext {
++  // 代数版本（RefAlgebra 规则的演变）
++  algebraVersion: string;        // 如 "v2.1_compositional"
++  
++  // 模板版本（PatternTemplate 演变）
++  templateVersion: string;       // 如 "v1.3_convergent"
++  
++  // 策略版本（Strategy 集合演变）
++  strategyVersion: string;       // 如 "v2_diagnostic"
++  
++  // 时间戳
++  timestamp: string;             // ISO 8601
++}
++```
++
++**实现**（尚未完成，作为待办项）：
++- 在 submitObservation 结果中附加 `pipelineContext`
++- 在 recordFix 前验证版本一致性
++- 版本不匹配时记录告警，评估是否需要重新校准
++
++---
++
++## 6. 不变量（Invariants）
++
++这些条件必须始终成立，违反则系统处于不一致状态：
++
++| 不变量 | 说明 | 检查点 |
++|--------|------|--------|
++| **O1** | submitObservation 必须创建 Story（即使分类失败） | submitObservation 返回前 |
++| **O2** | 已 resolved 的 Story 不能再次 recordFix | recordFix 开头 |
++| **O3** | ingestFacts 是唯一的 Atom 写入口 | AtomGraph.ingestFacts |
++| **O4** | recordFix 必须先 compile 再 recordSupport | recordFix 顺序 |
++| **O5** | 确认路径合法（isPathLegal）才能写入 compiled Ref | compile 门控 |
++| **O6** | Evidence 写入必须在路径合法性检查之后 | compile 之后、myelinate 之前 |
++| **O7** | myelinate（快捷路径创建）在 compile 之后 | recordFix 末尾 |
++
++**违反检测**：
++```typescript
++if (event.status === 'resolved') {
++  throw new Error(
++    `不变量 O2 违反: Event ${eventId} 已解决，不能重新 fix`
++  );
++}
++```
++
++---
++
++## 7. 扩展点与挂钩
++
++Pipeline 支持在关键点插入自定义逻辑，但不能修改核心流程顺序：
++
++| 挂钩点 | 签名 | 典型用途 |
++|--------|------|---------|
++| `beforeIngestFacts` | `(input: ObservationInput) → void` | 观测预处理、校验 |
++| `afterExplore` | `(story: Story, paths: Path[]) → void` | 探索完成的后处理 |
++| `beforeCompile` | `(correctPath: string[], failedPaths: string[][]) → void` | compile 前的最后校验 |
++| `afterRecordFix` | `(story: Story, compile: CompileResult) → void` | Fix 记录完成的后处理 |
++
++---
++
++## 8. 性能与规模约束
++
++| 约束 | 建议值 | 理由 |
++|------|---------|------|
++| `explore` 搜索深度 | maxDepth=5 | 超过 5 级的路径解释力极低 |
++| `explore` Beam 宽度 | beamSize=30 | 权衡穷举与效率 |
++| 单次 compile 的路径节点数 | ≤100 | 避免单次编译拉动过多 Ref |
++| Story 历史窗口 | 最近 10000 个 | 超过部分可归档 |
++
++---
++
++## 9. 调试与监控
++
++建议在 Pipeline 关键点记录以下信息供后期审计：
++
++```typescript
++interface PipelineAuditLog {
++  eventId?: string;
++  regulationId?: string;
++  operation: 'submit' | 'detect' | 'create' | 'fix' | 'update';
++  status: 'success' | 'failure' | 'partial';
++  timestamp: string;
++  duration_ms: number;
++  details?: Record<string, unknown>;
++}
++```
++
++---
++
++## 10. 版本历史
++
++| 版本 | 日期 | 变更 |
++|------|------|------|
++| 1.0 | 2026-04-10 | 初稿：定义三流程、事务边界、幂等性、不变量 |
++
++---
++
++## 参考
++
++- [[ref-algebra-contract|RefAlgebra 合同]] — Ref 复合和 Evidence 继承规则
++- [[template-invariant-contract|PatternTemplate 合同]] — 模板约束与生命周期
++- [[metamodel|元模型]] — 五模块系统架构
+diff --git a/docs/current/ref-algebra-contract.md b/docs/current/ref-algebra-contract.md
+new file mode 100644
+index 0000000..1fee84b
+--- /dev/null
++++ b/docs/current/ref-algebra-contract.md
+@@ -0,0 +1,110 @@
++# RefAlgebra 合同：关系代数约束规范
++
++> 本文档是 `metamodel.md` 的局部合同，管辖所有涉及 Ref 复合、Evidence 继承、force 约束的行为。
++> 代码位置：`core/ref-algebra.ts`
++
++---
++
++## 1. 四族分类
++
++| 族群 | 成员 | 语义层 | 可复合方向 |
++|------|------|--------|-----------|
++| **structural** | `is_a`, `part_of` | 世界模型 | 可向解释层投射（inherit） |
++| **explanatory** | `causes`, `requires` | 世界模型 | 可链式传递 |
++| **evidential** | `indicates`, `cooccurs`, `similar_to` | 认识论 | **禁止**直接复合进解释层 |
++| **interventional** | `fixes`, `prevents` | 世界模型 | 可与解释层配对 |
++
++**核心分层约束**：evidential 描述"观察如何提示解释"，不是世界真相。跨层复合产生 Hypothesis，不产生 compiled Ref。
++
++---
++
++## 2. RefForce 维度
++
++| 值 | 含义 | 用途 |
++|----|------|------|
++| `necessary` | A 是 B 的必要条件 | `requires`, `is_a`, `part_of` 的默认 |
++| `sufficient` | A 足以导致 B | 需显式标注，不由复合产生 |
++| `contributory` | A 促成 B 但不充分 | `causes`, `fixes`, `prevents` 的默认 |
++| `analogical` | 结构类比，非因果 | `indicates`, `cooccurs`, `similar_to` 的默认 |
++
++**约束**：
++- `contributory ∘ contributory` 不能升级为 `sufficient`
++- force 沿路径**只降不升**：necessary > sufficient > contributory > analogical
++- **短期定位**：force 是安全护栏（禁止非法增强），不是排序数轴
++
++---
++
++## 3. 复合规则表
++
++### 合法复合
++
++| first | second | result | mode | evidencePolicy |
++|-------|--------|--------|------|---------------|
++| causes | causes | causes | direct | inherit |
++| requires | causes | requires | direct | inherit |
++| requires | requires | requires | direct | inherit |
++| fixes | causes | fixes | direct | inherit |
++| prevents | causes | prevents | direct | inherit |
++| is_a | causes | causes | inherit | revalidate |
++| is_a | fixes | fixes | inherit | revalidate |
++| is_a | requires | requires | inherit | revalidate |
++| is_a | prevents | prevents | inherit | revalidate |
++| is_a | is_a | is_a | direct | inherit |
++| part_of | part_of | part_of | direct | inherit |
++| similar_to | fixes | fixes | candidate | revalidate |
++| similar_to | causes | causes | candidate | revalidate |
++| indicates | indicates | indicates | weak | discard |
++| cooccurs | cooccurs | cooccurs | weak | discard |
++| similar_to | similar_to | similar_to | weak | discard |
++
++### 禁止复合
++
++| first | second | 原因 |
++|-------|--------|------|
++| **indicates** | **causes** | 征兆不能压缩为根因 |
++| **cooccurs** | **causes** | 共现不是因果 |
++| **indicates** | **fixes** | 征兆不能直接导出修复 |
++| **cooccurs** | **fixes** | 共现不能直接导出修复 |
++| **part_of** | **causes** | 部分不等于整体的因果 |
++| **indicates** | **prevents** | 征兆不能导出预防 |
++| **cooccurs** | **prevents** | 共现不能导出预防 |
++
++**闭世界假设**：未显式注册的复合默认禁止。
++
++---
++
++## 4. EvidencePolicy
++
++| 策略 | 含义 | 适用场景 |
++|------|------|---------|
++| `inherit` | 继承源边的 Evidence | 同族直接复合 |
++| `revalidate` | 必须重新验证 | 跨族复合、继承复合 |
++| `discard` | 丢弃源 Evidence | 弱传递（evidential 族内） |
++
++---
++
++## 5. Proof-Carrying Inference
++
++每次 `validatePathRich` 返回完整推导记录：
++
++```typescript
++interface DerivationStep {
++  refKind: string;
++  force: RefForce;
++  position: number;
++}
++```
++
++**失效规则**：底层 Ref 的 kind/force/scope 变更时，所有依赖它的 proof 必须回放验证。
++
++---
++
++## 6. 不变量
++
++| 不变量 | 说明 |
++|--------|------|
++| evidential 不能直接写入 compiled Ref | 必须经过 Hypothesis → validate → compile |
++| force 沿路径只降不升 | degradeForce 函数保证 |
++| evidencePolicy 沿路径只降不升 | degradeEvidencePolicy 函数保证 |
++| 未注册的复合默认禁止 | 闭世界假设 |
++| compile 前必须通过路径合法性检查 | isPathLegal 门控 |
+diff --git a/docs/current/template-invariant-contract.md b/docs/current/template-invariant-contract.md
+new file mode 100644
+index 0000000..952f896
+--- /dev/null
++++ b/docs/current/template-invariant-contract.md
+@@ -0,0 +1,103 @@
++# PatternTemplate 不变量合同：模板约束与门控规范
++
++> 本文档是 `metamodel.md` 的局部合同，管辖模板匹配、不变量门控、模板生命周期。
++> 代码位置：`core/pattern-template.ts`
++
++---
++
++## 1. SlotFingerprint — 角色由关系定义，不由名字定义
++
++`atomKinds` 不足以区分角色（Symptom 和 Failure 都是 FACT）。区分靠关系指纹：
++
++```typescript
++interface SlotFingerprint {
++  inboundRefKinds?: string[];     // 期望入边类型
++  outboundRefKinds?: string[];    // 期望出边类型
++  isConvergencePoint?: boolean;   // 是否是多条路径的汇合点
++  minInDegree?: number;
++  minOutDegree?: number;
++}
++```
++
++**约束**：匹配时优先检查 fingerprint，atomKinds 作为宽松兜底。
++
++---
++
++## 2. InvariantCheck — 可执行不变量
++
++### DSL 规则语法
++
++| 规则格式 | 含义 | 示例 |
++|---------|------|------|
++| `slot:X != slot:Y` | 两个 slot 不能绑定同一 Atom | `slot:Symptom != slot:Failure` |
++| `slot:X exists` | slot 必须有绑定 | `slot:Mechanism exists` |
++| `ref:X->Y:kind` | X 到 Y 必须有指定类型的边 | `ref:Symptom->Mechanism:indicates` |
++
++### 严重度
++
++| 级别 | compile 影响 | 含义 |
++|------|-------------|------|
++| `hard` | 不通过 → 阻止 compile | 违反即结构错误 |
++| `soft` | 不通过 → 只能留在 candidate | 违反但可能有合理原因 |
++
++### canCompile 门控
++
++```
++canCompile(template, bindings, refChecker) →
++  所有 hard invariant 必须通过
++  soft invariant 不影响门控，但记录到 Story
++```
++
++---
++
++## 3. 模板生命周期
++
++```
++candidate → verified → stable → deprecated
++```
++
++| 阶段 | 主路由参与 | 说明 |
++|------|-----------|------|
++| `candidate` | ❌ shadow match only | 新涌现，未经验证 |
++| `verified` | ✅ 有限参与 | 通过回放测试 |
++| `stable` | ✅ 完全参与 | 多次成功实例化 |
++| `deprecated` | ❌ | 被更好模板取代 |
++
++**约束**：
++- `candidate` 模板不参与 `constrainSubgraph` 路由
++- 升级到 `verified` 需要：cross-context support + compression gain + predictive gain
++- 种子模板直接为 `stable`
++
++---
++
++## 4. 模板涌现治理
++
++`compileThreshold` 单独一个数字不够。升级门槛：
++
++| 条件 | 含义 |
++|------|------|
++| `cross-context support` | 不能只在一个 project/stack 成功 |
++| `compression gain` | 比现有模板更省描述长度 |
++| `predictive gain` | 提升 slot fill / path selection 准确率 |
++| `novelty` | 不是已有模板的轻微别名 |
++
++---
++
++## 5. 与 RefAlgebra 的交互
++
++模板的 `arrows` 中指定的 `refKind` 必须与 RefAlgebra 的复合规则一致：
++
++- 模板内的箭头序列必须通过 `isPathLegal`
++- 匹配时 `refChecker` 只检查已存在的 Ref，不自动创建
++- compile 时先通过 `canCompile` 门控，再通过 RefAlgebra 路径验证，两关都过才允许写入
++
++---
++
++## 6. 不变量
++
++| 不变量 | 说明 |
++|--------|------|
++| hard invariant 不过 → compile 被阻止 | `canCompile` 函数保证 |
++| candidate 模板不参与主路由 | 只做 shadow match |
++| 模板箭头必须符合 RefAlgebra | 注册时可预检 |
++| 涌现模板需要多维度门槛 | 不只是 compileThreshold 计数 |
