@@ -1,6 +1,6 @@
-import { createStorage } from './dist/core/storage.js';
-import { submitObservationTool } from './dist/tools/observation.js';
-import { triggerInductionTool } from './dist/tools/induction.js';
+import { createStorage } from '../dist/core/storage.js';
+import { submitObservationTool } from '../dist/tools/observation.js';
+import { triggerInductionTool } from '../dist/tools/induction.js';
 import { exec } from 'child_process';
 
 async function testWithVisualization() {

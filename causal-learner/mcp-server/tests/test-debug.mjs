@@ -1,6 +1,6 @@
-import { createStorage } from './dist/core/storage.js';
-import { submitObservationTool } from './dist/tools/observation.js';
-import { clusterEvents, induceRegulation } from './dist/core/inducer.js';
+import { createStorage } from '../dist/core/storage.js';
+import { submitObservationTool } from '../dist/tools/observation.js';
+import { clusterEvents, induceRegulation } from '../dist/core/inducer.js';
 
 async function debug() {
   const storage = createStorage(':memory:');

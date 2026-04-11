@@ -95,6 +95,8 @@ export {
 export type {
   FlushResult,
   DualStorageStats,
+  DualStorageOptions,
+  LoadRelevantResult,
 } from './dual-storage.js';
 
 export {
@@ -144,3 +146,209 @@ export {
   extractErrorPatterns,
   extractHybridFeatures,
 } from './keywords.js';
+
+// Fuzzy Matcher (模糊匹配 - 参考 Sirchmunk RapidFuzz)
+export type {
+  FuzzyMatchResult,
+  FuzzyMatchOptions,
+  RelevanceScoreOptions,
+} from './fuzzy-matcher.js';
+
+export {
+  levenshteinDistance,
+  tokenSetRatio,
+  FuzzyMatcher,
+  calculateRelevanceScore,
+  fuzzyMatchRegulations,
+  fuzzyMatchEvents,
+} from './fuzzy-matcher.js';
+
+// Knowledge Cluster (知识聚类 - 参考 Sirchmunk KnowledgeCluster)
+export {
+  ClusterLifecycle,
+  AbstractionLevel,
+  KnowledgeClusterStorage,
+  buildClusterFromRegulations,
+  buildClusterFromEvidence,
+} from './knowledge-cluster.js';
+
+export type {
+  EvidenceRef,
+  WeakSemanticEdge,
+  ClusterConstraint,
+  KnowledgeCluster,
+} from './knowledge-cluster.js';
+
+// Monte Carlo Sampler (蒙特卡洛证据采样 - 参考 Sirchmunk MonteCarloEvidenceSampling)
+export type {
+  SampleWindow,
+  RoiResult,
+  SamplerConfig,
+  ScorerFn,
+} from './monte-carlo-sampler.js';
+
+export {
+  MonteCarloSampler,
+  keywordScorer,
+} from './monte-carlo-sampler.js';
+
+// AtomGraph (v5 真相层 - 卡片盒知识图谱 + 双模式引擎)
+export {
+  AtomKind,
+  RefKind,
+  AtomGraph,
+} from './atom-graph.js';
+
+export type {
+  RefMode,
+  Atom,
+  Ref,
+  Shortcut,
+  PathResult,
+  ExploreResult,
+  CompileResult,
+  GraphStats,
+} from './atom-graph.js';
+
+// ReAct Search Agent (ReAct 搜索代理 - 参考 Sirchmunk ReActSearchAgent)
+export type {
+  ToolSchema,
+  ToolResult,
+  SearchTool,
+  ReActConfig,
+  ReasonerFn,
+} from './react-search.js';
+
+export {
+  createSearchContext,
+  ToolRegistry,
+  RegulationSearchTool,
+  EventSearchTool,
+  KnowledgeQueryTool,
+  CausalAnalysisTool,
+  ReActSearchAgent,
+  parseToolCall,
+  extractAnswer,
+  buildToolDescriptions,
+  ruleBasedReasoner,
+} from './react-search.js';
+
+// Story / Case (学习样本 + ContextScope 工具)
+export type {
+  ContextScope,
+  StoryPath,
+  StoryStatus,
+  Story as CaseStory,
+} from './story.js';
+
+export {
+  scopeContains,
+  scopeOverlaps,
+  scopeMerge,
+  scopeToJson,
+  scopeFromJson,
+  StoryStorage,
+} from './story.js';
+
+// Evidence (一等证据系统 - append-only)
+export type {
+  EvidenceSourceType,
+  EvidenceRecord,
+  EvidenceSummary as EvidenceStoreSummary,
+} from './evidence.js';
+
+export {
+  EvidenceStore,
+  recordSupport,
+  recordContradiction,
+  isEvidenceHealthy,
+} from './evidence.js';
+
+// ProblemClass + Strategy (问题路由器 + 理解协议)
+export type {
+  SubgraphConstraint,
+  ProblemClass,
+  ClassifyResult,
+  StrategyStep,
+  Strategy,
+} from './problem-class.js';
+
+export {
+  ProblemClassRegistry,
+} from './problem-class.js';
+
+// Skill (可执行技能绑定层 - ACTION Atom → Skill 执行契约)
+export type {
+  SkillParam,
+  SkillExecutionResult,
+  Skill,
+} from './skill.js';
+
+export {
+  SkillRegistry,
+} from './skill.js';
+
+// RegulationView (Regulation 降级为 compiled Ref 的只读投影)
+export type {
+  RegulationView,
+  LegacyRegulation,
+} from './regulation-view.js';
+
+export {
+  RegulationViewBuilder,
+} from './regulation-view.js';
+
+// RefAlgebra (v6 关系代数 - 态射签名、族群、复合规则)
+export type {
+  RefFamily,
+  ComposeResult,
+  RefTypeSpec,
+  ComposeRule,
+} from './ref-algebra.js';
+
+export {
+  RefAlgebra,
+  getRefAlgebra,
+  canCompose,
+  isPathLegal,
+  refFamily,
+} from './ref-algebra.js';
+
+// PatternTemplate (v6 小范畴模板 - 模式匹配、实例化、涌现)
+export type {
+  PatternSlot,
+  PatternArrow,
+  PatternTemplate,
+  PatternInstance,
+} from './pattern-template.js';
+
+export {
+  PatternEngine,
+} from './pattern-template.js';
+
+// Pipeline (编排管道 - 将所有模块连成闭环)
+export type {
+  PipelineConfig,
+  ObservationInput,
+  ObservationResult,
+  FixInput,
+  FixResult,
+  PipelineStats,
+} from './pipeline.js';
+
+export {
+  CausalPipeline,
+} from './pipeline.js';
+
+// Hypothesis (一等假设对象 - evidential→explanatory 跨层产物)
+export type {
+  InterventionOutcome,
+  HypothesisStatus,
+  HypothesisDerivation,
+  HypothesisScope,
+  Hypothesis,
+} from './hypothesis.js';
+
+export {
+  HypothesisStore,
+} from './hypothesis.js';

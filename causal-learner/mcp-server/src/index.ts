@@ -68,6 +68,30 @@ import {
   type FixInfo,
 } from './tools/swebench.js';
 
+// 新搜索工具 (参考 Sirchmunk 改进)
+import {
+  causalSearchTool,
+  fuzzySearchRegulationsTool,
+  fuzzySearchEventsTool,
+  buildKnowledgeClusterTool,
+  searchKnowledgeClustersTool,
+  sampleEvidenceTool,
+} from './tools/search.js';
+
+// v5 图工具 (卡片盒 + 双模式)
+import {
+  addAtomTool,
+  addRefTool,
+  exploreGraphTool,
+  compilePathTool,
+  myelinateGraphTool,
+  queryGraphTool,
+  findAtomsTool,
+  graphStatsTool,
+  pruneGraphTool,
+  ingestFactsTool,
+} from './tools/graph.js';
+
 // Get database paths from environment
 // CAUSAL_DB_PATH: legacy single-DB mode (backward compatible)
 // CAUSAL_LONGTERM_DB_PATH: long-term DB for dual-layer mode
@@ -492,6 +516,170 @@ const TOOLS: Tool[] = [
       properties: {},
     },
   },
+  // 新搜索工具 (参考 Sirchmunk 改进)
+  {
+    name: 'causal_search',
+    description: 'Intelligent causal search using ReAct loop. Automatically searches knowledge clusters, regulations, and events to find causal relationships.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search query describing the causal relationship to find' },
+        maxDepth: { type: 'number', default: 5, description: 'Maximum search depth' },
+        strategy: { type: 'string', enum: ['knowledge_first', 'regulation_first', 'event_first'], default: 'knowledge_first' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'fuzzy_search_regulations',
+    description: 'Fuzzy search causal regulations using token-based matching. Better than exact predicate matching for natural language queries.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search query' },
+        threshold: { type: 'number', default: 30, description: 'Minimum match score (0-100)' },
+        limit: { type: 'number', default: 10, description: 'Maximum results' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'fuzzy_search_events',
+    description: 'Fuzzy search historical events using token-based matching.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search query' },
+        status: { type: 'string', enum: ['open', 'clustered', 'resolved', 'archived'] },
+        threshold: { type: 'number', default: 30, description: 'Minimum match score (0-100)' },
+        limit: { type: 'number', default: 10, description: 'Maximum results' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'build_knowledge_cluster',
+    description: 'Build a knowledge cluster from related regulations and events. Groups causal knowledge for reuse.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Cluster name' },
+        regulationIds: { type: 'array', items: { type: 'string' }, description: 'Related regulation IDs' },
+        eventIds: { type: 'array', items: { type: 'string' }, description: 'Related event IDs' },
+        description: { type: 'string', description: 'Cluster description' },
+      },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'search_knowledge_clusters',
+    description: 'Search existing knowledge clusters by fuzzy text matching.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search query' },
+        limit: { type: 'number', default: 5, description: 'Maximum results' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'sample_evidence',
+    description: 'Monte Carlo evidence sampling on long documents. Finds the most relevant snippets without reading the entire document.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        document: { type: 'string', description: 'Document content to sample' },
+        query: { type: 'string', description: 'Search query' },
+        keywords: { type: 'object', description: 'Keywords with IDF weights' },
+        topK: { type: 'number', default: 3, description: 'Number of best snippets to return' },
+      },
+      required: ['document', 'query'],
+    },
+  },
+  // v5 图工具 (卡片盒 + 双模式)
+  {
+    name: 'add_atom',
+    description: 'Create an atomic knowledge card (fact, concept, action, context, or pattern). Auto-deduplicates by content+kind.',
+    inputSchema: { type: 'object', properties: { content: { type: 'string' }, kind: { type: 'string', enum: ['fact', 'concept', 'action', 'context', 'pattern'] } }, required: ['content', 'kind'] },
+  },
+  {
+    name: 'add_ref',
+    description: 'Create a reference edge between two atoms. The relationship itself IS knowledge.',
+    inputSchema: { type: 'object', properties: { fromAtomId: { type: 'string' }, toAtomId: { type: 'string' }, kind: { type: 'string', enum: ['causes', 'prevents', 'requires', 'is_a', 'part_of', 'similar_to', 'fixes', 'indicates', 'cooccurs'] }, weight: { type: 'number' }, mode: { type: 'string', enum: ['tentative', 'compiled'] } }, required: ['fromAtomId', 'toAtomId', 'kind'] },
+  },
+  {
+    name: 'explore_graph',
+    description: 'Divergent mode: from observation atoms, find all candidate explanation paths through the knowledge graph.',
+    inputSchema: { type: 'object', properties: { atomIds: { type: 'array', items: { type: 'string' } }, maxDepth: { type: 'number', default: 3 }, maxPaths: { type: 'number', default: 10 } }, required: ['atomIds'] },
+  },
+  {
+    name: 'compile_path',
+    description: 'Compile mode: strengthen the correct path (myelinate) and weaken failed paths.',
+    inputSchema: { type: 'object', properties: { correctAtomIds: { type: 'array', items: { type: 'string' } }, failedAtomIdsList: { type: 'array', items: { type: 'array', items: { type: 'string' } } } }, required: ['correctAtomIds'] },
+  },
+  {
+    name: 'myelinate_graph',
+    description: 'Create shortcut edges for frequently-used compiled paths (like neural myelination).',
+    inputSchema: { type: 'object', properties: { minUseCount: { type: 'number', default: 3 }, minWeight: { type: 'number', default: 0.6 } } },
+  },
+  {
+    name: 'query_graph',
+    description: 'Query the knowledge graph: find neighbors, reachable nodes, or paths between atoms.',
+    inputSchema: { type: 'object', properties: { atomId: { type: 'string' }, operation: { type: 'string', enum: ['neighbors', 'reachable', 'find_path'] }, targetAtomId: { type: 'string' }, maxDepth: { type: 'number', default: 3 }, direction: { type: 'string', enum: ['outgoing', 'incoming', 'both'] } }, required: ['atomId', 'operation'] },
+  },
+  {
+    name: 'find_atoms',
+    description: 'Search atomic knowledge cards by keyword and optional kind filter.',
+    inputSchema: { type: 'object', properties: { query: { type: 'string' }, kind: { type: 'string', enum: ['fact', 'concept', 'action', 'context', 'pattern'] }, limit: { type: 'number', default: 20 } }, required: ['query'] },
+  },
+  {
+    name: 'graph_stats',
+    description: 'Get knowledge graph statistics: atom/ref/shortcut counts, distributions, orphan count.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'prune_graph',
+    description: 'Prune weak tentative edges and optionally remove orphan atoms.',
+    inputSchema: { type: 'object', properties: { minWeight: { type: 'number', default: 0.1 }, removeOrphans: { type: 'boolean', default: false } } },
+  },
+  {
+    name: 'ingest_facts',
+    description: 'Ingest a set of facts as atoms and auto-create cooccurs edges between them.',
+    inputSchema: { type: 'object', properties: { facts: { type: 'array', items: { type: 'object', properties: { pred: { type: 'string' }, value: {}, args: { type: 'object' } }, required: ['pred', 'value'] } }, context: { type: 'object' } }, required: ['facts'] },
+  },
+  // Smart caching and test mode tools
+  {
+    name: 'set_test_mode',
+    description: 'Enable or disable test mode. In test mode, flush to long-term is blocked, enabling train/test separation for evaluation.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        enabled: { type: 'boolean', description: 'Whether to enable test mode' },
+      },
+      required: ['enabled'],
+    },
+  },
+  {
+    name: 'load_relevant_knowledge',
+    description: 'Load regulations relevant to the given observation from long-term DB to short-term cache. Uses predicate matching for RAG-like smart loading instead of loading all regulations.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        observation: {
+          type: 'object',
+          description: 'The observation to find relevant regulations for',
+          properties: {
+            facts: { type: 'array', items: { type: 'object' } },
+            context: { type: 'object' },
+            focusFacts: { type: 'array', items: { type: 'object' } },
+          },
+          required: ['facts'],
+        },
+      },
+      required: ['observation'],
+    },
+  },
 ];
 
 // Generate unique observation ID
@@ -692,6 +880,47 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
       }
 
+      // v5 图工具 (卡片盒 + 双模式)
+      case 'add_atom':
+        return await addAtomTool(args as any);
+      case 'add_ref':
+        return await addRefTool(args as any);
+      case 'explore_graph':
+        return await exploreGraphTool(args as any);
+      case 'compile_path':
+        return await compilePathTool(args as any);
+      case 'myelinate_graph':
+        return await myelinateGraphTool(args as any);
+      case 'query_graph':
+        return await queryGraphTool(args as any);
+      case 'find_atoms':
+        return await findAtomsTool(args as any);
+      case 'graph_stats':
+        return await graphStatsTool(args as any);
+      case 'prune_graph':
+        return await pruneGraphTool(args as any);
+      case 'ingest_facts':
+        return await ingestFactsTool(args as any);
+
+      // 新搜索工具 (参考 Sirchmunk 改进)
+      case 'causal_search':
+        return await causalSearchTool(storage, args as any);
+
+      case 'fuzzy_search_regulations':
+        return await fuzzySearchRegulationsTool(storage, args as any);
+
+      case 'fuzzy_search_events':
+        return await fuzzySearchEventsTool(storage, args as any);
+
+      case 'build_knowledge_cluster':
+        return await buildKnowledgeClusterTool(storage, args as any);
+
+      case 'search_knowledge_clusters':
+        return await searchKnowledgeClustersTool(storage, args as any);
+
+      case 'sample_evidence':
+        return await sampleEvidenceTool(storage, args as any);
+
       // Dual-layer storage tools
       case 'flush_to_longterm': {
         if (!dualStorage) {
@@ -760,6 +989,59 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
         const stats = dualStorage.getLongtermStats();
         return { content: [{ type: 'text', text: JSON.stringify(stats, null, 2) }] };
+      }
+
+      // Smart caching and test mode tools
+      case 'set_test_mode': {
+        if (!dualStorage) {
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify({
+                error: 'Dual-layer mode not enabled. Set CAUSAL_LONGTERM_DB_PATH environment variable.',
+                mode: 'single',
+              }, null, 2),
+            }],
+          };
+        }
+        const enabled = args?.enabled as boolean;
+        dualStorage.setTestMode(enabled);
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              testMode: enabled,
+              message: enabled
+                ? 'Test mode enabled. Flush to long-term DB is now blocked.'
+                : 'Test mode disabled. Flush to long-term DB is now allowed.',
+            }, null, 2),
+          }],
+        };
+      }
+
+      case 'load_relevant_knowledge': {
+        if (!dualStorage) {
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify({
+                error: 'Dual-layer mode not enabled. Set CAUSAL_LONGTERM_DB_PATH environment variable.',
+                mode: 'single',
+              }, null, 2),
+            }],
+          };
+        }
+        const obsInput = args?.observation as Record<string, unknown>;
+        const observation: Observation = {
+          observationId: generateObservationId(),
+          timestamp: new Date().toISOString(),
+          facts: obsInput.facts as Fact[],
+          context: obsInput.context as Record<string, unknown>,
+          focusFacts: obsInput.focusFacts as Fact[],
+        };
+        const loadResult = dualStorage.loadRelevantKnowledge(observation);
+        return { content: [{ type: 'text', text: JSON.stringify(loadResult, null, 2) }] };
       }
 
       default:

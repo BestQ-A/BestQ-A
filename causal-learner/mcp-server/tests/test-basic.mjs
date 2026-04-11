@@ -4,10 +4,10 @@
  * Tests storage, observation submission, and induction
  */
 
-import { createStorage } from './dist/core/storage.js';
-import { submitObservationTool } from './dist/tools/observation.js';
-import { triggerInductionTool } from './dist/tools/induction.js';
-import { getStatsTool } from './dist/tools/query.js';
+import { createStorage } from '../dist/core/storage.js';
+import { submitObservationTool } from '../dist/tools/observation.js';
+import { triggerInductionTool } from '../dist/tools/induction.js';
+import { getStatsTool } from '../dist/tools/query.js';
 
 async function test() {
   console.log('🧪 Testing Causal Learner MCP Server...\n');
