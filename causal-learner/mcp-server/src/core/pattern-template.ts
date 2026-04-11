@@ -419,14 +419,15 @@ export class PatternEngine {
   matchTemplates(
     atoms: Array<{ id: string; kind: string; content: string }>,
     refChecker: (fromAtomId: string, toAtomId: string, refKind: string) => boolean,
-    options: { minScore?: number; limit?: number } = {}
+    options: { minScore?: number; limit?: number } = {},
+    edgeQuery?: (atomId: string, direction: 'inbound' | 'outbound') => Array<{ kind: string }>
   ): Array<{ template: PatternTemplate; instance: PatternInstance }> {
     const { minScore = 0, limit = 20 } = options;
     const templates = this.listTemplates(200);
     const results: Array<{ template: PatternTemplate; instance: PatternInstance }> = [];
 
     for (const template of templates) {
-      const instance = this._tryMatchTemplate(template, atoms, refChecker);
+      const instance = this._tryMatchTemplate(template, atoms, refChecker, edgeQuery);
       if (instance && instance.score > minScore) {
         results.push({ template, instance });
       }
@@ -443,11 +444,12 @@ export class PatternEngine {
   matchTemplate(
     templateId: string,
     atoms: Array<{ id: string; kind: string; content: string }>,
-    refChecker: (fromAtomId: string, toAtomId: string, refKind: string) => boolean
+    refChecker: (fromAtomId: string, toAtomId: string, refKind: string) => boolean,
+    edgeQuery?: (atomId: string, direction: 'inbound' | 'outbound') => Array<{ kind: string }>
   ): PatternInstance | null {
     const template = this.getTemplate(templateId);
     if (!template) return null;
-    return this._tryMatchTemplate(template, atoms, refChecker);
+    return this._tryMatchTemplate(template, atoms, refChecker, edgeQuery);
   }
 
   /**
@@ -456,15 +458,23 @@ export class PatternEngine {
   private _tryMatchTemplate(
     template: PatternTemplate,
     atoms: Array<{ id: string; kind: string; content: string }>,
-    refChecker: (fromAtomId: string, toAtomId: string, refKind: string) => boolean
+    refChecker: (fromAtomId: string, toAtomId: string, refKind: string) => boolean,
+    edgeQuery?: (atomId: string, direction: 'inbound' | 'outbound') => Array<{ kind: string }>
   ): PatternInstance | null {
     const { slots, arrows } = template;
     if (slots.length === 0) return null;
 
-    // 为每个 slot 找候选 atoms（按 kind 过滤）
+    // 为每个 slot 找候选 atoms（按 kind 过滤，再按 fingerprint 过滤）
     const candidatesPerSlot: Map<string, typeof atoms> = new Map();
     for (const slot of slots) {
-      const candidates = atoms.filter(a => slot.atomKinds.includes(a.kind));
+      // 先按 atomKinds 过滤
+      const kindFiltered = atoms.filter(a => slot.atomKinds.includes(a.kind));
+
+      // 再按 fingerprint 过滤（仅在提供了 edgeQuery 时生效）
+      const candidates = (slot.fingerprint && edgeQuery)
+        ? kindFiltered.filter(atom => this._matchesFingerprint(atom.id, slot.fingerprint!, edgeQuery))
+        : kindFiltered;
+
       candidatesPerSlot.set(slot.role, candidates);
 
       // 必须槽位无候选 → 直接放弃
@@ -478,7 +488,7 @@ export class PatternEngine {
     let bestBindings: Record<string, string> = {};
 
     this._enumerate(slots, 0, candidatesPerSlot, {}, new Set(), (bindings) => {
-      const { score, arrowsVerified } = this._scoreBindings(bindings, slots, arrows, refChecker);
+      const { score, arrowsVerified } = this._scoreBindings(bindings, slots, arrows, refChecker, edgeQuery);
       if (score > bestScore) {
         bestScore = score;
         bestBindings = { ...bindings };
@@ -489,7 +499,7 @@ export class PatternEngine {
     if (bestScore <= 0) return null;
 
     // 计算最优 bindings 的 arrowsVerified 和 complete
-    const { complete, arrowsVerified } = this._scoreBindings(bestBindings, slots, arrows, refChecker);
+    const { complete, arrowsVerified } = this._scoreBindings(bestBindings, slots, arrows, refChecker, edgeQuery);
 
     const instance: PatternInstance = {
       id:             genId('PI'),
@@ -503,6 +513,49 @@ export class PatternEngine {
     };
 
     return instance;
+  }
+
+  /**
+   * 检查一个 atom 是否满足 slot 的 fingerprint 约束
+   */
+  private _matchesFingerprint(
+    atomId: string,
+    fp: SlotFingerprint,
+    edgeQuery: (atomId: string, direction: 'inbound' | 'outbound') => Array<{ kind: string }>
+  ): boolean {
+    // 检查入边类型（至少有一种匹配即可）
+    if (fp.inboundRefKinds && fp.inboundRefKinds.length > 0) {
+      const inEdges = edgeQuery(atomId, 'inbound');
+      const hasRequired = fp.inboundRefKinds.some(k => inEdges.some(e => e.kind === k));
+      if (!hasRequired) return false;
+    }
+
+    // 检查出边类型（至少有一种匹配即可）
+    if (fp.outboundRefKinds && fp.outboundRefKinds.length > 0) {
+      const outEdges = edgeQuery(atomId, 'outbound');
+      const hasRequired = fp.outboundRefKinds.some(k => outEdges.some(e => e.kind === k));
+      if (!hasRequired) return false;
+    }
+
+    // 检查最小入度
+    if (fp.minInDegree != null) {
+      const inEdges = edgeQuery(atomId, 'inbound');
+      if (inEdges.length < fp.minInDegree) return false;
+    }
+
+    // 检查最小出度
+    if (fp.minOutDegree != null) {
+      const outEdges = edgeQuery(atomId, 'outbound');
+      if (outEdges.length < fp.minOutDegree) return false;
+    }
+
+    // 检查汇合点（至少需要 2 条入边）
+    if (fp.isConvergencePoint) {
+      const inEdges = edgeQuery(atomId, 'inbound');
+      if (inEdges.length < 2) return false;
+    }
+
+    return true;
   }
 
   /**
@@ -558,13 +611,15 @@ export class PatternEngine {
 
   /**
    * 计算一组 bindings 的匹配分数
-   * score = filledRequired * 0.6 + arrowMatch * 0.4
+   * score = filledRequired * 0.55 + arrowMatch * 0.35 + fingerprintBonus * 0.1
+   * 若未提供 edgeQuery，fingerprint bonus 为 0，退化为原公式比例调整
    */
   private _scoreBindings(
     bindings: Record<string, string>,
     slots: PatternSlot[],
     arrows: PatternArrow[],
-    refChecker: (fromAtomId: string, toAtomId: string, refKind: string) => boolean
+    refChecker: (fromAtomId: string, toAtomId: string, refKind: string) => boolean,
+    edgeQuery?: (atomId: string, direction: 'inbound' | 'outbound') => Array<{ kind: string }>
   ): { score: number; complete: boolean; arrowsVerified: boolean } {
     // 计算 required slot 填充比例
     const requiredSlots = slots.filter(s => s.required);
@@ -586,7 +641,28 @@ export class PatternEngine {
     }
 
     const arrowRatio = arrows.length > 0 ? satisfiedArrows / arrows.length : 1;
-    const score = filledRatio * 0.6 + arrowRatio * 0.4;
+
+    // 计算 fingerprint 加分（仅在提供 edgeQuery 时生效）
+    let fingerprintBonus = 0;
+    if (edgeQuery) {
+      let fpChecked = 0;
+      let fpPassed = 0;
+      for (const slot of slots) {
+        if (slot.fingerprint && bindings[slot.role] !== undefined) {
+          fpChecked++;
+          // 候选已通过 fingerprint 过滤，绑定成功意味着 fingerprint 已满足
+          fpPassed++;
+        }
+      }
+      if (fpChecked > 0) {
+        fingerprintBonus = (fpPassed / fpChecked) * 0.1; // 最多 10% 加分
+      }
+    }
+
+    // 最终分数：有 edgeQuery 时使用三项公式，否则保持原有两项比例
+    const score = edgeQuery
+      ? filledRatio * 0.55 + arrowRatio * 0.35 + fingerprintBonus
+      : filledRatio * 0.6 + arrowRatio * 0.4;
 
     return {
       score,
@@ -882,10 +958,10 @@ export class PatternEngine {
         name:        '错误诊断模板',
         description: 'Symptom → Mechanism → Failure，Action → Mechanism',
         slots: [
-          { role: 'Symptom',   atomKinds: ['fact'],              description: '可观测的症状/错误',   required: true  },
-          { role: 'Mechanism', atomKinds: ['concept'],           description: '底层机制/根因',       required: true  },
-          { role: 'Failure',   atomKinds: ['fact', 'pattern'],   description: '最终失败结果',        required: true  },
-          { role: 'Action',    atomKinds: ['action'],            description: '修复动作',            required: false },
+          { role: 'Symptom',   atomKinds: ['fact'],              description: '可观测的症状/错误',   required: true,  fingerprint: { outboundRefKinds: ['indicates'], minOutDegree: 1 } },
+          { role: 'Mechanism', atomKinds: ['concept'],           description: '底层机制/根因',       required: true,  fingerprint: { inboundRefKinds: ['indicates'], outboundRefKinds: ['causes'], isConvergencePoint: true } },
+          { role: 'Failure',   atomKinds: ['fact', 'pattern'],   description: '最终失败结果',        required: true,  fingerprint: { inboundRefKinds: ['causes'] } },
+          { role: 'Action',    atomKinds: ['action'],            description: '修复动作',            required: false, fingerprint: { outboundRefKinds: ['fixes'] } },
         ],
         arrows: [
           { fromRole: 'Symptom',   toRole: 'Mechanism', refKind: 'indicates' },

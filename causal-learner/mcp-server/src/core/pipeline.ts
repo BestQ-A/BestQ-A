@@ -20,6 +20,8 @@ import type { RegulationView } from './regulation-view.js';
 import { PatternEngine } from './pattern-template.js';
 // getRefAlgebra 由 explore 内部使用，此处不直接调用但保留 import 以供将来扩展
 import { getRefAlgebra } from './ref-algebra.js';
+import { HypothesisStore } from './hypothesis.js';
+import type { InterventionOutcome } from './hypothesis.js';
 
 // =============================================================================
 // 配置与接口
@@ -89,6 +91,8 @@ export interface FixInput {
   context?: ContextScope;
   /** 操作者 ID */
   operator?: string;
+  /** 干预结果，默认 'mechanism_confirmed' */
+  interventionOutcome?: InterventionOutcome;
 }
 
 /** 记录修复的完整结果 */
@@ -111,6 +115,7 @@ export interface PipelineStats {
   problemClasses: number;
   templates: number;
   regulations: number;
+  hypotheses: { total: number; open: number; validated: number; readyForCompile: number };
 }
 
 // =============================================================================
@@ -128,6 +133,8 @@ export class CausalPipeline {
   readonly problemClasses: ProblemClassRegistry;
   /** 模式模板引擎 */
   readonly patterns: PatternEngine;
+  /** 假设存储（Hypothesis gate） */
+  readonly hypotheses: HypothesisStore;
 
   private rvBuilder: RegulationViewBuilder;
   private config: PipelineConfig;
@@ -150,6 +157,9 @@ export class CausalPipeline {
     this.evidence      = new EvidenceStore(resolved.evidenceDbPath);
     this.problemClasses = new ProblemClassRegistry(resolved.problemClassDbPath);
     this.patterns      = new PatternEngine(resolved.patternDbPath);
+    const hypothesisDbPath = resolved.graphDbPath === ':memory:' ? ':memory:'
+      : resolved.graphDbPath.replace('.db', '_hypotheses.db');
+    this.hypotheses    = new HypothesisStore(hypothesisDbPath);
     // RegulationViewBuilder 直接读 AtomGraph 的 DB（只读视图，不建自己的表）
     this.rvBuilder     = new RegulationViewBuilder(this.graph.db);
 
@@ -299,70 +309,94 @@ export class CausalPipeline {
   // ===========================================================================
 
   /**
-   * 记录修复 — 完整管道：
-   * 1. Story.resolve → 更新状态
-   * 2. compile → 强化正确路径，削弱失败路径
-   * 3. Evidence.record → 为每条有效边记录支持证据
-   * 4. Story.markCompiled → 标记已消费
-   * 5. myelinate → 检查是否产生新快捷边
-   * 6. RegulationView.buildAll → 更新视图
+   * 记录修复 — 完整管道（含 Hypothesis gate）：
+   * 1. 创建修复 Atom
+   * 2. 创建 Hypothesis → validate → canPromote 门控
+   * 3. compile（仅当 canPromote 通过）
+   * 4. Evidence 绑定精确 compiledRefIds（仅 compile 成功）
+   * 5. Story resolve（compile 成功 → success，否则 → partial）
+   * 6. myelinate + RegulationView.buildAll
    */
   recordFix(input: FixInput): FixResult {
+    const outcome: InterventionOutcome = input.interventionOutcome ?? 'mechanism_confirmed';
+
     // Step 1: 创建修复 Atom（ACTION 类型）
     const fixAtom = this.graph.addAtom(input.fixDescription, AtomKind.ACTION);
 
-    // Step 2: compile（如果提供了正确路径）
+    // Step 2: 如果提供了正确路径，走 Hypothesis gate
     let compile: CompileResult | undefined;
+    let evidenceCount = 0;
+    let hypothesisId: string | undefined;
+
     if (input.chosenPathAtomIds && input.chosenPathAtomIds.length >= 2) {
-      // 确保修复 Atom 在路径末尾
+      // 确保修复 Atom 在路径中
       const pathWithFix = input.chosenPathAtomIds.includes(fixAtom.id)
         ? input.chosenPathAtomIds
         : [...input.chosenPathAtomIds, fixAtom.id];
 
-      compile = this.graph.compile(
-        { atomIds: pathWithFix },
-        input.failedPathAtomIds?.map(ids => ({ atomIds: ids }))
-      );
-    }
+      // Step 2a: 创建 Hypothesis（暂存候选推断）
+      // 取路径首尾作为 claim
+      const firstAtomId = pathWithFix[0];
+      const lastAtomId  = pathWithFix[pathWithFix.length - 1];
+      const hypothesis  = this.hypotheses.create({
+        claim:            { fromAtomId: firstAtomId, toAtomId: lastAtomId, kind: 'causes' },
+        forceUpperBound:  'contributory',
+        evidencePolicy:   'revalidate',
+        storyId:          input.storyId,
+        sourceDescription: input.fixDescription,
+      });
+      hypothesisId = hypothesis.id;
 
-    // Step 3: 解决 Story
-    const resolvedStory = this.stories.resolve(input.storyId, 'success', input.fixDescription);
+      // Step 2b: Validate hypothesis（提供 outcome；此时尚无 compiled evidence，传空列表）
+      this.hypotheses.validate(hypothesis.id, [], outcome);
 
-    // Step 4: 为路径上的每条有效 Ref 记录支持证据
-    let evidenceCount = 0;
-    if (compile && input.chosenPathAtomIds && input.chosenPathAtomIds.length >= 2) {
-      for (let i = 0; i < input.chosenPathAtomIds.length - 1; i++) {
-        const from = input.chosenPathAtomIds[i];
-        const to   = input.chosenPathAtomIds[i + 1];
+      // Step 2c: 检查 canPromote
+      const promoteCheck = this.hypotheses.canPromote(hypothesis.id);
 
-        // 找到对应的出向 Ref
-        const neighbors = this.graph.getNeighbors(from, { direction: 'outgoing' });
-        const matched   = neighbors.find(n => n.atom.id === to);
-        if (matched) {
-          recordSupport(
-            this.evidence,
-            matched.ref.id,
-            'fix',
-            input.storyId,
-            0.85,
-            input.context
-          );
-          evidenceCount++;
+      if (promoteCheck.allowed) {
+        // Step 2d: compile（路径合法性由 compile 内部的 RefAlgebra 检查保证）
+        compile = this.graph.compile(
+          { atomIds: pathWithFix },
+          input.failedPathAtomIds?.map(ids => ({ atomIds: ids }))
+        );
+
+        // Step 2e: 只有 compile 真正写入了才记录 Evidence
+        if (compile.compiledRefs > 0) {
+          for (const refId of compile.compiledRefIds) {
+            recordSupport(this.evidence, refId, 'fix', input.storyId, 0.85, input.context);
+            evidenceCount++;
+          }
         }
       }
+      // canPromote 未通过 → compile 保持 undefined，story 将标记 partial
     }
 
-    // Step 5: 标记 Story 已被 compile 消费
-    this.stories.markCompiled(input.storyId);
+    // Step 3: 根据 compile 结果决定 Story 状态
+    let story: Story;
+    if (compile && compile.compiledRefs > 0) {
+      // compile 成功 → resolve + markCompiled + myelinate
+      story = (this.stories.resolve(input.storyId, 'success', input.fixDescription)
+                ?? this.stories.get(input.storyId)) as Story;
+      this.stories.markCompiled(input.storyId);
+      this.graph.myelinate({ minUseCount: 3, minWeight: 0.6 });
+    } else if (input.chosenPathAtomIds && input.chosenPathAtomIds.length >= 2) {
+      // 提供了路径但 compile 被拒绝（canPromote 门控未通过或路径不合法）
+      const reason = compile
+        ? '路径不合法'
+        : (hypothesisId ? 'canPromote 门控未通过' : '编译未执行');
+      story = (this.stories.resolve(input.storyId, 'partial', `编译未通过：${reason}`)
+                ?? this.stories.get(input.storyId)) as Story;
+    } else {
+      // 没有提供路径 → 仅记录修复描述，直接 resolve
+      story = (this.stories.resolve(input.storyId, 'success', input.fixDescription)
+                ?? this.stories.get(input.storyId)) as Story;
+    }
 
-    // Step 6: 尝试髓鞘化（高频 compiled 路径 → 快捷边）
-    this.graph.myelinate({ minUseCount: 3, minWeight: 0.6 });
-
-    // Step 7: 生成 Regulation 视图
+    // Step 4: 生成 Regulation 视图（无论是否 compile 成功都刷新）
     const regulationViews = this.rvBuilder.buildAll({ minWeight: 0.3 });
 
     return {
-      story:           resolvedStory ?? this.stories.get(input.storyId)!,
+      story,
       compile,
       evidenceCount,
       regulationViews,
@@ -438,6 +472,7 @@ export class CausalPipeline {
     const ps  = this.problemClasses.getStats();
     const pts = this.patterns.getStats();
     const rv  = this.rvBuilder.buildAll();
+    const hs  = this.hypotheses.getStats();
 
     return {
       graph: {
@@ -458,6 +493,12 @@ export class CausalPipeline {
       problemClasses: ps.problemClassCount,
       templates:      pts.templateCount,
       regulations:    rv.length,
+      hypotheses: {
+        total:           hs.total,
+        open:            hs.byStatus?.['open']      ?? 0,
+        validated:       hs.byStatus?.['validated'] ?? 0,
+        readyForCompile: hs.readyForCompile,
+      },
     };
   }
 
@@ -474,6 +515,7 @@ export class CausalPipeline {
     this.evidence.close();
     this.problemClasses.close();
     this.patterns.close();
+    this.hypotheses.close();
     // rvBuilder 不拥有独立 DB 连接，无需单独关闭
   }
 }

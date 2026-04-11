@@ -91,6 +91,9 @@ export interface Shortcut {
   viaPath: string[];  // 中间 atom IDs
   totalWeight: number;
   useCount: number;
+  contextScope: string;
+  derivedFromRefIds: string[];  // 来源 Ref IDs（溯源）
+  invalidatedAt?: string;       // 失效时间戳，null=有效
   createdAt: string;
 }
 
@@ -115,6 +118,7 @@ export interface CompileResult {
   weakenedRefs: number;
   prunedRefs: number;
   newShortcuts: number;
+  compiledRefIds: string[];      // 被精确强化的 Ref IDs
 }
 
 /** 图统计信息 */
@@ -165,6 +169,8 @@ interface ShortcutRow {
   total_weight: number;
   use_count: number;
   context_scope: string;
+  derived_from_ref_ids: string;
+  invalidated_at: string | null;
   created_at: string;
 }
 
@@ -227,13 +233,16 @@ function rowToRef(row: RefRow): Ref {
 
 function rowToShortcut(row: ShortcutRow): Shortcut {
   return {
-    id:          row.id,
-    fromAtomId:  row.from_atom_id,
-    toAtomId:    row.to_atom_id,
-    viaPath:     JSON.parse(row.via_path) as string[],
-    totalWeight: row.total_weight,
-    useCount:    row.use_count,
-    createdAt:   row.created_at,
+    id:                row.id,
+    fromAtomId:        row.from_atom_id,
+    toAtomId:          row.to_atom_id,
+    viaPath:           JSON.parse(row.via_path) as string[],
+    totalWeight:       row.total_weight,
+    useCount:          row.use_count,
+    contextScope:      row.context_scope,
+    derivedFromRefIds: JSON.parse(row.derived_from_ref_ids || '[]') as string[],
+    invalidatedAt:     row.invalidated_at ?? undefined,
+    createdAt:         row.created_at,
   };
 }
 
@@ -341,14 +350,16 @@ export class AtomGraph {
       CREATE INDEX IF NOT EXISTS idx_refs_mode ON refs(mode);
 
       CREATE TABLE IF NOT EXISTS shortcuts (
-        id            TEXT PRIMARY KEY,
-        from_atom_id  TEXT NOT NULL REFERENCES atoms(id) ON DELETE CASCADE,
-        to_atom_id    TEXT NOT NULL REFERENCES atoms(id) ON DELETE CASCADE,
-        via_path      TEXT NOT NULL,
-        total_weight  REAL DEFAULT 0,
-        use_count     INTEGER DEFAULT 0,
-        context_scope TEXT DEFAULT '{}',
-        created_at    TEXT NOT NULL
+        id                    TEXT PRIMARY KEY,
+        from_atom_id          TEXT NOT NULL REFERENCES atoms(id) ON DELETE CASCADE,
+        to_atom_id            TEXT NOT NULL REFERENCES atoms(id) ON DELETE CASCADE,
+        via_path              TEXT NOT NULL,
+        total_weight          REAL DEFAULT 0,
+        use_count             INTEGER DEFAULT 0,
+        context_scope         TEXT DEFAULT '{}',
+        derived_from_ref_ids  TEXT DEFAULT '[]',
+        invalidated_at        TEXT,
+        created_at            TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_shortcuts_from ON shortcuts(from_atom_id);
       CREATE INDEX IF NOT EXISTS idx_shortcuts_to   ON shortcuts(to_atom_id);
@@ -446,8 +457,8 @@ export class AtomGraph {
 
     // Shortcut
     this.stmtInsertShortcut = this.db.prepare(`
-      INSERT INTO shortcuts (id, from_atom_id, to_atom_id, via_path, total_weight, use_count, created_at)
-      VALUES (@id, @fromAtomId, @toAtomId, @viaPath, @totalWeight, 0, @createdAt)
+      INSERT INTO shortcuts (id, from_atom_id, to_atom_id, via_path, total_weight, use_count, derived_from_ref_ids, created_at)
+      VALUES (@id, @fromAtomId, @toAtomId, @viaPath, @totalWeight, 0, @derivedFromRefIds, @createdAt)
     `);
     this.stmtSelectShortcut = this.db.prepare(`
       SELECT * FROM shortcuts WHERE from_atom_id = ? AND to_atom_id = ?
@@ -644,6 +655,7 @@ export class AtomGraph {
 
   /**
    * 修改 Ref 类型或权重
+   * kind 或 weight 变更时，使依赖此 Ref 的 Shortcut 失效
    */
   updateRef(id: string, updates: Partial<Pick<Ref, 'kind' | 'weight' | 'mode'>>): Ref | null {
     const existing = this.getRef(id);
@@ -654,15 +666,24 @@ export class AtomGraph {
     const mode   = updates.mode   ?? existing.mode;
 
     this.stmtUpdateRef.run({ id, kind, weight, mode });
+
+    // kind 或 weight 发生变化时，使依赖此 Ref 的 Shortcut 失效
+    if (updates.kind !== undefined || updates.weight !== undefined) {
+      this.invalidateShortcutsForRef(id);
+    }
+
     return this.getRef(id);
   }
 
   /**
-   * 删除 Ref（自动更新两端 refCount）
+   * 删除 Ref（自动更新两端 refCount，并使相关 Shortcut 失效）
    */
   removeRef(id: string): boolean {
     const existing = this.getRef(id);
     if (!existing) return false;
+
+    // 删除前先使依赖此 Ref 的 Shortcut 失效
+    this.invalidateShortcutsForRef(id);
 
     const info = this.stmtDeleteRef.run(id);
     if (info.changes > 0) {
@@ -866,9 +887,10 @@ export class AtomGraph {
       id,
       fromAtomId,
       toAtomId,
-      viaPath:     JSON.stringify(viaPath),
+      viaPath:           JSON.stringify(viaPath),
       totalWeight,
-      createdAt:   ts,
+      derivedFromRefIds: JSON.stringify([]),
+      createdAt:         ts,
     });
 
     return this.findShortcut(fromAtomId, toAtomId)!;
@@ -879,6 +901,18 @@ export class AtomGraph {
    */
   useShortcut(id: string): void {
     this.stmtIncrShortcutUseCount.run(id);
+  }
+
+  /**
+   * 使包含指定 refId 的所有 Shortcut 失效
+   * 通过 LIKE 匹配 derived_from_ref_ids JSON 数组中的 refId
+   */
+  invalidateShortcutsForRef(refId: string): number {
+    const ts = now();
+    const info = this.db.prepare(
+      `UPDATE shortcuts SET invalidated_at = ? WHERE invalidated_at IS NULL AND derived_from_ref_ids LIKE ?`
+    ).run(ts, `%${refId}%`);
+    return info.changes;
   }
 
   // ==========================================================================
@@ -914,9 +948,9 @@ export class AtomGraph {
     const targetKindSet = new Set<string>(targetKinds);
 
     for (const obsId of observationAtomIds) {
-      // 步骤 1：查 Shortcut（快速命中）
+      // 步骤 1：查 Shortcut（快速命中，过滤已失效的）
       const shortcutRows = this.db
-        .prepare(`SELECT * FROM shortcuts WHERE from_atom_id = ?`)
+        .prepare(`SELECT * FROM shortcuts WHERE from_atom_id = ? AND invalidated_at IS NULL`)
         .all(obsId) as ShortcutRow[];
 
       for (const sRow of shortcutRows) {
@@ -1016,72 +1050,70 @@ export class AtomGraph {
     let compiledRefs = 0;
     let weakenedRefs = 0;
     let prunedRefs   = 0;
+    const compiledRefIds: string[] = [];
 
-    // 预检：收集正确路径上的 ref kinds，验证复合合法性
-    const correctRefKinds: string[] = [];
+    // Phase 1: 精确解析 correctPath 上每一段的最佳 Ref
+    const resolvedRefs: Array<{ refId: string; kind: string }> = [];
+
     for (let i = 0; i < correctPath.atomIds.length - 1; i++) {
       const from = correctPath.atomIds[i];
       const to   = correctPath.atomIds[i + 1];
-      const allRefs = this.db.prepare(
-        `SELECT * FROM refs WHERE from_atom_id = ? AND to_atom_id = ? LIMIT 1`
-      ).get(from, to) as RefRow | undefined;
-      if (allRefs) {
-        correctRefKinds.push(allRefs.kind);
+
+      // 查找这一对之间的所有 Ref，按 weight 降序取最佳
+      const candidates = this.db.prepare(
+        `SELECT * FROM refs WHERE from_atom_id = ? AND to_atom_id = ? ORDER BY weight DESC`
+      ).all(from, to) as RefRow[];
+
+      if (candidates.length === 0) {
+        // 这一段没有 Ref → 整个 compile 失败
+        return { compiledRefs: 0, weakenedRefs: 0, prunedRefs: 0, newShortcuts: 0, compiledRefIds: [] };
+      }
+
+      // 取权重最高的那条作为本段的精确 Ref
+      resolvedRefs.push({ refId: candidates[0].id, kind: candidates[0].kind });
+    }
+
+    // Phase 2: 用精确 Ref 的 kind 序列做路径合法性检查
+    const refKinds = resolvedRefs.map(r => r.kind);
+    if (refKinds.length >= 2 && !isPathLegal(refKinds)) {
+      return { compiledRefs: 0, weakenedRefs: 0, prunedRefs: 0, newShortcuts: 0, compiledRefIds: [] };
+    }
+
+    // Phase 3: 只强化这些精确 Ref（不是整对更新）
+    const ts = now();
+    const stmtCompileRef = this.db.prepare(
+      `UPDATE refs SET weight = MIN(1.0, weight + 0.1), evidence = evidence + 1, mode = 'compiled', last_used_at = ? WHERE id = ?`
+    );
+
+    for (const r of resolvedRefs) {
+      const info = stmtCompileRef.run(ts, r.refId);
+      if (info.changes > 0) {
+        compiledRefs++;
+        compiledRefIds.push(r.refId);
       }
     }
 
-    // 如果路径有足够的 ref kinds，验证复合合法性
-    if (correctRefKinds.length >= 2 && !isPathLegal(correctRefKinds)) {
-      // 路径违反复合规则，不允许 compile
-      return { compiledRefs: 0, weakenedRefs: 0, prunedRefs: 0, newShortcuts: 0 };
-    }
-
-    const ts = now();
-
-    // 强化正确路径
-    const correctIds = correctPath.atomIds;
-    const stmtStrength = this.db.prepare(`
-      UPDATE refs
-      SET weight       = MIN(1.0, weight + 0.1),
-          evidence     = evidence + 1,
-          mode         = 'compiled',
-          last_used_at = ?
-      WHERE from_atom_id = ? AND to_atom_id = ?
-    `);
-
-    for (let i = 0; i < correctIds.length - 1; i++) {
-      const info = stmtStrength.run(ts, correctIds[i], correctIds[i + 1]);
-      if (info.changes > 0) compiledRefs++;
-    }
-
-    // 削弱失败路径上的 tentative ref
-    if (failedPaths && failedPaths.length > 0) {
-      const stmtWeaken = this.db.prepare(`
-        UPDATE refs
-        SET weight = MAX(0.0, weight - 0.05)
-        WHERE from_atom_id = ? AND to_atom_id = ? AND mode = 'tentative'
-      `);
-
-      for (const failedPath of failedPaths) {
-        const ids = failedPath.atomIds;
-        for (let i = 0; i < ids.length - 1; i++) {
-          const info = stmtWeaken.run(ids[i], ids[i + 1]);
-          if (info.changes > 0) weakenedRefs++;
+    // Phase 4: 弱化 failedPaths 中的 tentative Ref
+    if (failedPaths) {
+      for (const fp of failedPaths) {
+        for (let i = 0; i < fp.atomIds.length - 1; i++) {
+          const from = fp.atomIds[i];
+          const to   = fp.atomIds[i + 1];
+          // 只弱化 tentative 边
+          const info = this.db.prepare(
+            `UPDATE refs SET weight = MAX(0.0, weight - 0.05) WHERE from_atom_id = ? AND to_atom_id = ? AND mode = 'tentative'`
+          ).run(from, to);
+          weakenedRefs += info.changes;
         }
       }
+      // 删除低于阈值的 tentative 边
+      const pruneInfo = this.db.prepare(
+        `DELETE FROM refs WHERE mode = 'tentative' AND weight < 0.1`
+      ).run();
+      prunedRefs = pruneInfo.changes;
     }
 
-    // 修剪权重 < 0.1 的 tentative 边
-    const weakRows = this.db.prepare(`
-      SELECT * FROM refs WHERE mode = 'tentative' AND weight < 0.1
-    `).all() as RefRow[];
-
-    for (const row of weakRows) {
-      this.removeRef(row.id);
-      prunedRefs++;
-    }
-
-    return { compiledRefs, weakenedRefs, prunedRefs, newShortcuts: 0 };
+    return { compiledRefs, weakenedRefs, prunedRefs, newShortcuts: 0, compiledRefIds };
   }
 
   /**
@@ -1136,16 +1168,19 @@ export class AtomGraph {
             if (!existing) {
               const viaPath = newChain.slice(1, -1);
               const totalWeight = newChainRefs.reduce((acc, r) => acc * r.weight, 1.0);
+              // 收集路径上的 Ref IDs 用于溯源
+              const refIdsOnPath = newChainRefs.map(r => r.id);
 
               const id = genId('s');
               const ts = now();
               this.stmtInsertShortcut.run({
                 id,
-                fromAtomId:  fromId,
-                toAtomId:    toId,
-                viaPath:     JSON.stringify(viaPath),
+                fromAtomId:        fromId,
+                toAtomId:          toId,
+                viaPath:           JSON.stringify(viaPath),
                 totalWeight,
-                createdAt:   ts,
+                derivedFromRefIds: JSON.stringify(refIdsOnPath),
+                createdAt:         ts,
               });
 
               const sc = this.findShortcut(fromId, toId);
