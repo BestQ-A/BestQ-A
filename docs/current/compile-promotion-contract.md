@@ -2,7 +2,7 @@
 
 > 本文档是 `metamodel.md` 的局部合同，管辖 Ref 编译（compile）、Hypothesis 晋升、证据记录、Shortcut 创建及失效传播。
 > RefAlgebra 管"能不能推"，本文管"什么时候落盘、怎么晋升、怎么失效"。
-> 代码位置：`core/compile.ts`
+> 代码位置：`core/atom-graph.ts + core/pipeline.ts`
 
 ---
 

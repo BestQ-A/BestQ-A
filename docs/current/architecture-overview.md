@@ -4,7 +4,7 @@
 
 ---
 
-## 1. 三层架构
+## 1. 四层架构
 
 ```
 接口层（Interface）
@@ -140,7 +140,7 @@ graph LR
 ```
 
 **约束**：
-- 原子只能追加，不能就地修改（SSOT 原则）
+- 原子可修改内容（updateAtom），修改即全局传播（SSOT 原则）
 - Atom 可从任何模块创建，但删除权在 prune（基于 compile 结果）
 - Story 是不可变的学习样本容器
 
@@ -288,7 +288,7 @@ graph TB
 |------|------|--------|----------|------|
 | **短期** | In-Memory (Map/Set) | DualStorage | 读写快速 | 会话内缓存，生命周期绑定 Session |
 | **长期** | better-sqlite3 | DualStorage | ACID 事务 | 持久化，flush 时同步 |
-| **atoms** | 永久表 | AtomGraph | append-only | SSOT，修改即全局同步 |
+| **atoms** | 永久表 | AtomGraph | 可读写（SSOT） | 修改即全局传播，删除需 prune |
 | **refs** | 永久表 | AtomGraph | 版本化更新 | 支持 tentative↔compiled 转换 |
 | **shortcuts** | 缓存表 | AtomGraph | 自动失效 | 底层 Ref 变更时 invalidatedAt 自动更新 |
 | **stories** | 永久表 | Pipeline | 不可删除 | 学习样本，支撑 compile 决策 |

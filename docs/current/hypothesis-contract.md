@@ -128,7 +128,7 @@ interface HypothesisDerivation {
 
 **失效规则**：
 - 底层 Ref 的 `kind` 或 `force` 或 `scope` 变更时，所有依赖它的 Hypothesis 的 derivation 必须回放验证
-- 若回放失败（path no longer legal），Hypothesis 标记为 `invalid`，不再参与编译
+- 若回放失败（path no longer legal），Hypothesis 标记为 `rejected`（reason='derivation replay failed'），不再参与编译
 
 ---
 
@@ -148,11 +148,11 @@ interface HypothesisDerivation {
 
 | 不变量 | 说明 | 执行者 |
 |--------|------|--------|
-| Hypothesis 不可删除 | 永久审计日志，状态标记 invalid 不删除 | 存储层 |
+| Hypothesis 不可删除 | 永久审计日志，状态标记 rejected 不删除 | 存储层 |
 | 状态流转不可逆 | open→validated 后不能重置为 open | validate/reject 守卫 |
 | analogical force 永远无法晋升 | canPromote 中的 force 上界检查 | compile 门控 |
 | 没有 Evidence 的 Hypothesis 不能 validate | validatedByEvidenceIds.length > 0 | validate 守卫 |
-| derivation 回放失败 → Hypothesis 标记 invalid | proof-carrying 机制 | derivation replay 函数 |
+| derivation 回放失败 → Hypothesis 标记 rejected | proof-carrying 机制 | derivation replay 函数 |
 | 一个 Hypothesis 不能同时 validated 和 rejected | 状态机独占性 | 状态转移函数 |
 
 ---
