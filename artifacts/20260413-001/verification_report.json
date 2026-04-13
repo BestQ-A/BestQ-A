@@ -1,0 +1,7 @@
+{
+  "build": "ok",
+  "test_basic": "ok",
+  "stats_before": "ok",
+  "stats_after": "ok",
+  "field_mapping_errors": []
+}

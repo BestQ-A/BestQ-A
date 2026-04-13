@@ -1,3 +1,9 @@
+---
+status: current
+verified: 2026-04-13
+phase: 1
+---
+
 # CausalPipeline 编排合同：调用序列与失败语义
 
 > 本文档定义 Pipeline 的三条核心流程、事务边界、幂等性约束、错误处理策略与不变量。

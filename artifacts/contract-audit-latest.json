@@ -1,0 +1,97 @@
+{
+  "timestamp": "2026-04-13T13:51:38.020Z",
+  "contracts_scanned": 14,
+  "errors": [],
+  "warnings": [],
+  "summary": {
+    "ok": 14,
+    "warn": 0,
+    "err": 0
+  },
+  "results": [
+    {
+      "file": "docs/current/architecture-overview.md",
+      "status": "current",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/artifact-contract.md",
+      "status": "draft",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/compile-promotion-contract.md",
+      "status": "current",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/contract-audit-contract.md",
+      "status": "current",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/contract-vs-impl-audit.md",
+      "status": "reference",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/hypothesis-contract.md",
+      "status": "current",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/knowledge-source-contract.md",
+      "status": "draft",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/memory-layer-contract.md",
+      "status": "mixed",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/metamodel.md",
+      "status": "current",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/metrics-contract.md",
+      "status": "current",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/pipeline-contract.md",
+      "status": "current",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/plugin-surface-contract.md",
+      "status": "draft",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/ref-algebra-contract.md",
+      "status": "current",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/template-invariant-contract.md",
+      "status": "current",
+      "errors": 0,
+      "warnings": 0
+    }
+  ]
+}
