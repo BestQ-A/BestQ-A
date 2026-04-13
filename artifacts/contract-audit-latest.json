@@ -1,15 +1,15 @@
 {
-  "timestamp": "2026-04-13T15:03:24.877Z",
-  "files_scanned": 54,
+  "timestamp": "2026-04-13T15:52:37.799Z",
+  "files_scanned": 59,
   "errors": [],
   "warnings": [],
   "summary": {
-    "ok": 54,
+    "ok": 59,
     "warn": 0,
     "err": 0
   },
   "kind_distribution": {
-    "contract": 23,
+    "contract": 28,
     "instance": 18,
     "record": 2,
     "code": 10,
@@ -67,9 +67,14 @@
       "density": 0.0573
     },
     {
+      "file": "docs/current/derivation-chain-contract.md",
+      "kind": "contract",
+      "density": 0.062
+    },
+    {
       "file": "docs/current/epistemic-contract.md",
       "kind": "contract",
-      "density": 0.039
+      "density": 0.0499
     },
     {
       "file": "docs/current/file-taxonomy-contract.md",
@@ -117,6 +122,11 @@
       "density": 0.0264
     },
     {
+      "file": "docs/current/ontology-delta-contract.md",
+      "kind": "contract",
+      "density": 0.0467
+    },
+    {
       "file": "docs/current/pipeline-contract.md",
       "kind": "contract",
       "density": 0.0318
@@ -125,6 +135,11 @@
       "file": "docs/current/plugin-surface-contract.md",
       "kind": "contract",
       "density": 0.0748
+    },
+    {
+      "file": "docs/current/reconstruction-contract.md",
+      "kind": "contract",
+      "density": 0.0619
     },
     {
       "file": "docs/current/ref-algebra-contract.md",
@@ -155,6 +170,16 @@
       "file": "docs/current/template-invariant-contract.md",
       "kind": "contract",
       "density": 0
+    },
+    {
+      "file": "docs/current/v6-world-model-contract.md",
+      "kind": "contract",
+      "density": 0.036
+    },
+    {
+      "file": "docs/current/v7-world-model-contract.md",
+      "kind": "contract",
+      "density": 0.0654
     },
     {
       "file": "docs/bestqa-roadmap.md",
@@ -546,13 +571,24 @@
       "warnings": 0
     },
     {
+      "file": "docs/current/derivation-chain-contract.md",
+      "format": "md",
+      "status": "draft",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "推导链对象规范",
+      "density": 0.062,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
       "file": "docs/current/epistemic-contract.md",
       "format": "md",
       "status": "draft",
       "kind": "contract",
       "legacy_kind": null,
       "describes": "显式求解与本体更新",
-      "density": 0.039,
+      "density": 0.0499,
       "errors": 0,
       "warnings": 0
     },
@@ -656,6 +692,17 @@
       "warnings": 0
     },
     {
+      "file": "docs/current/ontology-delta-contract.md",
+      "format": "md",
+      "status": "draft",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "本体增量对象规范",
+      "density": 0.0467,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
       "file": "docs/current/pipeline-contract.md",
       "format": "md",
       "status": "current",
@@ -674,6 +721,17 @@
       "legacy_kind": null,
       "describes": "双通道 plugin 分发边界",
       "density": 0.0748,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/reconstruction-contract.md",
+      "format": "md",
+      "status": "draft",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "过程重建对象规范",
+      "density": 0.0619,
       "errors": 0,
       "warnings": 0
     },
@@ -740,6 +798,28 @@
       "legacy_kind": null,
       "describes": "Template 不变量门控",
       "density": 0,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/v6-world-model-contract.md",
+      "format": "md",
+      "status": "draft",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "四空间世界模型引擎",
+      "density": 0.036,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/v7-world-model-contract.md",
+      "format": "md",
+      "status": "draft",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "五层世界动力学引擎",
+      "density": 0.0654,
       "errors": 0,
       "warnings": 0
     },
