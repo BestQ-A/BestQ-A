@@ -274,6 +274,13 @@ export type {
   AcceptedReconstruction,
 } from './reconstruction.js';
 
+// DerivationTrace (v7 §3.3 推导链 — 原 DerivationChain)
+export {
+  findChainBreak,
+  computeChainIntegrity,
+  createDerivationTrace,
+} from './derivation-trace.js';
+
 export {
   createAcceptedReconstruction,
 } from './reconstruction.js';
