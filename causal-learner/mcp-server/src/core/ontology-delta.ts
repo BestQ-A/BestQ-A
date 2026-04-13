@@ -1,0 +1,180 @@
+import crypto from 'crypto';
+
+import type { AcceptedReconstruction, FidelityScore } from './reconstruction.js';
+
+/** v7 §3.4 顶层 delta 种类 */
+export type OntologyDeltaKind =
+  | 'PromoteMechanism'   // 将候选机制晋升为已接受的机制类
+  | 'SplitClass'         // 将一个机制类拆分为两个更精细的类
+  | 'MergeClass'         // 合并两个相似的机制类
+  | 'DeprecateRelation'  // 废弃/移除一个因果关系
+  | 'RegisterPattern'    // 注册新的结构模式或关系
+  | 'none';              // Episode 已处理但本体无需更新
+
+export type OntologyChangeAction =
+  | 'add_entity'
+  | 'modify_entity'
+  | 'deprecate_entity'
+  | 'add_attribute'
+  | 'modify_attribute'
+  | 'remove_attribute'
+  | 'add_relation'
+  | 'strengthen_relation'
+  | 'weaken_relation'
+  | 'retype_relation'
+  | 'remove_relation'
+  | 'promote_mechanism'
+  | 'extend_mechanism'
+  | 'retire_mechanism'
+  | 'accept_claim'
+  | 'reject_claim'
+  | 'supersede_claim';
+
+export interface OntologyChange {
+  action: OntologyChangeAction;
+  target_space: 'ontology';
+  target_kind: string;
+  target_id: string;
+  details: Record<string, unknown>;
+  evidence_episode_id: string;
+}
+
+export interface RegressionDetail {
+  episode_id: string;
+  fidelity_before: number;
+  fidelity_after: number;
+  delta: number;
+  affected_nodes: string[];
+}
+
+export interface FidelityRegressionCheck {
+  episodes_checked: number;
+  episodes_skipped: number;
+  skipped_ids: string[];
+  min_fidelity_before: number;
+  min_fidelity_after: number;
+  regression_detected: boolean;
+  regressed_episodes: RegressionDetail[] | null;
+  isMonotonic: boolean;
+}
+
+export interface OntologyDelta {
+  id: string;
+  episode_id: string;
+  reconstruction_id: string;
+  claim_ids: string[];
+  kind: OntologyDeltaKind;
+  changes: OntologyChange[];
+  fidelity_regression_check: FidelityRegressionCheck;
+  created_at: string;
+  created_by: string;
+  applied_at: string | null;
+}
+
+export interface NoUpdateReason {
+  episode_id: string;
+  reconstruction_id: string;
+  reason_kind:
+    | 'ontology_sufficient'
+    | 'episode_inconclusive'
+    | 'duplicate_episode'
+    | 'human_override'
+    | 'pending_more_evidence';
+  explanation: string;
+  follow_up: string | null;
+}
+
+type NoUpdateReasonInput = Omit<NoUpdateReason, 'reconstruction_id'> & {
+  reconstruction_id: string;
+  followUp?: string | null;
+};
+
+export type OntologyUpdate = OntologyDelta | NoUpdateReason;
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+/** 从原子变更动作集合推导顶层 delta kind */
+function deriveKind(changes: OntologyChange[]): OntologyDeltaKind {
+  if (changes.length === 0) return 'none';
+  const actions = new Set(changes.map((c) => c.action));
+  if (actions.has('promote_mechanism') || actions.has('extend_mechanism')) return 'PromoteMechanism';
+  if (actions.has('remove_relation') || actions.has('retire_mechanism') || actions.has('deprecate_entity')) return 'DeprecateRelation';
+  // add_relation / add_entity / accept_claim 等均视为注册新知识
+  return 'RegisterPattern';
+}
+
+function unique(values: string[]): string[] {
+  return Array.from(new Set(values));
+}
+
+function newDeltaId(episodeId: string): string {
+  return `OD_${episodeId}_${crypto.randomBytes(3).toString('hex')}`;
+}
+
+export function createRegressionCheck(
+  current: FidelityScore
+): FidelityRegressionCheck {
+  return {
+    episodes_checked: 0,
+    episodes_skipped: 0,
+    skipped_ids: [],
+    min_fidelity_before: current.score,
+    min_fidelity_after: current.score,
+    regression_detected: false,
+    regressed_episodes: null,
+    isMonotonic: true,
+  };
+}
+
+export function createOntologyDelta(
+  episodeId: string,
+  reconstruction: AcceptedReconstruction,
+  claimIds: string[],
+  changes: OntologyChange[]
+): OntologyDelta {
+  return {
+    id: newDeltaId(episodeId),
+    episode_id: episodeId,
+    reconstruction_id: reconstruction.id,
+    claim_ids: unique(claimIds.filter(Boolean)),
+    kind: deriveKind(changes),
+    changes,
+    fidelity_regression_check: createRegressionCheck(reconstruction.fidelity),
+    created_at: nowIso(),
+    created_by: 'pipeline_s7',
+    applied_at: changes.length > 0 ? nowIso() : null,
+  };
+}
+
+export function createNoUpdateReason(input: NoUpdateReasonInput): NoUpdateReason {
+  const follow_up = input.follow_up ?? input.followUp ?? null;
+  return {
+    episode_id: input.episode_id,
+    reconstruction_id: input.reconstruction_id,
+    reason_kind: input.reason_kind,
+    explanation: input.explanation,
+    follow_up,
+  };
+}
+
+export function buildRelationChange(
+  fromAtomId: string,
+  toAtomId: string,
+  episodeId: string
+): OntologyChange {
+  return {
+    action: 'add_relation',
+    target_space: 'ontology',
+    target_kind: 'Relation',
+    target_id: `${fromAtomId}_${toAtomId}`,
+    details: {
+      from_id: fromAtomId,
+      to_id: toAtomId,
+      relation_type: 'causes',
+      initial_weight: 0.6,
+    },
+    evidence_episode_id: episodeId,
+  };
+}
