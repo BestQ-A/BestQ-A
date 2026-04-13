@@ -1,7 +1,10 @@
 ---
+kind: contract
 status: current
 verified: 2026-04-13
 phase: 1
+schema_version: 1
+describes: "pipeline 的调用序列"
 ---
 
 # CausalPipeline 编排合同：调用序列与失败语义

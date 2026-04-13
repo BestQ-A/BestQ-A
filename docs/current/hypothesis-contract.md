@@ -1,7 +1,10 @@
 ---
+kind: contract
 status: current
 verified: 2026-04-13
 phase: 1
+schema_version: 1
+describes: "Hypothesis 状态机门控"
 ---
 
 # Hypothesis 合同：门控与状态机规范

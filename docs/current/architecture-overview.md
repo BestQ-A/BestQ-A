@@ -1,7 +1,10 @@
 ---
+kind: contract
 status: current
 verified: 2026-04-13
 phase: 1
+schema_version: 1
+describes: "四层模块拓扑的读写路径"
 ---
 
 # BestQ-A 架构总览

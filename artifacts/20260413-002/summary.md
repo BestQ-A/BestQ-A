@@ -5,17 +5,17 @@ generated_by: scripts/eval.mjs
 generated_at: 2026-04-13
 ---
 
-# Eval 20260413-001
+# Eval 20260413-002
 
-- commit: `ff82b76`
+- commit: `ab01d1b`
 - phase: phase1
 - dataset: placeholder
 - n_instances: 0
-- duration_sec: 2.137
+- duration_sec: 2.169
 
 ## Conclusion
 
-Run completed. 24 fields captured, 10 fields null (TBD or Phase-gated).
+Run completed. 28 fields captured, 10 fields null (TBD or Phase-gated).
 
 ## Key deltas (dualStats)
 

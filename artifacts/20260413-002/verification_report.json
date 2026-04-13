@@ -2,7 +2,7 @@
   "$kind": "instance",
   "$conforms_to": "docs/current/artifact-contract.md",
   "$generated_by": "scripts/eval.mjs",
-  "$generated_at": "2026-04-13T13:47:09.799Z",
+  "$generated_at": "2026-04-13T14:17:55.336Z",
   "build": "ok",
   "test_basic": "ok",
   "stats_before": "ok",

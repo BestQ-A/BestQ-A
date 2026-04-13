@@ -1,7 +1,10 @@
 ---
+kind: contract
 status: current
 verified: 2026-04-13
 phase: 1
+schema_version: 1
+describes: "Template 不变量门控"
 ---
 
 # PatternTemplate 不变量合同：模板约束与门控规范

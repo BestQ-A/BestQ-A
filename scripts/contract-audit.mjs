@@ -1,41 +1,116 @@
 #!/usr/bin/env node
+// ---
+// kind: code
+// implements: docs/current/contract-audit-contract.md
+// ---
 // 契约真值审计脚本 — 规格见 docs/current/contract-audit-contract.md（纯 ESM，无 npm 依赖）
 import { readdir, readFile, writeFile, mkdir, stat } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const execFileP = promisify(execFile);
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = path.resolve(path.dirname(__filename), '..');
-const DOCS_DIR = path.join(ROOT, 'docs', 'current');
+const DOCS_CURRENT = path.join(ROOT, 'docs', 'current');
+const DOCS_DIR = path.join(ROOT, 'docs');
+const SCRIPTS_DIR = path.join(ROOT, 'scripts');
 const ARTIFACTS_DIR = path.join(ROOT, 'artifacts');
+const BASELINES_DIR = path.join(ROOT, '.omx', 'baselines');
 const OUT_JSON = path.join(ARTIFACTS_DIR, 'contract-audit-latest.json');
+
+// 顶层 docs/*.md 也参与分类审计（非 docs/current/ 的设计文档）
+const TOP_DOCS_WHITELIST = new Set(['bestqa-roadmap.md', 'external-integration.md']);
+
 const VALID_STATUS = new Set(['current', 'draft', 'mixed', 'reference']);
-const CODE_EXT = /\.(ts|tsx|js|mjs|cjs|md|json|ya?ml|py|sql)$/;
+const NEW_KIND = new Set(['contract', 'instance', 'record', 'code', 'index']);
+const LEGACY_KIND = new Set(['I', 'II']);
+// describes 禁用连词：并列信号 → describes 必须是单句
+const DESCRIBES_CONJ_CHARS = /[和及并]|同时|[，、]/;
+const DESCRIBES_CONJ_EN = /\b(and|also)\b/i;
+// 中文停用词（token 切分时剔除）
+const STOPWORDS = new Set([
+  'the','a','an','of','to','for','in','on','at','by','with','is','are',
+  '的','了','和','与','或','在','是','为','对','从','到','及','并','同时',
+]);
 const BASENAME_FALLBACK_DIRS = [
   'causal-learner/mcp-server/src',
   'causal-learner/mcp-server/src/core',
   'causal-learner/mcp-server/src/tools',
   'scripts',
 ];
+const ISO8601_RE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?)?$/;
 
-/** 解析 frontmatter：status / body / bodyStartLine。无 frontmatter 则 status=null. */
-function parseFrontmatter(text) {
-  const lines = text.split(/\r?\n/);
-  if (lines[0] !== '---') return { status: null, body: text, bodyStartLine: 1 };
-  let end = -1;
-  for (let i = 1; i < lines.length; i++) if (lines[i] === '---') { end = i; break; }
-  if (end < 0) return { status: null, body: text, bodyStartLine: 1 };
-  const fm = {};
-  for (let i = 1; i < end; i++) {
-    const m = lines[i].match(/^([a-zA-Z_][\w-]*):\s*(.*)$/);
-    if (m) fm[m[1]] = m[2].trim();
-  }
-  const raw = fm.status || null;
-  const status = raw ? raw.replace(/\s*\(.*\)\s*$/, '').trim() : null;
-  return { status, body: lines.slice(end + 1).join('\n'), bodyStartLine: end + 2 };
+/** 去掉 UTF-8 BOM。 */
+function stripBom(s) { return s.charCodeAt(0) === 0xFEFF ? s.slice(1) : s; }
+
+/** 剥单/双引号包裹（仅一层）。 */
+function unquote(s) {
+  if (typeof s !== 'string') return s;
+  const m = s.match(/^"([^"]*)"$/) || s.match(/^'([^']*)'$/);
+  return m ? m[1] : s;
 }
 
-/** 收集 <!-- audit-ignore: code[: target] --> 指令 */
+/** Markdown frontmatter 提取器：返回 { fm, body, bodyStartLine }。 */
+function parseMarkdownFrontmatter(text) {
+  text = stripBom(text);
+  const lines = text.split(/\r?\n/);
+  if (lines[0] !== '---') return { fm: {}, body: text, bodyStartLine: 1 };
+  let end = -1;
+  for (let i = 1; i < lines.length; i++) if (lines[i] === '---') { end = i; break; }
+  if (end < 0) return { fm: {}, body: text, bodyStartLine: 1 };
+  const fm = {};
+  for (let i = 1; i < end; i++) {
+    const m = lines[i].match(/^([a-zA-Z_$][\w$-]*):\s*(.*)$/);
+    if (m) fm[m[1]] = unquote(m[2].trim());
+  }
+  return { fm, body: lines.slice(end + 1).join('\n'), bodyStartLine: end + 2 };
+}
+
+/** JS 注释伪 frontmatter 提取器：头部 `// ---` ... `// ---`。 */
+function parseJsFrontmatter(text) {
+  text = stripBom(text);
+  const lines = text.split(/\r?\n/);
+  let start = -1, end = -1;
+  for (let i = 0; i < lines.length && i < 50; i++) {
+    const l = lines[i].trim();
+    if (l === '' || l.startsWith('#!')) continue;
+    if (l === '// ---') { start = i; break; }
+    if (!l.startsWith('//')) return { fm: {}, body: text, bodyStartLine: 1 };
+  }
+  if (start < 0) return { fm: {}, body: text, bodyStartLine: 1 };
+  for (let i = start + 1; i < lines.length && i < 80; i++) {
+    if (lines[i].trim() === '// ---') { end = i; break; }
+  }
+  if (end < 0) return { fm: {}, body: text, bodyStartLine: 1 };
+  const fm = {};
+  for (let i = start + 1; i < end; i++) {
+    const m = lines[i].match(/^\s*\/\/\s*([a-zA-Z_$][\w$-]*):\s*(.*)$/);
+    if (m) fm[m[1]] = unquote(m[2].trim());
+  }
+  return { fm, body: lines.slice(end + 1).join('\n'), bodyStartLine: end + 2 };
+}
+
+/** JSON 根字段提取器：扫描 `$kind` `$conforms_to` `$generated_by` 等。 */
+function parseJsonFrontmatter(text) {
+  text = stripBom(text);
+  let obj = null;
+  try { obj = JSON.parse(text); }
+  catch { return { fm: {}, body: text, bodyStartLine: 1, parseError: true }; }
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+    return { fm: {}, body: text, bodyStartLine: 1 };
+  }
+  const fm = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (k.startsWith('$') && (typeof v === 'string' || typeof v === 'boolean' || typeof v === 'number')) {
+      fm[k.slice(1)] = v;
+    }
+  }
+  return { fm, body: text, bodyStartLine: 1 };
+}
+
+/** 收集 <!-- audit-ignore: code[: target] --> 指令（仅 markdown） */
 function collectIgnores(text) {
   const ignores = new Set();
   for (const m of text.matchAll(/<!--\s*audit-ignore:\s*([\w-]+)(?::\s*([^>]+?))?\s*-->/g)) {
@@ -46,7 +121,7 @@ function collectIgnores(text) {
   return ignores;
 }
 
-/** mixed 合同：按章节标题关键字把每行映射为 'current' 或 'draft' */
+/** mixed 合同按章节标题关键字把每行映射为 'current' 或 'draft' */
 function classifyMixedSegments(body) {
   const lines = body.split(/\r?\n/);
   const map = new Array(lines.length);
@@ -63,7 +138,7 @@ function classifyMixedSegments(body) {
   return map;
 }
 
-/** 提取所有引用。跳过 fenced code block；md-link 时遮罩 inline-code 以避免误匹配。 */
+/** 提取所有引用。跳过 fenced code block；md-link 时遮罩 inline-code。 */
 function extractReferences(body, bodyStartLine) {
   const refs = [];
   const lines = body.split(/\r?\n/);
@@ -86,10 +161,8 @@ function extractReferences(body, bodyStartLine) {
       const plm = m[1].match(/^([^\s:]+\.(?:ts|tsx|js|mjs|cjs|md|json|ya?ml|py|sql)):(\d+)(?:[-–](\d+))?$/);
       if (plm) {
         refs.push({
-          kind: 'pathline',
-          target: plm[1],
-          lineStart: +plm[2],
-          lineEnd: plm[3] ? +plm[3] : +plm[2],
+          kind: 'pathline', target: plm[1],
+          lineStart: +plm[2], lineEnd: plm[3] ? +plm[3] : +plm[2],
           line: bodyStartLine + i,
         });
       }
@@ -98,7 +171,7 @@ function extractReferences(body, bodyStartLine) {
   return { refs, lines };
 }
 
-/** 提取反引号内的 `foo()` / `BarClass`，best-effort 用于 symbol-drift 检查 */
+/** 提取反引号内的 `foo()` / `BarClass`，用于 symbol-drift 检查 */
 function extractSymbols(body, bodyStartLine) {
   const lines = body.split(/\r?\n/);
   const items = [];
@@ -118,6 +191,53 @@ function extractSymbols(body, bodyStartLine) {
   return { items, lines };
 }
 
+function codePointLength(s) { let n = 0; for (const _ of s) n++; return n; }
+
+/** 正文中链接/embed 的原始字符总长度。 */
+function computeLinkBytes(body) {
+  const lines = body.split(/\r?\n/);
+  let inFence = false;
+  const buf = [];
+  for (const l of lines) {
+    if (/^\s*```/.test(l)) { inFence = !inFence; continue; }
+    if (!inFence) buf.push(l);
+  }
+  const text = buf.join('\n');
+  const marks = new Array(text.length).fill(false);
+  let total = 0;
+  for (const re of [/!\[\[[^\]]+\]\]/g, /\[\[[^\]]+\]\]/g, /!\[[^\]]*\]\([^)]+\)/g, /\[[^\]]*\]\([^)]+\)/g]) {
+    for (const m of text.matchAll(re)) {
+      const s = m.index, e = s + m[0].length;
+      let overlap = false;
+      for (let i = s; i < e; i++) if (marks[i]) { overlap = true; break; }
+      if (overlap) continue;
+      for (let i = s; i < e; i++) marks[i] = true;
+      total += m[0].length;
+    }
+  }
+  return { total: text.length, linkBytes: total };
+}
+
+function tokenize(s) {
+  if (!s) return new Set();
+  const tokens = new Set();
+  for (const m of String(s).toLowerCase().matchAll(/[a-z][a-z0-9]*/g)) {
+    if (!STOPWORDS.has(m[0])) tokens.add(m[0]);
+  }
+  for (const ch of String(s)) {
+    if (/[\u4e00-\u9fff]/.test(ch) && !STOPWORDS.has(ch)) tokens.add(ch);
+  }
+  return tokens;
+}
+
+function jaccard(a, b) {
+  if (a.size === 0 && b.size === 0) return 0;
+  let inter = 0;
+  for (const t of a) if (b.has(t)) inter++;
+  const uni = a.size + b.size - inter;
+  return uni === 0 ? 0 : inter / uni;
+}
+
 async function readFileInfo(abs) {
   try {
     const s = await stat(abs);
@@ -127,7 +247,6 @@ async function readFileInfo(abs) {
   } catch { return { exists: false }; }
 }
 
-/** 把一个引用 target 解析为真实文件：相对合同 → 相对仓根 → basename fallback（按 lineNeed 选配） */
 async function resolveTarget(target, contractDir, lineNeed) {
   const tries = [path.resolve(contractDir, target), path.resolve(ROOT, target)];
   for (const a of tries) {
@@ -146,103 +265,406 @@ async function resolveTarget(target, contractDir, lineNeed) {
   return firstExisting || { abs: null, info: { exists: false } };
 }
 
-async function auditContract(absFile) {
+/** git log --oneline -- <file> 的 commit 数；失败返回 null（不崩溃）。 */
+async function gitCommitCount(absFile) {
+  try {
+    const { stdout } = await execFileP('git', ['log', '--oneline', '--', absFile], { cwd: ROOT });
+    return stdout.split(/\r?\n/).filter(Boolean).length;
+  } catch { return null; }
+}
+
+/** 归一化 kind：区分新值 / legacy / 非法。 */
+function normalizeKind(rawKind) {
+  if (rawKind === null || rawKind === undefined || rawKind === '') return { kind: null, legacy: false };
+  const k = String(rawKind).trim();
+  if (NEW_KIND.has(k)) return { kind: k, legacy: false };
+  if (LEGACY_KIND.has(k)) return { kind: k, legacy: true };
+  return { kind: k, legacy: false, invalid: true };
+}
+
+/** 对单个文件做分类 + 规则审计。format: 'md' | 'js' | 'json'。 */
+async function auditFile(absFile, format) {
   const findings = [];
   const rel = path.relative(ROOT, absFile).replace(/\\/g, '/');
-  const text = await readFile(absFile, 'utf8');
-  const { status: rawStatus, body, bodyStartLine } = parseFrontmatter(text);
-  const ignores = collectIgnores(text);
-
-  let status = rawStatus;
-  if (!status) {
-    findings.push({
-      file: rel, line: 1, code: 'missing-status', level: 'error',
-      msg: '缺少 frontmatter `status:` 字段（current|draft|mixed|reference）',
-    });
-    status = 'draft';
-  } else if (!VALID_STATUS.has(status)) {
-    findings.push({
-      file: rel, line: 1, code: 'bad-status', level: 'error',
-      msg: `status 非法：${status}（应为 current|draft|mixed|reference）`,
-    });
-    status = 'draft';
+  let text;
+  try { text = await readFile(absFile, 'utf8'); }
+  catch (e) {
+    return { file: rel, format, kind: null, legacyKind: null, describes: null, density: null, status: null, fm: {}, findings: [{ file: rel, line: 1, code: 'read-error', level: 'error', msg: `无法读取：${e.message}` }] };
   }
-  if (status === 'reference') return { file: rel, status, findings };
 
-  const segMap = status === 'mixed' ? classifyMixedSegments(body) : null;
-  const contractDir = path.dirname(absFile);
-  const { refs } = extractReferences(body, bodyStartLine);
+  let fm, body, bodyStartLine;
+  if (format === 'md') {
+    ({ fm, body, bodyStartLine } = parseMarkdownFrontmatter(text));
+  } else if (format === 'js') {
+    ({ fm, body, bodyStartLine } = parseJsFrontmatter(text));
+  } else {
+    const parsed = parseJsonFrontmatter(text);
+    ({ fm, body, bodyStartLine } = parsed);
+    if (parsed.parseError) {
+      findings.push({ file: rel, line: 1, code: 'json-parse-error', level: 'error', msg: 'JSON 无法解析' });
+    }
+  }
 
-  for (const ref of refs) {
-    const seg = segMap ? (segMap[ref.line - bodyStartLine] || 'current') : status;
-    const lineNeed = ref.kind === 'pathline' ? Math.max(ref.lineStart, ref.lineEnd) : 0;
-    const { info } = await resolveTarget(ref.target, contractDir, lineNeed);
-    if (!info.exists) {
+  const ignores = format === 'md' ? collectIgnores(text) : new Set();
+
+  // ── R5：kind 必填与合法 ──
+  const rawKind = fm.kind;
+  const norm = normalizeKind(rawKind);
+  let kind = null;
+  let legacyKind = null;
+
+  if (!rawKind) {
+    if (!ignores.has('missing-kind')) {
       findings.push({
-        file: rel, line: ref.line, code: 'missing-file',
-        msg: `引用的文件不存在：${ref.target}`,
-        level: seg === 'current' ? 'error' : 'warning',
+        file: rel, line: 1, code: 'missing-kind', level: 'error',
+        msg: `缺少 \`kind\` 字段（应为 ${[...NEW_KIND].join('|')}）`,
       });
-      continue;
     }
-    if (ref.kind === 'pathline' && seg !== 'draft') {
-      const maxL = Math.max(ref.lineStart, ref.lineEnd);
-      if (ref.lineStart < 1 || maxL > info.lineCount) {
+  } else if (norm.invalid) {
+    findings.push({
+      file: rel, line: 1, code: 'bad-kind', level: 'error',
+      msg: `kind 非法：${rawKind}（应为 ${[...NEW_KIND].join('|')}，或旧值 I/II）`,
+    });
+  } else if (norm.legacy) {
+    legacyKind = norm.kind;
+    // R13：升级建议（warn）
+    if (norm.kind === 'I') {
+      findings.push({
+        file: rel, line: 1, code: 'suggest-upgrade', level: 'warning',
+        msg: 'kind: I 已废弃，请根据内容升级为 contract | record | code',
+      });
+    } else {
+      findings.push({
+        file: rel, line: 1, code: 'suggest-upgrade', level: 'warning',
+        msg: "kind: II 已废弃，请改为 'index'",
+      });
+    }
+    kind = norm.kind === 'I' ? 'contract' : 'index'; // 兼容期间按旧规则继续审计
+  } else {
+    kind = norm.kind;
+  }
+
+  const describes = fm.describes !== undefined ? String(fm.describes) : null;
+
+  // ── R2 describes（contract / legacy-I 共用） ──
+  if (kind === 'contract' || legacyKind === 'I') {
+    if (describes === null || describes === '') {
+      if (!ignores.has('missing-describes')) {
         findings.push({
-          file: rel, line: ref.line, code: 'bad-line',
-          msg: `${ref.target} 只有 ${info.lineCount} 行，引用 ${ref.lineStart}-${ref.lineEnd} 越界`,
-          level: seg === 'current' ? 'error' : 'warning',
+          file: rel, line: 1, code: 'missing-describes', level: 'error',
+          msg: 'kind: contract 必须有 `describes:` 字段',
+        });
+      }
+    } else {
+      if (codePointLength(describes) > 20 && !ignores.has('describes-too-long')) {
+        findings.push({
+          file: rel, line: 1, code: 'describes-too-long', level: 'warning',
+          msg: `describes 超过 20 字：${codePointLength(describes)} 字`,
+        });
+      }
+      if ((DESCRIBES_CONJ_CHARS.test(describes) || DESCRIBES_CONJ_EN.test(describes))
+          && !ignores.has('describes-conjunction')) {
+        findings.push({
+          file: rel, line: 1, code: 'describes-conjunction', level: 'error',
+          msg: `describes 含连词/并列信号：${describes}`,
         });
       }
     }
   }
 
-  // 规则 4：symbol-drift（best-effort warning，只对 current 段生效）
-  if (status !== 'draft') {
-    const { items, lines } = extractSymbols(body, bodyStartLine);
-    for (const it of items) {
-      const seg = segMap ? (segMap[it.idx] || 'current') : status;
-      if (seg !== 'current') continue;
-      const from = Math.max(0, it.idx - 3);
-      const to = Math.min(lines.length - 1, it.idx + 3);
-      const nearby = lines.slice(from, to + 1).join('\n');
-      const fileHits = [
-        ...nearby.matchAll(/`([^`]*\.ts)(?::\d+(?:[-–]\d+)?)?`/g),
-        ...nearby.matchAll(/\(([^)]+\.ts)\)/g),
-      ];
-      let checked = false, found = false;
-      for (const fm2 of fileHits) {
-        const { info } = await resolveTarget(fm2[1].trim(), contractDir, 0);
-        if (!info.exists) continue;
-        checked = true;
-        if (new RegExp(`\\b${it.symbol}\\b`).test(info.text)) { found = true; break; }
+  // ── R14：index 严格无 substance + R3 密度门槛 ──
+  const { total, linkBytes } = format === 'md' ? computeLinkBytes(body) : { total: 0, linkBytes: 0 };
+  const density = total > 0 ? linkBytes / total : 0;
+  if ((kind === 'contract' || legacyKind === 'I') && density > 0.30 && !ignores.has('type1-too-many-refs')) {
+    findings.push({
+      file: rel, line: 1, code: 'type1-too-many-refs', level: 'warning',
+      msg: `contract 引用密度过高 density=${(density * 100).toFixed(1)}%（>30% 可能应为 index）`,
+    });
+  }
+  if (kind === 'index' || legacyKind === 'II') {
+    if (describes && !ignores.has('type2-has-describes')) {
+      findings.push({
+        file: rel, line: 1, code: 'type2-has-describes', level: 'warning',
+        msg: 'kind: index 不应填 describes',
+      });
+    }
+    if (format === 'md' && density < 0.70 && !ignores.has('type2-too-much-substance')) {
+      findings.push({
+        file: rel, line: 1, code: 'type2-too-much-substance', level: 'warning',
+        msg: `index 引用密度过低 density=${(density * 100).toFixed(1)}%（<70% 可能夹带 substance）`,
+      });
+    }
+  }
+
+  // ── R12：contract 建议有 schema_version ──
+  if (kind === 'contract' && fm.schema_version === undefined && !ignores.has('missing-schema-version')) {
+    findings.push({
+      file: rel, line: 1, code: 'missing-schema-version', level: 'warning',
+      msg: 'kind: contract 建议有 `schema_version:` 字段（int）',
+    });
+  }
+
+  // ── R6/R7/R8：instance 绑定完备 + conforms_to 合法 + generated_by 存在 ──
+  if (kind === 'instance') {
+    const ct = fm.conforms_to;
+    const gb = fm.generated_by;
+    const ga = fm.generated_at;
+    if (!ct) {
+      findings.push({ file: rel, line: 1, code: 'missing-conforms-to', level: 'error', msg: 'kind: instance 必须有 `conforms_to`' });
+    }
+    if (!gb) {
+      findings.push({ file: rel, line: 1, code: 'missing-generated-by', level: 'error', msg: 'kind: instance 必须有 `generated_by`' });
+    }
+    if (!ga) {
+      findings.push({ file: rel, line: 1, code: 'missing-generated-at', level: 'error', msg: 'kind: instance 必须有 `generated_at`' });
+    } else if (!ISO8601_RE.test(String(ga))) {
+      findings.push({ file: rel, line: 1, code: 'bad-generated-at', level: 'error', msg: `generated_at 非 ISO 8601：${ga}` });
+    }
+    if (ct) {
+      const abs = path.isAbsolute(String(ct)) ? String(ct) : path.resolve(ROOT, String(ct));
+      const info = await readFileInfo(abs);
+      if (!info.exists) {
+        findings.push({ file: rel, line: 1, code: 'bad-conforms-to-target', level: 'error', msg: `conforms_to 不存在：${ct}` });
+      } else {
+        const { fm: tfm } = parseMarkdownFrontmatter(info.text);
+        const tKind = normalizeKind(tfm.kind).kind;
+        if (tKind !== 'contract') {
+          findings.push({ file: rel, line: 1, code: 'bad-conforms-to-target', level: 'error', msg: `conforms_to 目标 kind=${tKind || '?'}，应为 contract：${ct}` });
+        }
       }
-      if (checked && !found
-          && !ignores.has(`symbol-drift:${it.symbol}`)
-          && !ignores.has('symbol-drift')) {
-        findings.push({
-          file: rel, line: it.line, code: 'symbol-drift',
-          msg: `符号 \`${it.symbol}\` 在附近引用的 .ts 文件中未找到`,
-          level: 'warning',
-        });
+    }
+    if (gb) {
+      const abs = path.isAbsolute(String(gb)) ? String(gb) : path.resolve(ROOT, String(gb));
+      const info = await readFileInfo(abs);
+      if (!info.exists) {
+        findings.push({ file: rel, line: 1, code: 'bad-generated-by-target', level: 'error', msg: `generated_by 不存在：${gb}` });
       }
     }
   }
-  return { file: rel, status, findings };
+
+  // ── R9/R10：record 绑定 + 不可变弱检查 ──
+  if (kind === 'record') {
+    if (!fm.event) findings.push({ file: rel, line: 1, code: 'missing-event', level: 'error', msg: 'kind: record 必须有 `event`' });
+    if (!fm.recorded_at) {
+      findings.push({ file: rel, line: 1, code: 'missing-recorded-at', level: 'error', msg: 'kind: record 必须有 `recorded_at`' });
+    } else if (!ISO8601_RE.test(String(fm.recorded_at))) {
+      findings.push({ file: rel, line: 1, code: 'bad-recorded-at', level: 'error', msg: `recorded_at 非 ISO 8601：${fm.recorded_at}` });
+    }
+    const imm = fm.immutable;
+    if (imm !== true && imm !== 'true') {
+      findings.push({ file: rel, line: 1, code: 'missing-immutable', level: 'error', msg: 'kind: record 必须显式 `immutable: true`' });
+    }
+    const cnt = await gitCommitCount(absFile);
+    if (cnt !== null && cnt > 1) {
+      findings.push({ file: rel, line: 1, code: 'record-mutated', level: 'warning', msg: `record 历史 commit 数=${cnt} > 1（应一次写入后不再变更）` });
+    }
+  }
+
+  // ── R11：code 建议有 implements ──
+  if (kind === 'code') {
+    if (!fm.implements) {
+      findings.push({ file: rel, line: 1, code: 'missing-implements', level: 'warning', msg: 'kind: code 建议有 `implements` 字段' });
+    }
+  }
+
+  // ── markdown 引用/行号/符号 drift（沿用旧规则） ──
+  let status = null;
+  if (format === 'md') {
+    const rawStatus = fm.status ? String(fm.status).replace(/\s*\(.*\)\s*$/, '').trim() : null;
+    status = rawStatus;
+    // R1 收窄：仅 kind: contract 强制 status；record / instance / code / index 的 status 可选
+    const statusRequired = (kind === 'contract' || kind === 'I' || kind === 'II' || kind === null);
+    if (!status) {
+      if (statusRequired) {
+        findings.push({ file: rel, line: 1, code: 'missing-status', level: 'error', msg: '缺少 `status:` 字段' });
+      }
+      status = kind === 'record' ? 'reference' : 'draft';
+    } else if (!VALID_STATUS.has(status)) {
+      findings.push({ file: rel, line: 1, code: 'bad-status', level: 'error', msg: `status 非法：${status}` });
+      status = 'draft';
+    }
+
+    if (status !== 'reference') {
+      const segMap = status === 'mixed' ? classifyMixedSegments(body) : null;
+      const contractDir = path.dirname(absFile);
+      const { refs } = extractReferences(body, bodyStartLine);
+      for (const ref of refs) {
+        const seg = segMap ? (segMap[ref.line - bodyStartLine] || 'current') : status;
+        const lineNeed = ref.kind === 'pathline' ? Math.max(ref.lineStart, ref.lineEnd) : 0;
+        const { info } = await resolveTarget(ref.target, contractDir, lineNeed);
+        if (!info.exists) {
+          findings.push({
+            file: rel, line: ref.line, code: 'missing-file',
+            msg: `引用的文件不存在：${ref.target}`,
+            level: seg === 'current' ? 'error' : 'warning',
+          });
+          continue;
+        }
+        if (ref.kind === 'pathline' && seg !== 'draft') {
+          const maxL = Math.max(ref.lineStart, ref.lineEnd);
+          if (ref.lineStart < 1 || maxL > info.lineCount) {
+            findings.push({
+              file: rel, line: ref.line, code: 'bad-line',
+              msg: `${ref.target} 只有 ${info.lineCount} 行，引用 ${ref.lineStart}-${ref.lineEnd} 越界`,
+              level: seg === 'current' ? 'error' : 'warning',
+            });
+          }
+        }
+      }
+      if (status !== 'draft') {
+        const { items, lines } = extractSymbols(body, bodyStartLine);
+        for (const it of items) {
+          const seg = segMap ? (segMap[it.idx] || 'current') : status;
+          if (seg !== 'current') continue;
+          const from = Math.max(0, it.idx - 3);
+          const to = Math.min(lines.length - 1, it.idx + 3);
+          const nearby = lines.slice(from, to + 1).join('\n');
+          const fileHits = [
+            ...nearby.matchAll(/`([^`]*\.ts)(?::\d+(?:[-–]\d+)?)?`/g),
+            ...nearby.matchAll(/\(([^)]+\.ts)\)/g),
+          ];
+          let checked = false, found = false;
+          for (const fm2 of fileHits) {
+            const { info } = await resolveTarget(fm2[1].trim(), path.dirname(absFile), 0);
+            if (!info.exists) continue;
+            checked = true;
+            if (new RegExp(`\\b${it.symbol}\\b`).test(info.text)) { found = true; break; }
+          }
+          if (checked && !found && !ignores.has(`symbol-drift:${it.symbol}`) && !ignores.has('symbol-drift')) {
+            findings.push({
+              file: rel, line: it.line, code: 'symbol-drift',
+              msg: `符号 \`${it.symbol}\` 在附近引用的 .ts 文件中未找到`,
+              level: 'warning',
+            });
+          }
+        }
+      }
+    }
+  }
+
+  return { file: rel, format, kind, legacyKind, describes, density: format === 'md' ? density : null, status, fm, findings };
+}
+
+/** R4：跨文件 describes 重复真相检查。 */
+function checkDuplicateTruth(results) {
+  const entries = results
+    .filter(r => (r.kind === 'contract' || r.legacyKind === 'I') && r.describes)
+    .map(r => ({ r, tokens: tokenize(r.describes) }));
+  const push = (a, b, sim, code, level, label) => {
+    a.r.findings.push({ file: a.r.file, line: 1, code, level, msg: `describes 与 ${b.r.file} ${label}（Jaccard=${sim.toFixed(2)}）` });
+    b.r.findings.push({ file: b.r.file, line: 1, code, level, msg: `describes 与 ${a.r.file} ${label}（Jaccard=${sim.toFixed(2)}）` });
+  };
+  for (let i = 0; i < entries.length; i++) {
+    for (let j = i + 1; j < entries.length; j++) {
+      const sim = jaccard(entries[i].tokens, entries[j].tokens);
+      if (sim >= 0.7) push(entries[i], entries[j], sim, 'duplicate-truth-severe', 'error', '近乎重复');
+      else if (sim >= 0.5) push(entries[i], entries[j], sim, 'duplicate-truth', 'warning', '相似');
+    }
+  }
+}
+
+/** 递归列目录匹配扩展名的文件。 */
+async function listFilesRec(dir, exts) {
+  const out = [];
+  let entries;
+  try { entries = await readdir(dir, { withFileTypes: true }); }
+  catch { return out; }
+  for (const e of entries) {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) out.push(...await listFilesRec(full, exts));
+    else if (e.isFile() && exts.some(x => e.name.endsWith(x))) out.push(full);
+  }
+  return out;
+}
+
+async function collectTargets() {
+  const targets = [];
+  // 1. docs/current/*.md
+  try {
+    for (const f of await readdir(DOCS_CURRENT)) {
+      if (f.endsWith('.md')) targets.push({ abs: path.join(DOCS_CURRENT, f), format: 'md' });
+    }
+  } catch {}
+  // 2. 顶层 docs/*.md 白名单
+  try {
+    for (const f of await readdir(DOCS_DIR)) {
+      if (TOP_DOCS_WHITELIST.has(f)) targets.push({ abs: path.join(DOCS_DIR, f), format: 'md' });
+    }
+  } catch {}
+  // 3. scripts/*.mjs
+  try {
+    for (const f of await readdir(SCRIPTS_DIR)) {
+      if (/\.(mjs|js)$/.test(f)) targets.push({ abs: path.join(SCRIPTS_DIR, f), format: 'js' });
+    }
+  } catch {}
+  // 4. artifacts/**/*.json（跳过自生成报告）
+  for (const f of await listFilesRec(ARTIFACTS_DIR, ['.json'])) {
+    if (path.basename(f) === 'contract-audit-latest.json') continue;
+    targets.push({ abs: f, format: 'json' });
+  }
+  // 5. .omx/baselines/**/*.json
+  for (const f of await listFilesRec(BASELINES_DIR, ['.json'])) {
+    targets.push({ abs: f, format: 'json' });
+  }
+  return targets;
 }
 
 async function main() {
-  let files;
-  try {
-    files = (await readdir(DOCS_DIR))
-      .filter(f => f.endsWith('.md'))
-      .map(f => path.join(DOCS_DIR, f));
-  } catch (e) {
-    console.error(`[contract-audit] 无法读取 ${DOCS_DIR}: ${e.message}`);
-    process.exit(2);
-  }
+  const targets = await collectTargets();
   const results = [];
-  for (const f of files) results.push(await auditContract(f));
+  for (const t of targets) {
+    try { results.push(await auditFile(t.abs, t.format)); }
+    catch (e) {
+      const rel = path.relative(ROOT, t.abs).replace(/\\/g, '/');
+      results.push({ file: rel, format: t.format, kind: null, legacyKind: null, describes: null, density: null, status: null, fm: {}, findings: [{ file: rel, line: 1, code: 'audit-exception', level: 'error', msg: e.message }] });
+    }
+  }
+
+  checkDuplicateTruth(results);
+
+  // kind 分布
+  const kindDist = { contract: 0, instance: 0, record: 0, code: 0, index: 0, legacy_I: 0, legacy_II: 0, missing: 0 };
+  for (const r of results) {
+    if (r.legacyKind === 'I') kindDist.legacy_I++;
+    else if (r.legacyKind === 'II') kindDist.legacy_II++;
+    else if (r.kind && NEW_KIND.has(r.kind)) kindDist[r.kind]++;
+    else kindDist.missing++;
+  }
+
+  // binding errors 聚合
+  const bindingErrors = {
+    missing_conforms_to: [], bad_conforms_to_target: [],
+    missing_generated_by: [], bad_generated_by_target: [],
+    missing_generated_at: [], bad_generated_at: [],
+    missing_event: [], missing_recorded_at: [], bad_recorded_at: [],
+    missing_immutable: [], record_mutated: [],
+    missing_implements: [], missing_schema_version: [],
+  };
+  const codeToBucket = {
+    'missing-conforms-to': 'missing_conforms_to',
+    'bad-conforms-to-target': 'bad_conforms_to_target',
+    'missing-generated-by': 'missing_generated_by',
+    'bad-generated-by-target': 'bad_generated_by_target',
+    'missing-generated-at': 'missing_generated_at',
+    'bad-generated-at': 'bad_generated_at',
+    'missing-event': 'missing_event',
+    'missing-recorded-at': 'missing_recorded_at',
+    'bad-recorded-at': 'bad_recorded_at',
+    'missing-immutable': 'missing_immutable',
+    'record-mutated': 'record_mutated',
+    'missing-implements': 'missing_implements',
+    'missing-schema-version': 'missing_schema_version',
+  };
+  for (const r of results) {
+    for (const f of r.findings) {
+      const b = codeToBucket[f.code];
+      if (b && !bindingErrors[b].includes(r.file)) bindingErrors[b].push(r.file);
+    }
+  }
+
+  const densityDistribution = results
+    .filter(r => typeof r.density === 'number')
+    .map(r => ({ file: r.file, kind: r.kind, density: Number(r.density.toFixed(4)) }));
 
   const errors = [], warnings = [];
   let ok = 0, warn = 0, err = 0;
@@ -253,21 +675,29 @@ async function main() {
     if (e.length) err++; else if (w.length) warn++; else ok++;
   }
 
-  const bar = '─'.repeat(68);
+  const bar = '─'.repeat(72);
   console.log(bar);
-  console.log(`契约真值审计报告  (${new Date().toISOString()})`);
+  console.log(`契约真值审计报告（五类 MECE）  (${new Date().toISOString()})`);
   console.log(bar);
-  console.log(`扫描合同：${results.length}  ✅ ${ok}  ⚠️  ${warn}  ❌ ${err}\n`);
+  console.log(`扫描文件：${results.length}  ✅ ${ok}  ⚠️  ${warn}  ❌ ${err}`);
+  console.log('Kind distribution:');
+  console.log(`  contract=${kindDist.contract}  instance=${kindDist.instance}  record=${kindDist.record}  code=${kindDist.code}  index=${kindDist.index}`);
+  console.log(`  legacy_I=${kindDist.legacy_I}  legacy_II=${kindDist.legacy_II}  missing=${kindDist.missing}\n`);
+
   for (const r of results.sort((a, b) => a.file.localeCompare(b.file))) {
     const e = r.findings.filter(x => x.level === 'error').length;
     const w = r.findings.filter(x => x.level === 'warning').length;
     const icon = e ? '❌' : (w ? '⚠️ ' : '✅');
-    console.log(`${icon} ${r.file}  [${r.status}]  errors=${e} warnings=${w}`);
+    const kindTag = r.kind ? `kind=${r.kind}` : (r.legacyKind ? `kind=${r.legacyKind}(legacy)` : 'kind=?');
+    const densTag = typeof r.density === 'number' && r.density > 0 ? ` density=${(r.density * 100).toFixed(0)}%` : '';
+    const statusTag = r.status ? ` [${r.status}]` : '';
+    console.log(`${icon} ${r.file}${statusTag} ${kindTag}${densTag}  errors=${e} warnings=${w}`);
     for (const f of r.findings) {
       const lv = f.level === 'error' ? 'ERR ' : 'WARN';
       console.log(`    ${lv} L${f.line} ${f.code}: ${f.msg}`);
     }
   }
+
   console.log(`\n${bar}`);
   console.log(`总计：errors=${errors.length}  warnings=${warnings.length}`);
   console.log(bar);
@@ -276,11 +706,19 @@ async function main() {
     await mkdir(ARTIFACTS_DIR, { recursive: true });
     const payload = {
       timestamp: new Date().toISOString(),
-      contracts_scanned: results.length,
+      files_scanned: results.length,
       errors, warnings,
       summary: { ok, warn, err },
+      kind_distribution: kindDist,
+      binding_errors: bindingErrors,
+      density_distribution: densityDistribution,
       results: results.map(r => ({
-        file: r.file, status: r.status,
+        file: r.file, format: r.format,
+        status: r.status ?? null,
+        kind: r.kind ?? null,
+        legacy_kind: r.legacyKind ?? null,
+        describes: r.describes ?? null,
+        density: typeof r.density === 'number' ? Number(r.density.toFixed(4)) : null,
         errors: r.findings.filter(x => x.level === 'error').length,
         warnings: r.findings.filter(x => x.level === 'warning').length,
       })),

@@ -1,7 +1,10 @@
 ---
+kind: contract
 status: current
 verified: 2026-04-13
 phase: 1
+schema_version: 1
+describes: "compile 晋升落盘规则"
 ---
 
 # Compile 晋升合同：路径编译与引用强化规范

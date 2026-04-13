@@ -1,4 +1,8 @@
 {
+  "$kind": "instance",
+  "$conforms_to": "docs/current/metrics-contract.md",
+  "$generated_by": "causal-learner/mcp-server/scripts/dump-stats.mjs",
+  "$generated_at": "2026-04-13T13:47:09.799Z",
   "captured_at": "2026-04-13T13:47:09.799Z",
   "storageStats": {
     "observationCount": 0,

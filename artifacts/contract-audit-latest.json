@@ -1,95 +1,474 @@
 {
-  "timestamp": "2026-04-13T13:51:38.020Z",
-  "contracts_scanned": 14,
+  "timestamp": "2026-04-13T14:24:52.536Z",
+  "files_scanned": 31,
   "errors": [],
   "warnings": [],
   "summary": {
-    "ok": 14,
+    "ok": 31,
     "warn": 0,
     "err": 0
   },
-  "results": [
+  "kind_distribution": {
+    "contract": 17,
+    "instance": 9,
+    "record": 1,
+    "code": 3,
+    "index": 1,
+    "legacy_I": 0,
+    "legacy_II": 0,
+    "missing": 0
+  },
+  "binding_errors": {
+    "missing_conforms_to": [],
+    "bad_conforms_to_target": [],
+    "missing_generated_by": [],
+    "bad_generated_by_target": [],
+    "missing_generated_at": [],
+    "bad_generated_at": [],
+    "missing_event": [],
+    "missing_recorded_at": [],
+    "bad_recorded_at": [],
+    "missing_immutable": [],
+    "record_mutated": [],
+    "missing_implements": [],
+    "missing_schema_version": []
+  },
+  "density_distribution": [
     {
       "file": "docs/current/architecture-overview.md",
+      "kind": "contract",
+      "density": 0.0359
+    },
+    {
+      "file": "docs/current/artifact-contract.md",
+      "kind": "contract",
+      "density": 0.132
+    },
+    {
+      "file": "docs/current/compile-promotion-contract.md",
+      "kind": "contract",
+      "density": 0
+    },
+    {
+      "file": "docs/current/contract-audit-contract.md",
+      "kind": "contract",
+      "density": 0.0442
+    },
+    {
+      "file": "docs/current/contract-vs-impl-audit.md",
+      "kind": "record",
+      "density": 0.0338
+    },
+    {
+      "file": "docs/current/file-taxonomy-contract.md",
+      "kind": "contract",
+      "density": 0.0297
+    },
+    {
+      "file": "docs/current/hypothesis-contract.md",
+      "kind": "contract",
+      "density": 0
+    },
+    {
+      "file": "docs/current/knowledge-source-contract.md",
+      "kind": "contract",
+      "density": 0.1747
+    },
+    {
+      "file": "docs/current/memory-layer-contract.md",
+      "kind": "index",
+      "density": 0.7714
+    },
+    {
+      "file": "docs/current/memory-layer-current.md",
+      "kind": "contract",
+      "density": 0.0886
+    },
+    {
+      "file": "docs/current/memory-layer-target.md",
+      "kind": "contract",
+      "density": 0.1137
+    },
+    {
+      "file": "docs/current/metamodel.md",
+      "kind": "contract",
+      "density": 0
+    },
+    {
+      "file": "docs/current/metrics-contract.md",
+      "kind": "contract",
+      "density": 0.0264
+    },
+    {
+      "file": "docs/current/pipeline-contract.md",
+      "kind": "contract",
+      "density": 0.0318
+    },
+    {
+      "file": "docs/current/plugin-surface-contract.md",
+      "kind": "contract",
+      "density": 0.0748
+    },
+    {
+      "file": "docs/current/ref-algebra-contract.md",
+      "kind": "contract",
+      "density": 0
+    },
+    {
+      "file": "docs/current/template-invariant-contract.md",
+      "kind": "contract",
+      "density": 0
+    },
+    {
+      "file": "docs/bestqa-roadmap.md",
+      "kind": "contract",
+      "density": 0.2651
+    },
+    {
+      "file": "docs/external-integration.md",
+      "kind": "contract",
+      "density": 0.0458
+    }
+  ],
+  "results": [
+    {
+      "file": ".omx/baselines/2026-04-13/stats.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260413-001/metrics.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260413-001/stats_after.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260413-001/stats_before.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260413-001/verification_report.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260413-002/metrics.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260413-002/stats_after.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260413-002/stats_before.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260413-002/verification_report.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/bestqa-roadmap.md",
+      "format": "md",
       "status": "current",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "Phase 0-5 门控与产出合约",
+      "density": 0.2651,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/architecture-overview.md",
+      "format": "md",
+      "status": "current",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "四层模块拓扑的读写路径",
+      "density": 0.0359,
       "errors": 0,
       "warnings": 0
     },
     {
       "file": "docs/current/artifact-contract.md",
+      "format": "md",
       "status": "draft",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "artifacts 运行产物目录规范",
+      "density": 0.132,
       "errors": 0,
       "warnings": 0
     },
     {
       "file": "docs/current/compile-promotion-contract.md",
+      "format": "md",
       "status": "current",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "compile 晋升落盘规则",
+      "density": 0,
       "errors": 0,
       "warnings": 0
     },
     {
       "file": "docs/current/contract-audit-contract.md",
+      "format": "md",
       "status": "current",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "契约审计规则规格",
+      "density": 0.0442,
       "errors": 0,
       "warnings": 0
     },
     {
       "file": "docs/current/contract-vs-impl-audit.md",
+      "format": "md",
       "status": "reference",
+      "kind": "record",
+      "legacy_kind": null,
+      "describes": null,
+      "density": 0.0338,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/file-taxonomy-contract.md",
+      "format": "md",
+      "status": "current",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "文件五类零交集分类公理",
+      "density": 0.0297,
       "errors": 0,
       "warnings": 0
     },
     {
       "file": "docs/current/hypothesis-contract.md",
+      "format": "md",
       "status": "current",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "Hypothesis 状态机门控",
+      "density": 0,
       "errors": 0,
       "warnings": 0
     },
     {
       "file": "docs/current/knowledge-source-contract.md",
+      "format": "md",
       "status": "draft",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "composites 知识源规范",
+      "density": 0.1747,
       "errors": 0,
       "warnings": 0
     },
     {
       "file": "docs/current/memory-layer-contract.md",
-      "status": "mixed",
+      "format": "md",
+      "status": "current",
+      "kind": "index",
+      "legacy_kind": null,
+      "describes": null,
+      "density": 0.7714,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/memory-layer-current.md",
+      "format": "md",
+      "status": "current",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "当前真实存在的检索 MCP 工具清单",
+      "density": 0.0886,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/memory-layer-target.md",
+      "format": "md",
+      "status": "draft",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "五层 retrieval 目标设计",
+      "density": 0.1137,
       "errors": 0,
       "warnings": 0
     },
     {
       "file": "docs/current/metamodel.md",
+      "format": "md",
       "status": "current",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "五模块核心语义定义",
+      "density": 0,
       "errors": 0,
       "warnings": 0
     },
     {
       "file": "docs/current/metrics-contract.md",
+      "format": "md",
       "status": "current",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "metrics.json 字段字典",
+      "density": 0.0264,
       "errors": 0,
       "warnings": 0
     },
     {
       "file": "docs/current/pipeline-contract.md",
+      "format": "md",
       "status": "current",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "pipeline 的调用序列",
+      "density": 0.0318,
       "errors": 0,
       "warnings": 0
     },
     {
       "file": "docs/current/plugin-surface-contract.md",
+      "format": "md",
       "status": "draft",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "双通道 plugin 分发边界",
+      "density": 0.0748,
       "errors": 0,
       "warnings": 0
     },
     {
       "file": "docs/current/ref-algebra-contract.md",
+      "format": "md",
       "status": "current",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "Ref 复合合法性代数",
+      "density": 0,
       "errors": 0,
       "warnings": 0
     },
     {
       "file": "docs/current/template-invariant-contract.md",
+      "format": "md",
       "status": "current",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "Template 不变量门控",
+      "density": 0,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/external-integration.md",
+      "format": "md",
+      "status": "current",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "外部仓库接入边界与 SSOT 裁决",
+      "density": 0.0458,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "scripts/capture-baseline.mjs",
+      "format": "js",
+      "status": null,
+      "kind": "code",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "scripts/contract-audit.mjs",
+      "format": "js",
+      "status": null,
+      "kind": "code",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "scripts/eval.mjs",
+      "format": "js",
+      "status": null,
+      "kind": "code",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
       "errors": 0,
       "warnings": 0
     }

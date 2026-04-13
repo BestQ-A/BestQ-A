@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+// ---
+// kind: code
+// implements: docs/current/metrics-contract.md
+// ---
 /**
  * dump-stats.mjs — 极简 stats 导出器（Phase 0 baseline 用）
  *
@@ -45,7 +49,15 @@ const importCore = async (rel) => {
   return await import(pathToFileURL(abs).href);
 };
 
-const out = { captured_at: new Date().toISOString() };
+// 分类元数据：让该产物能被 contract-audit.mjs 识别为 instance
+const NOW_ISO = new Date().toISOString();
+const out = {
+  $kind: 'instance',
+  $conforms_to: 'docs/current/metrics-contract.md',
+  $generated_by: 'causal-learner/mcp-server/scripts/dump-stats.mjs',
+  $generated_at: NOW_ISO,
+  captured_at: NOW_ISO,
+};
 
 // storage.getStats() — 空内存 DB 也能正常返回 0 计数结构
 try {

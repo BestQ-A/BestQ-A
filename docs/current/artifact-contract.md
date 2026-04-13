@@ -1,6 +1,9 @@
 ---
+kind: contract
 status: draft
 phase: 0
+schema_version: 1
+describes: "artifacts 运行产物目录规范"
 ---
 
 # Artifact 合同：运行产物目录与度量字段规范

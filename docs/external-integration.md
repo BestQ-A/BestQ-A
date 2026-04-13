@@ -1,3 +1,11 @@
+---
+kind: contract
+status: current
+verified: 2026-04-13
+schema_version: 1
+describes: "外部仓库接入边界与 SSOT 裁决"
+---
+
 # External 仓库集成边界
 
 > `external/` 不纳入版本控制（见根 `.gitignore`）。本文件是外部仓库的**唯一接入台账**：来源、职责、接入点、SSOT 边界。任何新增外部依赖必须先在此登记再动代码。
@@ -21,8 +29,8 @@
 
 | # | 仓库 | 来源 | 角色 | 通道 | 接入点 | SSOT 归属 |
 |---|------|------|------|------|--------|-----------|
-| 1 | `SimpleMem` | github.com/（记忆 MCP） | 长期记忆 / 语义召回 | MCP | [causal-learner/mcp-server/src/core/storage.ts](../causal-learner/mcp-server/src/core/storage.ts) 旁路写入 `rawRefs` | **记忆 SSOT = SimpleMem**；causal-learner 的 SQLite 只存结构化 facts / events / regulations |
-| 2 | `AutoResearchClaw` | github.com/aiming-lab/AutoResearchClaw | 知识生产流水线 | CLI | 输入：causal-learner Event Pool 聚类导出的 `problem_class`；输出：`docs/knowledge_base/composites/**.md` 草稿 | **composites SSOT = BestQ-A 仓**；ResearchClaw 只产草稿，需人审 |
+| 1 | `SimpleMem` | github.com/（记忆 MCP） | 长期记忆 / 语义召回 | MCP | [causal-learner/mcp-server/src/core/storage.ts](../causal-learner/mcp-server/src/core/storage.ts) 旁路写入 `rawRefs` | **记忆 SSOT = SimpleMem**；causal-learner 的 SQLite 只存结构化 facts / events / regulations | <!-- audit-ignore: symbol-drift: SimpleMem -->
+| 2 | `AutoResearchClaw` | github.com/aiming-lab/AutoResearchClaw | 知识生产流水线 | CLI | 输入：causal-learner Event Pool 聚类导出的 `problem_class`；输出：`docs/knowledge_base/composites/**.md` 草稿 | **composites SSOT = BestQ-A 仓**；ResearchClaw 只产草稿，需人审 | <!-- audit-ignore: symbol-drift: AutoResearchClaw -->
 | 3 | `llm_wiki` | github.com/（LLM 知识库） | 文档图谱可视化 | 生成物 | 输入：`docs/`、`docs/knowledge_base/`；输出：图谱 HTML / 反向链接索引 | **docs SSOT = BestQ-A 仓**；llm_wiki 只生成视图，不改写源文件 |
 | 4 | `aiwg` | github.com/jmagly/aiwg | 多 agent 验证模式参考 | **仅参考**（不接入运行时） | 阅读其 stage-gate / ensemble validation 设计，用于指导 causal-learner 的 `candidate → hypothesis → confirmed` reviewer 设计 | **多 agent SSOT = OMC（`/team`、`ultrawork`）**；aiwg 不得部署 |
 | 5 | `claude-code` | Anthropic 上游 | CLI 源码参考 | **仅参考** | 读 prompt 行为实现 | N/A |

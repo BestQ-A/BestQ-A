@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+// ---
+// kind: code
+// implements: docs/current/artifact-contract.md
+// also related: docs/current/metrics-contract.md
+// ---
 /**
  * BestQ-A Phase 0 baseline 捕获脚本
  *
@@ -26,6 +31,22 @@ const OUT_DIR = path.join(ROOT, '.omx', 'baselines', TODAY);
 
 /** 步骤执行结果，汇总到 summary.md */
 const steps = [];
+
+/** 分类元数据：所有落盘产物必须以这些字段开头，才能被 contract-audit.mjs 识别为 instance。 */
+const INSTANCE_META_JSON = {
+  $kind: 'instance',
+  $conforms_to: 'docs/current/metrics-contract.md',
+  $generated_by: 'causal-learner/mcp-server/scripts/dump-stats.mjs',
+};
+const MD_FRONTMATTER = [
+  '---',
+  'kind: instance',
+  'conforms_to: docs/current/artifact-contract.md',
+  'generated_by: scripts/capture-baseline.mjs',
+  `generated_at: ${TODAY}`,
+  '---',
+  '',
+].join('\n');
 
 function record(name, ok, detail = '') {
   steps.push({ name, ok, detail });
@@ -139,6 +160,8 @@ async function stepStats(buildOk) {
   // 单点失败由 dump-stats 内部捕获为 { error } 字段，这里只管 spawn + JSON.parse。
   if (!buildOk) {
     const payload = {
+      ...INSTANCE_META_JSON,
+      $generated_at: new Date().toISOString(),
       captured_at: new Date().toISOString(),
       error: 'skipped: mcp-server build failed, dist/ unavailable',
     };
@@ -167,6 +190,8 @@ async function stepStats(buildOk) {
 
   if (!parsed) {
     const payload = {
+      ...INSTANCE_META_JSON,
+      $generated_at: new Date().toISOString(),
       captured_at: new Date().toISOString(),
       error: `dump-stats failed: code=${r.code} parse=${parseErr}`,
       raw_tail: (r.out || '').slice(-2000),
@@ -179,7 +204,11 @@ async function stepStats(buildOk) {
   }
 
   try {
-    await safeWrite('stats.json', JSON.stringify(parsed, null, 2) + '\n');
+    // 若 dump-stats.mjs 已自带 $kind 就直接落盘；否则注入元数据以保证 instance 识别
+    const payload = parsed && parsed.$kind === 'instance'
+      ? parsed
+      : { ...INSTANCE_META_JSON, $generated_at: new Date().toISOString(), ...parsed };
+    await safeWrite('stats.json', JSON.stringify(payload, null, 2) + '\n');
   } catch (e) {
     record('stats snapshot', false, String(e));
     return { ok: false, fields: [], errors: [String(e)] };
@@ -201,6 +230,7 @@ async function stepStats(buildOk) {
 // --- Step 5: coverage matrix -------------------------------------------
 async function stepCoverage() {
   const lines = [
+    MD_FRONTMATTER.replace(/\n$/, ''),
     '# Coverage Matrix',
     '',
     '> 扫描 `causal-learner/mcp-server/src/core/*.ts`，检查 tests/ 目录下是否有文本引用。',
@@ -227,7 +257,7 @@ async function stepCoverage() {
     record('coverage matrix', true, `${sources.length} source files scanned`);
   } catch (e) {
     try {
-      await safeWrite('coverage-matrix.md', '# Coverage Matrix\n\nFAILED: ' + String(e) + '\n');
+      await safeWrite('coverage-matrix.md', MD_FRONTMATTER + '# Coverage Matrix\n\nFAILED: ' + String(e) + '\n');
     } catch (_) {}
     record('coverage matrix', false, String(e));
   }
@@ -239,6 +269,7 @@ async function stepSummary(sha, tr, statsRes) {
   const ok = steps.filter((s) => s.ok);
   const statsStatus = statsRes?.status ?? 'UNKNOWN';
   const lines = [
+    MD_FRONTMATTER.replace(/\n$/, ''),
     `# Baseline ${TODAY}`,
     '',
     `- commit: \`${sha}\``,

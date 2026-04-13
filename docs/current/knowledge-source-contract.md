@@ -1,6 +1,9 @@
 ---
+kind: contract
 status: draft
 phase: 2
+schema_version: 1
+describes: "composites 知识源规范"
 ---
 
 # Knowledge Source 合同：composites frontmatter 与 ingest 管线
@@ -99,7 +102,7 @@ updated: 2026-04-13
 
 ## 4. 检索约束
 
-检索调用由 [memory-layer-contract.md](memory-layer-contract.md) 的 **Retrieval Order** 规定的第 3 步调用本索引。
+检索调用由 [memory-layer-target.md](memory-layer-target.md) 的 **Retrieval Order** 规定的第 3 步调用本索引。
 
 - 输入：`signals`（由 caller 提供）
 - 返回：`kb_nodes[]`，按匹配分降序

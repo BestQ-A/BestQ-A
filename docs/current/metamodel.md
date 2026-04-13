@@ -1,7 +1,10 @@
 ---
+kind: contract
 status: current
 verified: 2026-04-13
 phase: 1
+schema_version: 1
+describes: "五模块核心语义定义"
 ---
 
 # BestQ-A 元模型：当前语义合同

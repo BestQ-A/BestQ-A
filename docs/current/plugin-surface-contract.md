@@ -1,7 +1,10 @@
 ---
+kind: contract
 status: draft
 phase: 5
 revision: 0.2
+schema_version: 1
+describes: "双通道 plugin 分发边界"
 ---
 
 # Plugin Surface 合同：双通道分发与 host-agnostic 边界
@@ -9,10 +12,10 @@ revision: 0.2
 > 本文档定义 BestQ-A 核心能力通过 **MCP server** 与 **opencode plugin** 双通道分发时的边界、命名不变量、状态共享规则与生命周期绑定。
 > 核心原则：一份 host-agnostic TypeScript 核心 + 两层 thin adapter，禁止任一 adapter 层承载业务逻辑。
 > 代码位置：`causal-learner/mcp-server/src/index.ts`（MCP 通道，已存在） + `packages/bestqa-opencode-plugin/`（opencode 通道，Phase 5 新建）
-> 上游依赖：[pipeline-contract.md](pipeline-contract.md)、[memory-layer-contract.md](memory-layer-contract.md)、[artifact-contract.md](artifact-contract.md)、[compile-promotion-contract.md](compile-promotion-contract.md)
+> 上游依赖：[pipeline-contract.md](pipeline-contract.md)、[memory-layer-current.md](memory-layer-current.md)、[memory-layer-target.md](memory-layer-target.md)、[artifact-contract.md](artifact-contract.md)、[compile-promotion-contract.md](compile-promotion-contract.md)
 > SSOT 绑定：[../external-integration.md](../external-integration.md) 冲突 F
 >
-> **0.2 版**：与重写后的 [memory-layer-contract.md](memory-layer-contract.md) 同步命名——§2 所有"检索能力"一列直接列 44 个真实 MCP tool 名，不再使用 `case_memory.*` / `regulation_store.*` / `knowledge_index.*` / `simplemem.*` 这些概念占位；并关闭 v0.1 遗留的 4 条 TBD 中可核实的 3 条。
+> **0.2 版**：与拆分后的 [memory-layer-current.md](memory-layer-current.md) / [memory-layer-target.md](memory-layer-target.md) 同步命名——§2 所有"检索能力"一列直接列 44 个真实 MCP tool 名，不再使用 `case_memory.*` / `regulation_store.*` / `knowledge_index.*` / `simplemem.*` 这些概念占位；并关闭 v0.1 遗留的 4 条 TBD 中可核实的 3 条。
 
 ---
 
@@ -55,7 +58,7 @@ revision: 0.2
 
 源：`causal-learner/mcp-server/src/index.ts` 的 `TOOLS` 数组（共 **44** 个 tool，行号 L150–L664 逐项核对），每一项都必须同时在 opencode plugin 的 `Hooks.tool` 中有同名注册。
 
-**命名 SSOT**：本合同 §2 与 [memory-layer-contract.md](memory-layer-contract.md) §2A 的工具名一一对应，以 memory-layer §2A 为 SSOT；任何检索层概念（如"case memory"、"kb index"）**禁止**以占位名出现在本表，只能以 `— (Phase N)` 形式标记目标列。
+**命名 SSOT**：本合同 §2 与 [memory-layer-current.md](memory-layer-current.md) §2 的工具名一一对应，以 memory-layer-current §2 为 SSOT；任何检索层概念（如"case memory"、"kb index"）**禁止**以占位名出现在本表，只能以 `— (Phase N)` 形式标记目标列。
 
 "当前 vs 目标"列语义：
 - **current** = 此 tool 在 `src/index.ts` 的 `TOOLS` 数组中已注册
@@ -74,44 +77,44 @@ revision: 0.2
 | 9 | 更新事件状态 | tool `update_event_status` | `tool.update_event_status` | current | 受 Pipeline 不变量 O2 保护 |
 | 10 | 更新规则 | tool `update_regulation` | `tool.update_regulation` | current | partial update 语义一致 |
 | 11 | 删除规则 | tool `delete_regulation` | `tool.delete_regulation` | current | 软删或硬删需与核心一致 |
-| 12 | 按效果查规则（检索：memory-layer §2A） | tool `get_regulations_for_effect` | `tool.get_regulations_for_effect` | current | 按 effect 谓词精确查，只读 |
-| 13 | 按前件查规则（检索：memory-layer §2A） | tool `get_regulations_with_precondition` | `tool.get_regulations_with_precondition` | current | 按 precondition 谓词精确查，只读 |
+| 12 | 按效果查规则（检索：memory-layer-current §2） | tool `get_regulations_for_effect` | `tool.get_regulations_for_effect` | current | 按 effect 谓词精确查，只读 |
+| 13 | 按前件查规则（检索：memory-layer-current §2） | tool `get_regulations_with_precondition` | `tool.get_regulations_with_precondition` | current | 按 precondition 谓词精确查，只读 |
 | 14 | 单层统计 | tool `get_stats` | `tool.get_stats` | current | 同一 JSON schema（见 metrics-contract §1） |
-| 15 | 搜事件（检索：memory-layer §2A） | tool `search_events` | `tool.search_events` | current | 纯谓词匹配，只读 |
-| 16 | 搜规则（检索：memory-layer §2A） | tool `search_regulations` | `tool.search_regulations` | current | 纯谓词匹配，只读 |
+| 15 | 搜事件（检索：memory-layer-current §2） | tool `search_events` | `tool.search_events` | current | 纯谓词匹配，只读 |
+| 16 | 搜规则（检索：memory-layer-current §2） | tool `search_regulations` | `tool.search_regulations` | current | 纯谓词匹配，只读 |
 | 17 | 触发归纳 | tool `trigger_induction` | `tool.trigger_induction` | current | options 必须完全对齐 |
 | 18 | 手动聚簇 | tool `create_cluster` | `tool.create_cluster` | current | 返回 cluster + 可选 regulation |
 | 19 | 导入 SWE issue | tool `import_swe_issue` | `tool.import_swe_issue` | current | 同 |
 | 20 | 记录修复 | tool `record_fix` | `tool.record_fix` | current | 走 Pipeline recordFix 流程，不变量 O4/O5/O6/O7 |
-| 21 | 建议原因（检索：memory-layer §2A） | tool `suggest_causes` | `tool.suggest_causes` | current | 对给定效果返回候选原因集合，只读 |
+| 21 | 建议原因（检索：memory-layer-current §2） | tool `suggest_causes` | `tool.suggest_causes` | current | 对给定效果返回候选原因集合，只读 |
 | 22 | SWE 批量分析 | tool `analyze_swe_batch` | `tool.analyze_swe_batch` | current | 同 |
 | 23 | 刷写长期 | tool `flush_to_longterm` | `tool.flush_to_longterm` | current | 仅 dual-layer 有效；test_mode 下被阻断 |
 | 24 | 双层统计 | tool `get_dual_stats` | `tool.get_dual_stats` | current | 同一 JSON schema（metrics-contract §1 的采集入口） |
 | 25 | 重置会话 | tool `reset_session` | `tool.reset_session` | current | 仅清短期，长期保留 |
 | 26 | 长期统计 | tool `get_longterm_stats` | `tool.get_longterm_stats` | current | 同 |
-| 27 | 因果搜索（检索：memory-layer §2A） | tool `causal_search` | `tool.causal_search` | current | ReAct loop，strategy 枚举完全一致 |
-| 28 | 模糊搜规则（检索：memory-layer §2A） | tool `fuzzy_search_regulations` | `tool.fuzzy_search_regulations` | current | threshold 默认值统一 30 |
-| 29 | 模糊搜事件（检索：memory-layer §2A） | tool `fuzzy_search_events` | `tool.fuzzy_search_events` | current | 同 28 |
+| 27 | 因果搜索（检索：memory-layer-current §2） | tool `causal_search` | `tool.causal_search` | current | ReAct loop，strategy 枚举完全一致 |
+| 28 | 模糊搜规则（检索：memory-layer-current §2） | tool `fuzzy_search_regulations` | `tool.fuzzy_search_regulations` | current | threshold 默认值统一 30 |
+| 29 | 模糊搜事件（检索：memory-layer-current §2） | tool `fuzzy_search_events` | `tool.fuzzy_search_events` | current | 同 28 |
 | 30 | 构建知识簇 | tool `build_knowledge_cluster` | `tool.build_knowledge_cluster` | current | 事件聚类，**不是** knowledge-source-contract 的 composites 索引 |
 | 31 | 搜知识簇 | tool `search_knowledge_clusters` | `tool.search_knowledge_clusters` | current | 同 30 |
 | 32 | 证据采样 | tool `sample_evidence` | `tool.sample_evidence` | current | topK 默认 3 |
 | 33 | 加原子 | tool `add_atom` | `tool.add_atom` | current | kind 枚举对齐 |
 | 34 | 加引用 | tool `add_ref` | `tool.add_ref` | current | kind 枚举对齐（9 种） |
-| 35 | 发散探索（检索：memory-layer §2A） | tool `explore_graph` | `tool.explore_graph` | current | maxDepth=3、maxPaths=10 默认统一 |
+| 35 | 发散探索（检索：memory-layer-current §2） | tool `explore_graph` | `tool.explore_graph` | current | maxDepth=3、maxPaths=10 默认统一 |
 | 36 | 编译路径 | tool `compile_path` | `tool.compile_path` | current | 走 RefAlgebra 合法性门控 |
 | 37 | 髓鞘化 | tool `myelinate_graph` | `tool.myelinate_graph` | current | 默认 minUseCount=3、minWeight=0.6 |
-| 38 | 图查询（检索：memory-layer §2A） | tool `query_graph` | `tool.query_graph` | current | operation 枚举完全对齐 |
-| 39 | 查原子（检索：memory-layer §2A） | tool `find_atoms` | `tool.find_atoms` | current | 同 |
+| 38 | 图查询（检索：memory-layer-current §2） | tool `query_graph` | `tool.query_graph` | current | operation 枚举完全对齐 |
+| 39 | 查原子（检索：memory-layer-current §2） | tool `find_atoms` | `tool.find_atoms` | current | 同 |
 | 40 | 图统计 | tool `graph_stats` | `tool.graph_stats` | current | 同一 JSON schema（metrics-contract §1） |
 | 41 | 剪枝 | tool `prune_graph` | `tool.prune_graph` | current | 默认 minWeight=0.1 |
 | 42 | 摄入事实 | tool `ingest_facts` | `tool.ingest_facts` | current | Atom 唯一写入口（Pipeline 不变量 O3） |
 | 43 | 测试模式 | tool `set_test_mode` | `tool.set_test_mode` | current | 开启后 flush 必须被阻断 |
-| 44 | 加载相关知识（检索：memory-layer §2A） | tool `load_relevant_knowledge` | `tool.load_relevant_knowledge` | current | 仅 dual-layer 有效；**有**短期缓存写副作用（见 memory-layer §2A） |
-| T1 | Case memory lookup | — (Phase 3) | — (Phase 3) | target | 见 memory-layer §2B #1；待 `core/case-memory.ts` + `cases` 表落地后回表登记 |
-| T2 | Lesson ledger append / query | — (Phase 3) | — (Phase 3) | target | 见 memory-layer §2B #5；待 `core/lesson-ledger.ts` + `lessons` 表落地后回表登记 |
-| T3 | Knowledge index search（composites） | — (Phase 2) | — (Phase 2) | target | 见 memory-layer §2B #3；待 `core/knowledge-index.ts` + `kb_*` 表落地后回表登记（注意 #30/#31 的 `build_knowledge_cluster` / `search_knowledge_clusters` **不是**同一层） |
-| T4 | SimpleMem semantic_search | — (Phase ≥2) | — (Phase ≥2) | target | 见 memory-layer §2B #4；只读兜底，仓内 0 集成点 |
-| T5 | 统一 retrieve() 入口 | — (Phase 3) | — (Phase 3) | target | 见 memory-layer §2B；五层串行命中即停的单点入口，当前各调用方自行组合 §2A 工具 |
+| 44 | 加载相关知识（检索：memory-layer-current §2） | tool `load_relevant_knowledge` | `tool.load_relevant_knowledge` | current | 仅 dual-layer 有效；**有**短期缓存写副作用（见 [memory-layer-current.md](memory-layer-current.md) §2） |
+| T1 | Case memory lookup | — (Phase 3) | — (Phase 3) | target | 见 memory-layer-target §2 #1；待 `core/case-memory.ts` + `cases` 表落地后回表登记 |
+| T2 | Lesson ledger append / query | — (Phase 3) | — (Phase 3) | target | 见 memory-layer-target §2 #5；待 `core/lesson-ledger.ts` + `lessons` 表落地后回表登记 |
+| T3 | Knowledge index search（composites） | — (Phase 2) | — (Phase 2) | target | 见 memory-layer-target §2 #3；待 `core/knowledge-index.ts` + `kb_*` 表落地后回表登记（注意 #30/#31 的 `build_knowledge_cluster` / `search_knowledge_clusters` **不是**同一层） |
+| T4 | SimpleMem semantic_search | — (Phase ≥2) | — (Phase ≥2) | target | 见 memory-layer-target §2 #4；只读兜底，仓内 0 集成点 |
+| T5 | 统一 retrieve() 入口 | — (Phase 3) | — (Phase 3) | target | 见 [memory-layer-target.md](memory-layer-target.md) §2；五层串行命中即停的单点入口，当前各调用方自行组合 [memory-layer-current.md](memory-layer-current.md) §2 工具 |
 
 ### 2.1 命名不变量
 
@@ -284,7 +287,7 @@ CoreError
 Phase 5 开工前必须勾完：
 
 - [ ] **C1** [artifact-contract.md](artifact-contract.md) 冻结（plugin `tool.execute.after` 写产物依赖此）
-- [x] **C2** [memory-layer-contract.md](memory-layer-contract.md) 冻结 + 命名映射闭合（本合同 §2 已与 memory-layer §2A 一一对应，memory-layer §2B 为 target 占位，N6 不变量硬约束 target 行禁止伪造工具名）
+- [x] **C2** [memory-layer-current.md](memory-layer-current.md) + [memory-layer-target.md](memory-layer-target.md) 冻结 + 命名映射闭合（本合同 §2 已与 memory-layer-current §2 一一对应，memory-layer-target §2 为 target 占位，N6 不变量硬约束 target 行禁止伪造工具名）
 - [ ] **C3** [compile-promotion-contract.md](compile-promotion-contract.md) 冻结（`record_fix` 两通道语义一致的前提）
 - [ ] **C4** [pipeline-contract.md](pipeline-contract.md) 的 7 条 Pipeline 不变量（O1~O7）全部在 core 层 assertion 化
 - [ ] **C5** [knowledge-source-contract.md](knowledge-source-contract.md) 冻结（`kb_*` 表 schema 不再漂移）
@@ -307,7 +310,7 @@ Phase 5 开工前必须勾完：
 3. 在 opencode plugin adapter 同步暴露（**同名同参**）
 4. 更新本合同 §2 表格追加一行
 5. 在 cross-channel contract test 中追加一条
-6. 若新 tool 属于 memory-layer §2A 的检索面，必须同步在 memory-layer §2A 登记
+6. 若新 tool 属于 [memory-layer-current.md](memory-layer-current.md) §2 的检索面，必须同步在 [memory-layer-current.md](memory-layer-current.md) §2 登记
 
 ### 8.2 改 tool 签名
 
@@ -323,7 +326,7 @@ Phase 5 开工前必须勾完：
 
 ### 8.4 target 行迁 current
 
-1. target 行（T1–T5 或后续追加）落地时，必须同步 memory-layer §2A 与本合同 §2
+1. target 行（T1–T5 或后续追加）落地时，必须同步 [memory-layer-current.md](memory-layer-current.md) §2 与本合同 §2
 2. MCP 通道列与 opencode 通道列从 `— (Phase N)` 改写成真实 tool 名
 3. 新建 cross-channel contract test
 
@@ -347,7 +350,8 @@ Phase 5 开工前必须勾完：
 ## 参考
 
 - [pipeline-contract.md](pipeline-contract.md) — Pipeline 编排与不变量 O1~O7
-- [memory-layer-contract.md](memory-layer-contract.md) — 五类存储、§2A 现状 retrieval surface、§2B 目标 retrieval order
+- [memory-layer-current.md](memory-layer-current.md) — 现状 retrieval surface 与 regulation 写入闭环
+- [memory-layer-target.md](memory-layer-target.md) — Phase 3+ 五层串行 retrieval 目标设计
 - [metrics-contract.md](metrics-contract.md) — §1 stats 真实来源；`get_stats` / `get_dual_stats` / `graph_stats` 的采集口径
 - [artifact-contract.md](artifact-contract.md) — `tool.execute.after` 的写入规范
 - [compile-promotion-contract.md](compile-promotion-contract.md) — `record_fix` 走的路径合法性门控

@@ -1,5 +1,8 @@
 ---
-status: reference
+kind: record
+event: "2026-04-13 契约实现偏差盘点"
+recorded_at: 2026-04-13
+immutable: true
 ---
 
 # 契约 vs 实现审计（2026-04-13）

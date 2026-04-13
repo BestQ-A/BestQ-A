@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+// ---
+// kind: code
+// implements: docs/current/artifact-contract.md
+// also related: docs/current/metrics-contract.md
+// ---
 /**
  * BestQ-A Phase 1 评测入口脚本 (scripts/eval.mjs)
  *
@@ -162,8 +167,12 @@ function buildMetrics({ runId, commit, durationSec, statsAfter }) {
     return v;
   };
 
-  // 严格按合同 §2 表格顺序
+  // 严格按合同 §2 表格顺序（$* 分类元数据字段放最前，供 contract-audit.mjs 识别为 instance）
   const metrics = {
+    $kind: 'instance',
+    $conforms_to: 'docs/current/metrics-contract.md',
+    $generated_by: 'scripts/eval.mjs',
+    $generated_at: new Date().toISOString(),
     run_id: runId,
     commit: commit,
     phase: PHASE,
@@ -331,7 +340,16 @@ function buildSummary({ runId, commit, metrics, statsBefore, statsAfter, vr, fai
   await writeFile(
     path.join(runDir, 'stats_before.json'),
     JSON.stringify(
-      before.ok ? before.data : { error: before.reason, captured_at: new Date().toISOString() },
+      before.ok
+        ? before.data
+        : {
+            $kind: 'instance',
+            $conforms_to: 'docs/current/metrics-contract.md',
+            $generated_by: 'causal-learner/mcp-server/scripts/dump-stats.mjs',
+            $generated_at: new Date().toISOString(),
+            error: before.reason,
+            captured_at: new Date().toISOString(),
+          },
       null,
       2,
     ) + '\n',
@@ -354,7 +372,16 @@ function buildSummary({ runId, commit, metrics, statsBefore, statsAfter, vr, fai
   await writeFile(
     path.join(runDir, 'stats_after.json'),
     JSON.stringify(
-      after.ok ? after.data : { error: after.reason, captured_at: new Date().toISOString() },
+      after.ok
+        ? after.data
+        : {
+            $kind: 'instance',
+            $conforms_to: 'docs/current/metrics-contract.md',
+            $generated_by: 'causal-learner/mcp-server/scripts/dump-stats.mjs',
+            $generated_at: new Date().toISOString(),
+            error: after.reason,
+            captured_at: new Date().toISOString(),
+          },
       null,
       2,
     ) + '\n',
@@ -375,11 +402,8 @@ function buildSummary({ runId, commit, metrics, statsBefore, statsAfter, vr, fai
   await writeFile(path.join(runDir, 'metrics.json'), JSON.stringify(metrics, null, 2) + '\n', 'utf8');
 
   // 7.9 verification_report.json
-  await writeFile(
-    path.join(runDir, 'verification_report.json'),
-    JSON.stringify(vr, null, 2) + '\n',
-    'utf8',
-  );
+  const vrOut = { $kind: 'instance', $conforms_to: 'docs/current/artifact-contract.md', $generated_by: 'scripts/eval.mjs', $generated_at: new Date().toISOString(), ...vr };
+  await writeFile(path.join(runDir, 'verification_report.json'), JSON.stringify(vrOut, null, 2) + '\n', 'utf8');
 
   // 7.10 run.log
   await writeFile(path.join(runDir, 'run.log'), logBuf.join('\n') + '\n', 'utf8');
@@ -394,7 +418,8 @@ function buildSummary({ runId, commit, metrics, statsBefore, statsAfter, vr, fai
     vr,
     failedSteps,
   });
-  await writeFile(path.join(runDir, 'summary.md'), summary, 'utf8');
+  const summaryFm = `---\nkind: instance\nconforms_to: docs/current/artifact-contract.md\ngenerated_by: scripts/eval.mjs\ngenerated_at: ${new Date().toISOString().slice(0, 10)}\n---\n\n`;
+  await writeFile(path.join(runDir, 'summary.md'), summaryFm + summary, 'utf8');
 
   // 7.12 控制台小结
   const nonNull = Object.entries(metrics).filter(([, v]) => v !== null).length;

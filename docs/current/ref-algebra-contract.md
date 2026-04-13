@@ -1,7 +1,10 @@
 ---
+kind: contract
 status: current
 verified: 2026-04-13
 phase: 1
+schema_version: 1
+describes: "Ref 复合合法性代数"
 ---
 
 # RefAlgebra 合同：关系代数约束规范

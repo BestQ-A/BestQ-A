@@ -1,7 +1,15 @@
+---
+kind: contract
+status: current
+verified: 2026-04-13
+schema_version: 1
+describes: "Phase 0-5 门控与产出合约"
+---
+
 # BestQ-A 开发路线图（Phase 0–4）
 
 > 本文档是 BestQ-A "先闭环、后扩展" 路线的总纲，串起四个阶段的目标、产物契约与验收。
-> 所有**具体 schema 与写入路径**都迁移到 [current/](current/) 下的单项合同文档；本文只做编排与阶段门控。
+> 所有**具体 schema 与写入路径**都迁移到 `current/` 下的单项合同文档；本文只做编排与阶段门控。
 > 设计基底：[causal-learner-design.md](causal-learner-design.md)、[bestqa_benchmark_design.md](bestqa_benchmark_design.md)、[mcp_implementation_plan.md](mcp_implementation_plan.md)
 > 边界基底：[external-integration.md](external-integration.md)
 > 执行作业：[../.omx/plans/bestqa-roadmap-from-external-2026-04-13.md](../.omx/plans/bestqa-roadmap-from-external-2026-04-13.md)
@@ -10,7 +18,7 @@
 
 ## 1. 路线选择
 
-BestQ-A 现在**内核先行、产品层滞后**：四层架构、Pipeline、Graph、Evidence、Hypothesis、DualStorage 等抽象都已在 [current/](current/) 下有合同，但统一入口、评测产物、知识编译、案例记忆还没到位。
+BestQ-A 现在**内核先行、产品层滞后**：四层架构、Pipeline、Graph、Evidence、Hypothesis、DualStorage 等抽象都已在 `current/` 下有合同，但统一入口、评测产物、知识编译、案例记忆还没到位。
 
 对比 [external-integration.md](external-integration.md) 登记的六个参考仓，得出：**优先补闭环，不优先堆内核**。
 
@@ -29,7 +37,7 @@ BestQ-A 现在**内核先行、产品层滞后**：四层架构、Pipeline、Gra
 | **Phase 0** | 基线冻结 | `.omx/baselines/<date>/` 下的 tests、stats、swebench 快照 | [current/metrics-contract.md](current/metrics-contract.md) |
 | **Phase 1** | 闭环入口 | 根 README、统一命令、CI、标准 artifacts | [current/artifact-contract.md](current/artifact-contract.md)、[current/metrics-contract.md](current/metrics-contract.md) |
 | **Phase 2** | 知识编译 | 两段式 ingest、composites 编译索引、来源追踪 | [current/knowledge-source-contract.md](current/knowledge-source-contract.md)、[current/compile-promotion-contract.md](current/compile-promotion-contract.md) |
-| **Phase 3** | 案例与经验记忆 | case_memory、lesson_ledger、统一 retrieval order | [current/memory-layer-contract.md](current/memory-layer-contract.md) |
+| **Phase 3** | 案例与经验记忆 | case_memory、lesson_ledger、统一 retrieval order | [current/memory-layer-target.md](current/memory-layer-target.md)（辅：[current/memory-layer-current.md](current/memory-layer-current.md)） |
 | **Phase 3.5** | code-index 可行性调研（独立支线） | 调研报告 + PoC + 是否纳入 Phase 4 的决定 | 暂无（调研产物） |
 | **Phase 4** | HITL 与可视面 | dashboard、review queue、markdown-viewer 视图资产、auto/co-pilot 切换 | 暂无，待 Phase 3 冻结后补 |
 | **Phase 5** | opencode 深度集成（长期目标） | bestqa opencode plugin、MCP + plugin 双通道 | 需新增 `plugin-surface-contract.md` |
@@ -94,7 +102,7 @@ graph LR
 |------|------|
 | Goal | 把 regulation-only 记忆升级为 case / regulation / kb / raw-text 四位一体 |
 | Produces | `case_memory`、`lesson_ledger`、统一 retrieval order |
-| 合同 | [current/memory-layer-contract.md](current/memory-layer-contract.md) |
+| 合同 | [current/memory-layer-target.md](current/memory-layer-target.md)（主）+ [current/memory-layer-current.md](current/memory-layer-current.md)（辅） |
 | Exit | 重复问题集 `case_memory.hit_rate ≥ 0.6`；每层命中记录进 metrics；存储边界零越界 |
 | Rollback | 职责越界写入 → 冻结 Phase 3 写迁移脚本；retrieval 延迟超 baseline 2 倍 → layer profiling |
 
@@ -104,7 +112,7 @@ graph LR
 |------|------|
 | Goal | 判断 GrapeRoot (Codex-CLI-Compact) 式的"代码语义图谱 → prompt context 预加载"是否应纳入 BestQ-A 作为 `kb_*` 之外的第 6 类存储 |
 | Produces | `docs/design_history/code-index-feasibility-<date>.md` 调研报告 + 极小 PoC |
-| 合同 | 若结论为"接入"，必须先扩 [current/memory-layer-contract.md](current/memory-layer-contract.md) 的五类存储表为六类，再改代码 |
+| 合同 | 若结论为"接入"，必须先扩 [current/memory-layer-target.md](current/memory-layer-target.md) 的存储层表为六类，再改代码 |
 | Exit | 有明确"接入 / 暂缓 / 拒绝"三选一结论，并标注触发下一轮调研的条件 |
 | Rollback | 支线性质，主线不受影响；若 PoC 破坏 Phase 3 的 retrieval order 必须立即撤回 |
 
@@ -122,9 +130,9 @@ graph LR
 
 | 维度 | 内容 |
 |------|------|
-| Goal | 把 causal-learner + knowledge_base + BestQA 检索以**opencode plugin** 形态分发，参照 [external/oh-my-openagent](../external/oh-my-openagent) 的集成深度；不放弃现有 Claude Code MCP 通道，形成"MCP + plugin"双通道 |
+| Goal | 把 causal-learner + knowledge_base + BestQA 检索以**opencode plugin** 形态分发，参照 `external/oh-my-openagent`<!-- audit-ignore: missing-file: external/oh-my-openagent (gitignored, 见 external-integration.md 登记表 #13) --> 的集成深度；不放弃现有 Claude Code MCP 通道，形成"MCP + plugin"双通道 |
 | Produces | `packages/bestqa-opencode-plugin/`（或等价目录），实现 opencode 的 plugin API：tool 注册 / context 注入 hook / session 生命周期绑定 |
-| 前置条件 | Phase 1–4 的五份合同全部稳定，特别是 [current/artifact-contract.md](current/artifact-contract.md) 与 [current/memory-layer-contract.md](current/memory-layer-contract.md) 已冻结；否则 plugin 会踩到后续 schema 变动 |
+| 前置条件 | Phase 1–4 的五份合同全部稳定，特别是 [current/artifact-contract.md](current/artifact-contract.md) 与 [current/memory-layer-current.md](current/memory-layer-current.md) / [current/memory-layer-target.md](current/memory-layer-target.md) 已冻结；否则 plugin 会踩到后续 schema 变动 |
 | 合同 | 需新增 `docs/current/plugin-surface-contract.md`（尚未创建），约束双通道（MCP / plugin）之间的 SSOT 与状态共享 |
 | Exit | 在 opencode session 内能通过 plugin 调用 causal-learner 核心能力（submit_observation / retrieve / recordFix），且与 MCP 通道的状态一致 |
 | Rollback | 若 opencode plugin API 有破坏性变更 → 回退到 MCP 单通道，不阻塞主线 |
@@ -147,7 +155,7 @@ graph LR
 |------|------|------|
 | 再次只增文档不落工程入口 | 高 | Phase 1 必须先做统一命令和 CI |
 | 知识库 schema 反复变动 | 高 | Phase 2 内 frontmatter 冻结才能进 Phase 3 |
-| case_memory 与 regulation_store 职责越界 | 中 | [current/memory-layer-contract.md](current/memory-layer-contract.md) 的五类存储表为唯一裁决 |
+| case_memory 与 regulation_store 职责越界 | 中 | [current/memory-layer-current.md](current/memory-layer-current.md) §1 + [current/memory-layer-target.md](current/memory-layer-target.md) §1 为唯一裁决 |
 | 外部仓库能力被重复吸收 | 高 | 所有吸收先查 [external-integration.md](external-integration.md) 的 SSOT |
 | 度量 schema 漂移 | 高 | [current/metrics-contract.md](current/metrics-contract.md) 冻结字段名与位置 |
 | 阶段越界开工 | 中 | 每阶段有 Exit Criteria，未达成则下游停工 |
