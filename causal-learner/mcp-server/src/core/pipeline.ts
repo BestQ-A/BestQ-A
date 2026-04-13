@@ -28,6 +28,12 @@ import type { Conclusion } from './types.js';
 import {
   createAcceptedReconstruction,
 } from './reconstruction.js';
+import type { MechanismInstance } from './mechanism-instance.js';
+import {
+  createMechanismInstance,
+  acceptInstance,
+  rejectInstance,
+} from './mechanism-instance.js';
 import type { OntologyUpdate } from './ontology-delta.js';
 import {
   buildRelationChange,
@@ -117,6 +123,11 @@ export interface FixResult {
   reconstruction: AcceptedReconstruction;
   /** 最终结论（v7 §10 条件 5：主流程输出 Conclusion + Reconstruction） */
   conclusion: Conclusion;
+  /**
+   * MechanismInstance（mechanism-instance-contract.md §8 条件 1）
+   * compile 成功时 status='accepted'；否则 status='candidate' 或 'rejected'
+   */
+  mechanismInstance: MechanismInstance;
   /** Ontology 更新或不更新说明（v7 §10 条件 4） */
   ontologyUpdate: OntologyUpdate;
   /** 编译结果（有 chosenPathAtomIds 时存在） */
@@ -482,6 +493,28 @@ export class CausalPipeline {
       ontologyDeltaId: 'id' in ontologyUpdate ? ontologyUpdate.id : undefined,
     };
 
+    // Step 4.5: 生成 MechanismInstance（mechanism-instance-contract.md §8 条件 1）
+    // source_kind='path_projection'：当前为过渡态，路径 Atom 作为 slot 绑定代理
+    const miBindings: Record<string, string> = {};
+    const pathForBindings = pathWithFix ?? storySnapshot.observationAtomIds;
+    pathForBindings.forEach((atomId, i) => { miBindings[`slot_${i}`] = atomId; });
+
+    const rawMechanismInstance = createMechanismInstance({
+      episode_id: input.storyId,
+      mechanism_class_id: hypothesisId ? `MC_hyp_${hypothesisId}` : `MC_fallback_${input.storyId}`,
+      bindings: Object.keys(miBindings).length > 0 ? miBindings : { slot_0: fixAtom.id },
+      source_kind: 'path_projection',
+      source_ref: compile ? `compile:${input.storyId}` : null,
+      claim_ids: hypothesisId ? [hypothesisId] : [],
+      created_by: 'pipeline_s4',
+    });
+
+    const mechanismInstance: MechanismInstance = compile && compile.compiledRefs > 0
+      ? acceptInstance(rawMechanismInstance, { claim_ids: hypothesisId ? [hypothesisId] : [] })
+      : rejectInstance(rawMechanismInstance, compile
+          ? '路径 compile 成功但 compiledRefs=0'
+          : (hypothesisId ? 'canPromote 门控未通过' : '无有效路径'));
+
     // Step 5: 生成 Conclusion（v7 §10 条件 5）
     const conclusion: Conclusion = {
       answer: story.outcomeNotes ?? input.fixDescription,
@@ -496,6 +529,7 @@ export class CausalPipeline {
       episode,
       reconstruction,
       conclusion,
+      mechanismInstance,
       ontologyUpdate,
       compile,
       evidenceCount,
