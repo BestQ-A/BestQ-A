@@ -2,7 +2,8 @@
 kind: contract
 status: draft
 phase: 2
-describes: "MechanismClass 动力学模板规范"
+schema_version: 1
+describes: "MechanismClass 动力学模板"
 upstream:
   - v7-world-model-contract.md
   - pattern-template.ts

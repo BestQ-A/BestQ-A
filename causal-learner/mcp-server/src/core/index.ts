@@ -433,13 +433,14 @@ export {
 
 // MechanismInstance (v7 经历层绑定实例 — MechanismClass × Episode)
 export type {
+  MechanismInstanceStatus,
+  MechanismInstanceSourceKind,
   MechanismInstance,
-  EvaluationScores,
 } from './mechanism-instance.js';
 
 export {
   createMechanismInstance,
-  evaluateMechanismInstance,
   acceptInstance,
-  deriveFidelityScore,
+  rejectInstance,
+  supersedeInstance,
 } from './mechanism-instance.js';
