@@ -126,6 +126,11 @@ export function createOntologyDelta(
   claimIds: string[],
   changes: OntologyChange[]
 ): OntologyDelta {
+  if (changes.length === 0) {
+    throw new Error(
+      'createOntologyDelta: changes must not be empty. Use createOntologyDeltaNone() for no-update cases.'
+    );
+  }
   return {
     id: newDeltaId(episodeId),
     episode_id: episodeId,

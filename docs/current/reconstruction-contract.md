@@ -85,7 +85,7 @@ AcceptedReconstruction:           # v7 §3.3 命名
 |------|------|
 | `id` | 全局唯一，格式 `RC_<episode_id>_<version>` |
 | `episode_id` | 必须指向已存在的 Episode |
-| `selectedMechanismIds` | 非空数组；每个 ID 必须指向已存在的 MechanismClass |
+| `selectedMechanismIds` | draft 阶段允许包含 `proxy:*` 过渡引用（MechanismClass 尚未正式落地时）；转 current 前必须替换为真实 MechanismClass ID；非空数组 |
 | `mechanism_instance_ids` | draft 阶段允许为空；转 current 前必须非空，且每个 ID 指向已存在的 MechanismInstance |
 | `ontology_snapshot_ref` | 不可为空——必须记录"用哪个版本的 Ontology 做的重建" |
 | `traceId` | 必须指向已存在的 DerivationTrace |

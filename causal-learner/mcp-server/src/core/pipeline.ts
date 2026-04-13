@@ -457,7 +457,8 @@ export class CausalPipeline {
       traceId: hypothesisId ? `TRACE_${hypothesisId}` : undefined,
       selectedMechanismIds: [mechanismInstance.mechanism_class_ref],
       ontologySnapshotRef: 'ontology_current',
-      mechanismInstanceIds: [mechanismInstance.id],
+      // P1：只在 accepted 时写入，rejected 路径不得绑定被否决的 bridge 对象
+      mechanismInstanceIds: mechanismInstance.status === 'accepted' ? [mechanismInstance.id] : [],
     });
 
     // Step 5: 生成 OntologyDelta（D1：所有路径均返回 OntologyDelta，不再用独立 NoUpdateReason）

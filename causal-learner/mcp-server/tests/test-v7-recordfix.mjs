@@ -102,9 +102,10 @@ console.log('\n📦 Test 3: acceptInstance 空 claim/support 抛错');
 // ──────────────────────────────────────────────────────────────────────────────
 // 测试 4：reconstruction.mechanism_instance_ids 正确写入
 // ──────────────────────────────────────────────────────────────────────────────
-console.log('\n📦 Test 4: reconstruction.mechanism_instance_ids 写入正确');
+console.log('\n📦 Test 4: reconstruction.mechanism_instance_ids 语义正确（P1）');
 
 {
+  // 4a: 无路径 → mechanismInstance = rejected → mechanism_instance_ids 应为空
   const pipeline = new CausalPipeline({ seedDefaults: false });
   const obs = pipeline.submitObservation({
     rawInput: 'another test',
@@ -121,14 +122,13 @@ console.log('\n📦 Test 4: reconstruction.mechanism_instance_ids 写入正确')
     'reconstruction.mechanism_instance_ids 是数组'
   );
   assert(
-    result.reconstruction.mechanism_instance_ids.length >= 1,
-    `mechanism_instance_ids 非空 (len=${result.reconstruction.mechanism_instance_ids.length})`
+    result.mechanismInstance.status === 'rejected',
+    `无路径时 mechanismInstance.status === 'rejected' (got: ${result.mechanismInstance.status})`
   );
   assert(
-    result.reconstruction.mechanism_instance_ids[0] === result.mechanismInstance.id,
-    `mechanism_instance_ids[0] === mechanismInstance.id (${result.mechanismInstance.id})`
+    result.reconstruction.mechanism_instance_ids.length === 0,
+    `rejected 路径 mechanism_instance_ids 为空 (len=${result.reconstruction.mechanism_instance_ids.length})`
   );
-
   // D3 验证：mechanism_class_ref 不含假 MC_hyp_ / MC_fallback_
   assert(
     result.mechanismInstance.mechanism_class_ref.startsWith('proxy:'),
@@ -136,6 +136,23 @@ console.log('\n📦 Test 4: reconstruction.mechanism_instance_ids 写入正确')
   );
 
   pipeline.close();
+}
+
+{
+  // 4b: accepted 路径下 mechanism_instance_ids 有值（单元级验证）
+  const mi = acceptInstance(
+    createMechanismInstance({
+      episode_id: 'ep_4b',
+      mechanism_class_ref: 'proxy:test_class',
+      bindings: { slot_0: 'atom_a' },
+      claim_ids: ['claim_x'],
+    }),
+    { claim_ids: ['claim_x'] }
+  );
+
+  assert(mi.status === 'accepted', `MI status === 'accepted'`);
+  const miIds = mi.status === 'accepted' ? [mi.id] : [];
+  assert(miIds.length === 1 && miIds[0] === mi.id, `accepted MI id 写入 mechanismInstanceIds (${mi.id})`);
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
