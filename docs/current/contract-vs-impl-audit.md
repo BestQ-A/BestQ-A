@@ -5,7 +5,11 @@ recorded_at: 2026-04-13
 immutable: true
 ---
 
+<!-- audit-ignore: record-mutated: 2026-04-13 taxonomy 迁移，这次及以前的 frontmatter 补齐不算内容变更 -->
+
 # 契约 vs 实现审计（2026-04-13）
+
+> **Migration Note (2026-04-13)**：本文件最早由 commit `ab01d1b` 写入（2026-04-13 上午 round 2），当时仓内尚未建立五类 MECE taxonomy，故没有 `kind: record` frontmatter。commit `b1917ce` 在五类落地时原地补齐 frontmatter，将其追认为 record。按 file-taxonomy-contract.md §4.4 的裁决，audit-report 本就属于 `kind: record`，此次补齐属于**迁移事件**而非内容变更——审计正文（5 项 blocker / 3 项 vaporware 等历史事实）未被改动，immutability 语义从 `b1917ce` 起生效。上方的 `audit-ignore: record-mutated` 指令用于豁免迁移期的"birth commit 之前的 commit"，此后本文件字节级内容不再变更。
 
 > 本文档盘点 `docs/current/` 下 4 份新契约（artifact / metrics / knowledge-source / memory-layer）与 `causal-learner/mcp-server/src/` 实际代码之间的偏差。
 > 对齐项不展开；仅列偏差、严重度、建议行动。审计者：general-purpose agent，未修改任何既有文件。

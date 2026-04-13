@@ -2,8 +2,8 @@
   "$kind": "instance",
   "$conforms_to": "docs/current/stats-snapshot-contract.md",
   "$generated_by": "causal-learner/mcp-server/scripts/dump-stats.mjs",
-  "$generated_at": "2026-04-13T13:47:09.607Z",
-  "captured_at": "2026-04-13T13:47:09.607Z",
+  "$generated_at": "2026-04-13T14:54:16.012Z",
+  "captured_at": "2026-04-13T14:54:16.012Z",
   "storageStats": {
     "observationCount": 0,
     "eventCount": 0,

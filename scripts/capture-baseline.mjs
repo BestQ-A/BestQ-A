@@ -32,16 +32,22 @@ const OUT_DIR = path.join(ROOT, '.omx', 'baselines', TODAY);
 /** 步骤执行结果，汇总到 summary.md */
 const steps = [];
 
-/** 分类元数据：所有落盘产物必须以这些字段开头，才能被 contract-audit.mjs 识别为 instance。 */
-const INSTANCE_META_JSON = {
+/** 分类元数据：所有落盘产物必须以这些字段开头，才能被 contract-audit.mjs 识别为 instance。
+ *  注意（2026-04-13 taxonomy review 修复）：
+ *   - stats.json 的内容 schema 归 stats-snapshot-contract.md
+ *   - summary.md / coverage-matrix.md 的内容 schema 归 run-summary-contract.md
+ *   - capture-baseline.mjs 自身作为生成器依旧 implements artifact-contract.md（目录布局）。
+ * TODO(2026-04-13): stats-snapshot-contract.md / run-summary-contract.md 由并行 agent 建立中。
+ */
+const STATS_STATS_INSTANCE_META_JSON = {
   $kind: 'instance',
-  $conforms_to: 'docs/current/metrics-contract.md',
+  $conforms_to: 'docs/current/stats-snapshot-contract.md',
   $generated_by: 'causal-learner/mcp-server/scripts/dump-stats.mjs',
 };
 const MD_FRONTMATTER = [
   '---',
   'kind: instance',
-  'conforms_to: docs/current/artifact-contract.md',
+  'conforms_to: docs/current/run-summary-contract.md',
   'generated_by: scripts/capture-baseline.mjs',
   `generated_at: ${TODAY}`,
   '---',
@@ -160,7 +166,7 @@ async function stepStats(buildOk) {
   // 单点失败由 dump-stats 内部捕获为 { error } 字段，这里只管 spawn + JSON.parse。
   if (!buildOk) {
     const payload = {
-      ...INSTANCE_META_JSON,
+      ...STATS_INSTANCE_META_JSON,
       $generated_at: new Date().toISOString(),
       captured_at: new Date().toISOString(),
       error: 'skipped: mcp-server build failed, dist/ unavailable',
@@ -190,7 +196,7 @@ async function stepStats(buildOk) {
 
   if (!parsed) {
     const payload = {
-      ...INSTANCE_META_JSON,
+      ...STATS_INSTANCE_META_JSON,
       $generated_at: new Date().toISOString(),
       captured_at: new Date().toISOString(),
       error: `dump-stats failed: code=${r.code} parse=${parseErr}`,
@@ -207,7 +213,7 @@ async function stepStats(buildOk) {
     // 若 dump-stats.mjs 已自带 $kind 就直接落盘；否则注入元数据以保证 instance 识别
     const payload = parsed && parsed.$kind === 'instance'
       ? parsed
-      : { ...INSTANCE_META_JSON, $generated_at: new Date().toISOString(), ...parsed };
+      : { ...STATS_INSTANCE_META_JSON, $generated_at: new Date().toISOString(), ...parsed };
     await safeWrite('stats.json', JSON.stringify(payload, null, 2) + '\n');
   } catch (e) {
     record('stats snapshot', false, String(e));

@@ -3,7 +3,11 @@
 // kind: code
 // implements: docs/current/artifact-contract.md
 // also related: docs/current/metrics-contract.md
+// also related: docs/current/stats-snapshot-contract.md
+// also related: docs/current/run-summary-contract.md
 // ---
+// TODO(2026-04-13): stats-snapshot-contract.md / run-summary-contract.md 由并行 agent 建立中；
+// 本脚本产出的 stats_before.json / stats_after.json / summary.md 已按新 contract 绑定。
 /**
  * BestQ-A Phase 1 评测入口脚本 (scripts/eval.mjs)
  *
@@ -344,7 +348,7 @@ function buildSummary({ runId, commit, metrics, statsBefore, statsAfter, vr, fai
         ? before.data
         : {
             $kind: 'instance',
-            $conforms_to: 'docs/current/metrics-contract.md',
+            $conforms_to: 'docs/current/stats-snapshot-contract.md',
             $generated_by: 'causal-learner/mcp-server/scripts/dump-stats.mjs',
             $generated_at: new Date().toISOString(),
             error: before.reason,
@@ -376,7 +380,7 @@ function buildSummary({ runId, commit, metrics, statsBefore, statsAfter, vr, fai
         ? after.data
         : {
             $kind: 'instance',
-            $conforms_to: 'docs/current/metrics-contract.md',
+            $conforms_to: 'docs/current/stats-snapshot-contract.md',
             $generated_by: 'causal-learner/mcp-server/scripts/dump-stats.mjs',
             $generated_at: new Date().toISOString(),
             error: after.reason,
@@ -418,7 +422,9 @@ function buildSummary({ runId, commit, metrics, statsBefore, statsAfter, vr, fai
     vr,
     failedSteps,
   });
-  const summaryFm = `---\nkind: instance\nconforms_to: docs/current/artifact-contract.md\ngenerated_by: scripts/eval.mjs\ngenerated_at: ${new Date().toISOString().slice(0, 10)}\n---\n\n`;
+  // 2026-04-13 taxonomy review 修复：summary.md 的内容 schema 归 run-summary-contract.md，
+  // 而非 artifact-contract.md（后者仅定义目录布局）。
+  const summaryFm = `---\nkind: instance\nconforms_to: docs/current/run-summary-contract.md\ngenerated_by: scripts/eval.mjs\ngenerated_at: ${new Date().toISOString().slice(0, 10)}\n---\n\n`;
   await writeFile(path.join(runDir, 'summary.md'), summaryFm + summary, 'utf8');
 
   // 7.12 控制台小结

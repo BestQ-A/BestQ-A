@@ -1,6 +1,6 @@
 {
   "$kind": "instance",
-  "$conforms_to": "docs/current/metrics-contract.md",
+  "$conforms_to": "docs/current/stats-snapshot-contract.md",
   "$generated_by": "causal-learner/mcp-server/scripts/dump-stats.mjs",
   "$generated_at": "2026-04-13T14:17:55.095Z",
   "captured_at": "2026-04-13T14:17:55.095Z",

@@ -1,6 +1,6 @@
 ---
 kind: instance
-conforms_to: docs/current/artifact-contract.md
+conforms_to: docs/current/run-summary-contract.md
 generated_by: scripts/eval.mjs
 generated_at: 2026-04-13
 ---

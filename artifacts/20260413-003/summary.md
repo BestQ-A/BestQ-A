@@ -5,13 +5,13 @@ generated_by: scripts/eval.mjs
 generated_at: 2026-04-13
 ---
 
-# Eval 20260413-002
+# Eval 20260413-003
 
-- commit: `ab01d1b`
+- commit: `b1917ce`
 - phase: phase1
 - dataset: placeholder
 - n_instances: 0
-- duration_sec: 2.169
+- duration_sec: 2.175
 
 ## Conclusion
 

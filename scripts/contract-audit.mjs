@@ -16,6 +16,7 @@ const ROOT = path.resolve(path.dirname(__filename), '..');
 const DOCS_CURRENT = path.join(ROOT, 'docs', 'current');
 const DOCS_DIR = path.join(ROOT, 'docs');
 const SCRIPTS_DIR = path.join(ROOT, 'scripts');
+const CL_SCRIPTS_DIR = path.join(ROOT, 'causal-learner', 'mcp-server', 'scripts');
 const ARTIFACTS_DIR = path.join(ROOT, 'artifacts');
 const BASELINES_DIR = path.join(ROOT, '.omx', 'baselines');
 const OUT_JSON = path.join(ARTIFACTS_DIR, 'contract-audit-latest.json');
@@ -110,13 +111,15 @@ function parseJsonFrontmatter(text) {
   return { fm, body: text, bodyStartLine: 1 };
 }
 
-/** 收集 <!-- audit-ignore: code[: target] --> 指令（仅 markdown） */
+/** 收集 <!-- audit-ignore: code[: target] --> 指令（仅 markdown）
+ *  target 存在时同时加入裸 code 与 `code:target` 两种形式，方便下游按粒度消费 */
 function collectIgnores(text) {
   const ignores = new Set();
   for (const m of text.matchAll(/<!--\s*audit-ignore:\s*([\w-]+)(?::\s*([^>]+?))?\s*-->/g)) {
     const code = m[1].trim();
     const tgt = (m[2] || '').trim();
-    ignores.add(tgt ? `${code}:${tgt}` : code);
+    ignores.add(code);
+    if (tgt) ignores.add(`${code}:${tgt}`);
   }
   return ignores;
 }
@@ -455,15 +458,40 @@ async function auditFile(absFile, format) {
       findings.push({ file: rel, line: 1, code: 'missing-immutable', level: 'error', msg: 'kind: record 必须显式 `immutable: true`' });
     }
     const cnt = await gitCommitCount(absFile);
-    if (cnt !== null && cnt > 1) {
+    if (cnt !== null && cnt > 1 && !ignores.has('record-mutated')) {
       findings.push({ file: rel, line: 1, code: 'record-mutated', level: 'warning', msg: `record 历史 commit 数=${cnt} > 1（应一次写入后不再变更）` });
     }
   }
 
-  // ── R11：code 建议有 implements ──
+  // ── R11：code.implements 严格校验（与 R7 conforms_to 同级） ──
   if (kind === 'code') {
-    if (!fm.implements) {
-      findings.push({ file: rel, line: 1, code: 'missing-implements', level: 'warning', msg: 'kind: code 建议有 `implements` 字段' });
+    const impRaw = fm.implements;
+    if (impRaw === undefined || impRaw === null || impRaw === '') {
+      findings.push({ file: rel, line: 1, code: 'missing-implements', level: 'error', msg: 'kind: code 必须有 `implements` 字段（指向一个或多个 kind: contract 文件）' });
+    } else {
+      // 支持字符串或数组（YAML flow [a, b] / JSON array）
+      let list;
+      if (Array.isArray(impRaw)) list = impRaw.map(String);
+      else {
+        const s = String(impRaw).trim();
+        const arr = s.match(/^\[(.*)\]$/);
+        if (arr) list = arr[1].split(',').map(x => unquote(x.trim())).filter(Boolean);
+        else list = [s];
+      }
+      for (const item of list) {
+        if (!item) continue;
+        const abs = path.isAbsolute(item) ? item : path.resolve(ROOT, item);
+        const info = await readFileInfo(abs);
+        if (!info.exists) {
+          findings.push({ file: rel, line: 1, code: 'bad-implements-target', level: 'error', msg: `implements 目标不存在：${item}` });
+          continue;
+        }
+        const { fm: tfm } = parseMarkdownFrontmatter(info.text);
+        const tKind = normalizeKind(tfm.kind).kind;
+        if (tKind !== 'contract') {
+          findings.push({ file: rel, line: 1, code: 'implements-wrong-kind', level: 'error', msg: `implements 目标 kind=${tKind || '?'}，应为 contract：${item}` });
+        }
+      }
     }
   }
 
@@ -597,14 +625,28 @@ async function collectTargets() {
       if (/\.(mjs|js)$/.test(f)) targets.push({ abs: path.join(SCRIPTS_DIR, f), format: 'js' });
     }
   } catch {}
+  // 3b. causal-learner/mcp-server/scripts/*.mjs（新 taxonomy 纳入）
+  try {
+    for (const f of await readdir(CL_SCRIPTS_DIR)) {
+      if (/\.(mjs|js)$/.test(f)) targets.push({ abs: path.join(CL_SCRIPTS_DIR, f), format: 'js' });
+    }
+  } catch {}
   // 4. artifacts/**/*.json（跳过自生成报告）
   for (const f of await listFilesRec(ARTIFACTS_DIR, ['.json'])) {
     if (path.basename(f) === 'contract-audit-latest.json') continue;
     targets.push({ abs: f, format: 'json' });
   }
+  // 4b. artifacts/**/*.md（md 格式 instance，如 summary.md）
+  for (const f of await listFilesRec(ARTIFACTS_DIR, ['.md'])) {
+    targets.push({ abs: f, format: 'md' });
+  }
   // 5. .omx/baselines/**/*.json
   for (const f of await listFilesRec(BASELINES_DIR, ['.json'])) {
     targets.push({ abs: f, format: 'json' });
+  }
+  // 5b. .omx/baselines/**/*.md（summary.md / coverage-matrix.md 等 md instance）
+  for (const f of await listFilesRec(BASELINES_DIR, ['.md'])) {
+    targets.push({ abs: f, format: 'md' });
   }
   return targets;
 }
@@ -638,7 +680,8 @@ async function main() {
     missing_generated_at: [], bad_generated_at: [],
     missing_event: [], missing_recorded_at: [], bad_recorded_at: [],
     missing_immutable: [], record_mutated: [],
-    missing_implements: [], missing_schema_version: [],
+    missing_implements: [], bad_implements_target: [], implements_wrong_kind: [],
+    missing_schema_version: [],
   };
   const codeToBucket = {
     'missing-conforms-to': 'missing_conforms_to',
@@ -653,6 +696,8 @@ async function main() {
     'missing-immutable': 'missing_immutable',
     'record-mutated': 'record_mutated',
     'missing-implements': 'missing_implements',
+    'bad-implements-target': 'bad_implements_target',
+    'implements-wrong-kind': 'implements_wrong_kind',
     'missing-schema-version': 'missing_schema_version',
   };
   for (const r of results) {

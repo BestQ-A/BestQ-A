@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // ---
 // kind: code
-// implements: docs/current/metrics-contract.md
+// implements: docs/current/stats-snapshot-contract.md
 // ---
+// TODO(2026-04-13): docs/current/stats-snapshot-contract.md 由并行 agent 创建中；
+// 若在审计时该文件仍不存在，contract-audit.mjs 会报 implements 目标缺失。
 /**
  * dump-stats.mjs — 极简 stats 导出器（Phase 0 baseline 用）
  *
@@ -53,7 +55,7 @@ const importCore = async (rel) => {
 const NOW_ISO = new Date().toISOString();
 const out = {
   $kind: 'instance',
-  $conforms_to: 'docs/current/metrics-contract.md',
+  $conforms_to: 'docs/current/stats-snapshot-contract.md',
   $generated_by: 'causal-learner/mcp-server/scripts/dump-stats.mjs',
   $generated_at: NOW_ISO,
   captured_at: NOW_ISO,

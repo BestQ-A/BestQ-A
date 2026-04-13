@@ -1,18 +1,18 @@
 {
-  "timestamp": "2026-04-13T14:24:52.536Z",
-  "files_scanned": 31,
+  "timestamp": "2026-04-13T15:03:24.877Z",
+  "files_scanned": 54,
   "errors": [],
   "warnings": [],
   "summary": {
-    "ok": 31,
+    "ok": 54,
     "warn": 0,
     "err": 0
   },
   "kind_distribution": {
-    "contract": 17,
-    "instance": 9,
-    "record": 1,
-    "code": 3,
+    "contract": 23,
+    "instance": 18,
+    "record": 2,
+    "code": 10,
     "index": 1,
     "legacy_I": 0,
     "legacy_II": 0,
@@ -31,6 +31,8 @@
     "missing_immutable": [],
     "record_mutated": [],
     "missing_implements": [],
+    "bad_implements_target": [],
+    "implements_wrong_kind": [],
     "missing_schema_version": []
   },
   "density_distribution": [
@@ -52,12 +54,22 @@
     {
       "file": "docs/current/contract-audit-contract.md",
       "kind": "contract",
-      "density": 0.0442
+      "density": 0.0434
     },
     {
       "file": "docs/current/contract-vs-impl-audit.md",
       "kind": "record",
-      "density": 0.0338
+      "density": 0.0326
+    },
+    {
+      "file": "docs/current/coverage-matrix-contract.md",
+      "kind": "contract",
+      "density": 0.0573
+    },
+    {
+      "file": "docs/current/epistemic-contract.md",
+      "kind": "contract",
+      "density": 0.039
     },
     {
       "file": "docs/current/file-taxonomy-contract.md",
@@ -73,6 +85,11 @@
       "file": "docs/current/knowledge-source-contract.md",
       "kind": "contract",
       "density": 0.1747
+    },
+    {
+      "file": "docs/current/legacy-scaffolds-contract.md",
+      "kind": "contract",
+      "density": 0.1053
     },
     {
       "file": "docs/current/memory-layer-contract.md",
@@ -115,6 +132,26 @@
       "density": 0
     },
     {
+      "file": "docs/current/run-summary-contract.md",
+      "kind": "contract",
+      "density": 0.0437
+    },
+    {
+      "file": "docs/current/stats-snapshot-contract.md",
+      "kind": "contract",
+      "density": 0.0147
+    },
+    {
+      "file": "docs/current/summary-markdown-contract.md",
+      "kind": "contract",
+      "density": 0.0649
+    },
+    {
+      "file": "docs/current/taxonomy-review-findings-2026-04-13.md",
+      "kind": "record",
+      "density": 0
+    },
+    {
       "file": "docs/current/template-invariant-contract.md",
       "kind": "contract",
       "density": 0
@@ -128,9 +165,45 @@
       "file": "docs/external-integration.md",
       "kind": "contract",
       "density": 0.0458
+    },
+    {
+      "file": "artifacts/20260413-001/summary.md",
+      "kind": "instance",
+      "density": 0
+    },
+    {
+      "file": "artifacts/20260413-002/summary.md",
+      "kind": "instance",
+      "density": 0
+    },
+    {
+      "file": "artifacts/20260413-003/summary.md",
+      "kind": "instance",
+      "density": 0
+    },
+    {
+      "file": ".omx/baselines/2026-04-13/coverage-matrix.md",
+      "kind": "instance",
+      "density": 0
+    },
+    {
+      "file": ".omx/baselines/2026-04-13/summary.md",
+      "kind": "instance",
+      "density": 0
     }
   ],
   "results": [
+    {
+      "file": ".omx/baselines/2026-04-13/coverage-matrix.md",
+      "format": "md",
+      "status": "draft",
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": 0,
+      "errors": 0,
+      "warnings": 0
+    },
     {
       "file": ".omx/baselines/2026-04-13/stats.json",
       "format": "json",
@@ -139,6 +212,17 @@
       "legacy_kind": null,
       "describes": null,
       "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": ".omx/baselines/2026-04-13/summary.md",
+      "format": "md",
+      "status": "draft",
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": 0,
       "errors": 0,
       "warnings": 0
     },
@@ -172,6 +256,17 @@
       "legacy_kind": null,
       "describes": null,
       "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260413-001/summary.md",
+      "format": "md",
+      "status": "draft",
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": 0,
       "errors": 0,
       "warnings": 0
     },
@@ -220,10 +315,153 @@
       "warnings": 0
     },
     {
+      "file": "artifacts/20260413-002/summary.md",
+      "format": "md",
+      "status": "draft",
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": 0,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
       "file": "artifacts/20260413-002/verification_report.json",
       "format": "json",
       "status": null,
       "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260413-003/metrics.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260413-003/stats_after.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260413-003/stats_before.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260413-003/summary.md",
+      "format": "md",
+      "status": "draft",
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": 0,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260413-003/verification_report.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "causal-learner/mcp-server/scripts/analyze-open.mjs",
+      "format": "js",
+      "status": null,
+      "kind": "code",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "causal-learner/mcp-server/scripts/dump-stats.mjs",
+      "format": "js",
+      "status": null,
+      "kind": "code",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "causal-learner/mcp-server/scripts/evaluate.mjs",
+      "format": "js",
+      "status": null,
+      "kind": "code",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "causal-learner/mcp-server/scripts/import-swebench.mjs",
+      "format": "js",
+      "status": null,
+      "kind": "code",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "causal-learner/mcp-server/scripts/swebench-evaluate.mjs",
+      "format": "js",
+      "status": null,
+      "kind": "code",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "causal-learner/mcp-server/scripts/swebench-train-test.mjs",
+      "format": "js",
+      "status": null,
+      "kind": "code",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "causal-learner/mcp-server/scripts/visualize.mjs",
+      "format": "js",
+      "status": null,
+      "kind": "code",
       "legacy_kind": null,
       "describes": null,
       "density": null,
@@ -281,7 +519,7 @@
       "kind": "contract",
       "legacy_kind": null,
       "describes": "契约审计规则规格",
-      "density": 0.0442,
+      "density": 0.0434,
       "errors": 0,
       "warnings": 0
     },
@@ -292,7 +530,29 @@
       "kind": "record",
       "legacy_kind": null,
       "describes": null,
-      "density": 0.0338,
+      "density": 0.0326,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/coverage-matrix-contract.md",
+      "format": "md",
+      "status": "current",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "coverage-matrix 表规范",
+      "density": 0.0573,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/epistemic-contract.md",
+      "format": "md",
+      "status": "draft",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "显式求解与本体更新",
+      "density": 0.039,
       "errors": 0,
       "warnings": 0
     },
@@ -326,6 +586,17 @@
       "legacy_kind": null,
       "describes": "composites 知识源规范",
       "density": 0.1747,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/legacy-scaffolds-contract.md",
+      "format": "md",
+      "status": "draft",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "legacy 脚本登记",
+      "density": 0.1053,
       "errors": 0,
       "warnings": 0
     },
@@ -413,6 +684,50 @@
       "kind": "contract",
       "legacy_kind": null,
       "describes": "Ref 复合合法性代数",
+      "density": 0,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/run-summary-contract.md",
+      "format": "md",
+      "status": "current",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "run summary 文档结构",
+      "density": 0.0437,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/stats-snapshot-contract.md",
+      "format": "md",
+      "status": "current",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "stats 原始快照结构",
+      "density": 0.0147,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/summary-markdown-contract.md",
+      "format": "md",
+      "status": "current",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "summary.md 结构规范",
+      "density": 0.0649,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/taxonomy-review-findings-2026-04-13.md",
+      "format": "md",
+      "status": "reference",
+      "kind": "record",
+      "legacy_kind": null,
+      "describes": null,
       "density": 0,
       "errors": 0,
       "warnings": 0

@@ -287,11 +287,11 @@ density    = link_bytes / total
 | R8 | generated_by 目标存在 | `bad-generated-by-target` | error | `generated_by` 指向的文件必须存在 |
 | R9 | record 绑定完备 | `missing-event` / `missing-recorded-at` / `bad-recorded-at` / `missing-immutable` | error | `kind: record` 必须同时有 `event` + `recorded_at`（ISO 8601）+ `immutable: true` |
 | R10 | record 不可变（弱版） | `record-mutated` | warning | 对 `kind: record` 文件跑 `git log --oneline <file>`，commit 数 > 1 则警告。强制不可变依赖未来的 pre-commit hook |
-| R11 | code 绑定 | `missing-implements` | warning | `kind: code` 建议有 `implements` 字段（部分 utility 可无对应 contract） |
+| R11 | code 绑定严格校验 | `missing-implements` / `bad-implements-target` / `implements-wrong-kind` | error | `kind: code` 必须有 `implements` 字段，且目标文件必须存在且 `kind: contract`（与 R7 `conforms_to` 同级）。支持字符串或数组（多 contract 实现） |
 | R12 | contract 有 schema_version | `missing-schema-version` | warning | `kind: contract` 建议有 `schema_version: <int>` |
 | R13 | 旧 kind 升级建议 | `suggest-upgrade` | warning | 旧 `kind: I` → 建议升级为 contract / record / code；旧 `kind: II` → 建议改为 `index`。兼容期内按旧规则继续审计 |
 | R14 | index 严格无 substance | `type2-has-describes` / `type2-too-much-substance` | warning | `kind: index` 禁止 `describes:`；引用密度 < 0.70 警告（复用旧 R3 公式，目标 kind 从 `II` 改为 `index`） |
-| R15 | 审计范围扩展 | —（范围配置） | — | 扫描四类根：`docs/current/*.md` + 顶层白名单 + `scripts/*.{mjs,js}` + `artifacts/**/*.json` + `.omx/baselines/**/*.json`。脚本自生成的 `artifacts/contract-audit-latest.json` 自动排除 |
+| R15 | 审计范围扩展 | —（范围配置） | — | 扫描根：`docs/current/*.md` + 顶层 `docs/*.md` 白名单 + `scripts/*.{mjs,js}` + `causal-learner/mcp-server/scripts/*.{mjs,js}` + `artifacts/**/*.{json,md}` + `.omx/baselines/**/*.{json,md}`。脚本自生成的 `artifacts/contract-audit-latest.json` 自动排除 |
 
 ### 9.4 `artifacts/contract-audit-latest.json` 扩展
 

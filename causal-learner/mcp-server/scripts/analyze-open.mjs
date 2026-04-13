@@ -1,3 +1,7 @@
+// ---
+// kind: code
+// implements: docs/current/legacy-scaffolds-contract.md
+// ---
 import { createStorage } from './dist/core/storage.js';
 
 const storage = createStorage('../data/causal.db');

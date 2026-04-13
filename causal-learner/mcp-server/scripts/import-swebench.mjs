@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+// ---
+// kind: code
+// implements: docs/current/legacy-scaffolds-contract.md
+// ---
 /**
  * Import SWE-bench data into causal learner
  * Uses keyword-based approach for initial phase
