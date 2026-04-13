@@ -577,3 +577,122 @@ export interface TestResult {
   notes?: string;
   metadata?: Record<string, unknown>;
 }
+
+// =============================================================================
+// v7 World Model — Claim Space
+// implements: docs/current/derivation-chain-contract.md
+// =============================================================================
+
+/**
+ * An explicit assertion about the world, with lifecycle status.
+ * v7 §3.3 — replaces the Hypothesis/Evidence split with a single typed object.
+ */
+export interface Claim {
+  id: string;
+  status: 'proposed' | 'accepted' | 'rejected' | 'superseded';
+  /** Human-readable assertion content */
+  target: string;
+  episodeId?: string;
+}
+
+/**
+ * Directed evidence edge from an observation to a claim.
+ * v7 §3.3 SupportLink — explicit edge, not an ID list.
+ */
+export interface SupportLink {
+  observationRecordId: string;
+  claimId: string;
+  polarity: 'supports' | 'contradicts';
+  weight: number;
+}
+
+// =============================================================================
+// v7 World Model — Derivation Space: DerivationTrace
+// implements: docs/current/derivation-chain-contract.md
+// =============================================================================
+
+/** Node kinds allowed in a DerivationStep */
+export type DerivationNodeKind =
+  | 'claim'
+  | 'observation'
+  | 'mechanism_class'
+  | 'latent_phase'
+  | 'observable_sig'
+  | 'intervention_point'
+  | 'initial_condition'
+  | 'entity'
+  | 'relation_node';
+
+/** Relation types for derivation steps (four-family taxonomy) */
+export type DerivationRelation =
+  // Structural
+  | 'enables' | 'requires' | 'composes'
+  // Explanatory
+  | 'causes' | 'explains' | 'amplifies'
+  // Evidential
+  | 'supports' | 'contradicts' | 'confirms'
+  // Interventional
+  | 'fixes' | 'blocks' | 'reveals';
+
+/** A typed reference to a node in the derivation graph */
+export interface NodeRef {
+  kind: DerivationNodeKind;
+  id: string;
+  /** Human-readable label */
+  label: string;
+}
+
+/** One step in a DerivationTrace proof chain */
+export interface DerivationStep {
+  stepNumber: number;
+  from: NodeRef;
+  relation: DerivationRelation;
+  to: NodeRef;
+  /** Can this step be independently replayed/verified? */
+  auditReplayable: boolean;
+  /** How to verify this step (null when auditReplayable=false) */
+  replayMethod?: 'mechanism_spec' | 'observation_match' | 'intervention_outcome' | 'logical_entailment' | 'human_judgment';
+  llmInvolved: boolean;
+  llmRole?: 'proposer' | 'binder';
+}
+
+/**
+ * A complete, auditable derivation trace.
+ * v7 §3.3 DerivationTrace (v6 name: DerivationChain).
+ */
+export interface DerivationTrace {
+  id: string;
+  contextKind: 'reconstruction' | 'inference';
+  episodeId?: string;
+  reconstructionId?: string;
+  premiseClaimIds: string[];
+  conclusionClaimId?: string;
+  /** Ordered proof steps — chain invariant: proof[i].to == proof[i+1].from */
+  proof: DerivationStep[];
+  /** Evidence edges supporting this trace */
+  supportLinks: SupportLink[];
+  /** Rejected alternative Claim IDs — must be explicit, never silently dropped */
+  rejectedClaimIds: string[];
+  totalSteps: number;
+  replayableSteps: number;
+  chainIntegrity: 'complete' | 'broken';
+  createdAt: string;
+  createdBy: string;
+}
+
+// =============================================================================
+// v7 Utility: Fidelity Grade
+// (FidelityScore, AcceptedReconstruction → see reconstruction.ts)
+// (OntologyDelta, NoUpdateReason → see ontology-delta.ts)
+// =============================================================================
+
+/** Fidelity grade classification for reconstruction quality */
+export type FidelityGrade = 'excellent' | 'adequate' | 'poor' | 'failure';
+
+/** Classify a numeric fidelity score into a grade tier */
+export function fidelityGrade(score: number): FidelityGrade {
+  if (score >= 0.90) return 'excellent';
+  if (score >= 0.70) return 'adequate';
+  if (score >= 0.40) return 'poor';
+  return 'failure';
+}

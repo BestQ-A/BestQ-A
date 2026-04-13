@@ -18,6 +18,17 @@ export type {
   EventStatus,
   StorageStats,
   TestResult,
+  // v7 Claim Space
+  Claim,
+  SupportLink,
+  // v7 DerivationTrace
+  DerivationNodeKind,
+  DerivationRelation,
+  NodeRef,
+  DerivationStep,
+  DerivationTrace,
+  // v7 Fidelity utility
+  FidelityGrade,
 } from './types.js';
 
 export {
@@ -38,6 +49,8 @@ export {
   storyToAttempt,
   eventToDict,
   eventFromDict,
+  // v7 Fidelity utility
+  fidelityGrade,
 } from './types.js';
 
 // Unification
@@ -238,6 +251,8 @@ export type {
   ContextScope,
   StoryPath,
   StoryStatus,
+  InitialConditions,
+  Episode,
   Story as CaseStory,
 } from './story.js';
 
@@ -248,7 +263,38 @@ export {
   scopeToJson,
   scopeFromJson,
   StoryStorage,
+  toEpisode,
 } from './story.js';
+
+// Reconstruction / Ontology Update (v7 compatible derivation-space objects)
+export type {
+  ReconstructedStepKind,
+  ReconstructedStep,
+  FidelityScore,
+  AcceptedReconstruction,
+} from './reconstruction.js';
+
+export {
+  createAcceptedReconstruction,
+} from './reconstruction.js';
+
+export type {
+  OntologyChangeAction,
+  OntologyChange,
+  FidelityRegressionCheck,
+  RegressionDetail,
+  OntologyDeltaKind,
+  OntologyDelta,
+  NoUpdateReason,
+  OntologyUpdate,
+} from './ontology-delta.js';
+
+export {
+  createRegressionCheck,
+  createOntologyDelta,
+  createNoUpdateReason,
+  buildRelationChange,
+} from './ontology-delta.js';
 
 // Evidence (一等证据系统 - append-only)
 export type {
