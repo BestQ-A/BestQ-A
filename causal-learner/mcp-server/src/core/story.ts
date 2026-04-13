@@ -96,6 +96,48 @@ export interface Story {
   updatedAt: string;
 }
 
+/** Episode 兼容壳的初始条件 */
+export interface InitialConditions {
+  /** 参与观察回放的 Atom IDs */
+  observationAtomIds: string[];
+  /** 上下文快照 */
+  context: ContextScope;
+}
+
+/** Episode（与 Story 的兼容包装层，v7 §3.2 + §10 条件 1/2） */
+export interface Episode extends Story {
+  /** Episode 标识（兼容层映射到 Story.id） */
+  episodeId: string;
+  /** Episode 初始条件 */
+  initialConditions: InitialConditions;
+  /** 当前采纳的 Reconstruction ID */
+  acceptedReconstructionId?: string;
+  /** 当前生效的 Ontology 更新记录 ID */
+  ontologyDeltaId?: string;
+  /** ObservationRecord IDs（显式绑定到本 Episode，满足 §10 条件 2） */
+  observationRecordIds: string[];
+  /** Transition IDs（timeline/transitions，满足 §10 条件 1） */
+  transitionIds: string[];
+  /** OutcomeRecord ID（一等结果对象，非裸 outcome 字段） */
+  outcomeRecordId?: string;
+}
+
+/** Story -> Episode 兼容转换 */
+export function toEpisode(story: Story): Episode {
+  return {
+    ...story,
+    episodeId: story.id,
+    initialConditions: {
+      observationAtomIds: [...story.observationAtomIds],
+      context: { ...story.context },
+    },
+    // ObservationRecord 和 Transition 由管道层在运行时填充；
+    // 默认空数组表示"壳已就位，内容待写入"
+    observationRecordIds: [],
+    transitionIds: [],
+  };
+}
+
 // ===========================================================================
 // ContextScope 工具函数
 // ===========================================================================

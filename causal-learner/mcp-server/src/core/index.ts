@@ -18,6 +18,12 @@ export type {
   EventStatus,
   StorageStats,
   TestResult,
+  // v7 §3.2 Episode 支撑类型
+  ObservationRecord,
+  StateSnapshot,
+  ActionExecution,
+  Transition,
+  OutcomeRecord,
   // v7 Claim Space
   Claim,
   SupportLink,

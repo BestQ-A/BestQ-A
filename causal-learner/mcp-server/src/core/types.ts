@@ -681,6 +681,63 @@ export interface DerivationTrace {
 }
 
 // =============================================================================
+// v7 §3.2 Episode 采样层支撑类型
+// implements: docs/current/v7-world-model-contract.md §3.2
+// (Episode 主接口 → see story.ts, 兼容包装层)
+// =============================================================================
+
+/**
+ * 一次观测记录，与 episodeId 显式绑定（v7 §10 条件 2）。
+ * Story.observationAtomIds 中的每个 Atom 对应一条 ObservationRecord。
+ */
+export interface ObservationRecord {
+  id: string;
+  /** 所属 Episode ID（必填，不允许游离记录） */
+  episodeId: string;
+  /** 相对时间戳（数值步数或 ISO 字符串） */
+  t: number | string;
+  /** 观测内容（自然语言或结构化 JSON） */
+  content: string;
+}
+
+/** 状态快照：Episode 某时刻的系统状态切片 */
+export interface StateSnapshot {
+  id: string;
+  episodeId: string;
+  t: number | string;
+  values: Record<string, unknown>;
+}
+
+/** 动作执行记录：Episode 中一次技能/工具调用 */
+export interface ActionExecution {
+  id: string;
+  episodeId: string;
+  t: number | string;
+  actionClassId: string;
+  parameters?: Record<string, unknown>;
+}
+
+/** 状态转移边：连接两个 StateSnapshot，归因到候选机制 */
+export interface Transition {
+  id: string;
+  episodeId: string;
+  fromSnapshotId: string;
+  toSnapshotId: string;
+  causedByActionId?: string;
+  /** 可能解释此转移的机制类 ID 列表 */
+  candidateMechanismIds: string[];
+}
+
+/** 结果记录：Episode 的最终结论（一等对象，非 Story.outcome 裸字段） */
+export interface OutcomeRecord {
+  id: string;
+  episodeId: string;
+  t: number | string;
+  status: 'success' | 'failure' | 'partial' | 'abandoned';
+  summary: string;
+}
+
+// =============================================================================
 // v7 Utility: Fidelity Grade
 // (FidelityScore, AcceptedReconstruction → see reconstruction.ts)
 // (OntologyDelta, NoUpdateReason → see ontology-delta.ts)
