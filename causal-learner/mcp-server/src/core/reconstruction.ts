@@ -142,13 +142,10 @@ export function createAcceptedReconstruction(input: ReconstructionInput): Accept
   const created_at = input.createdAt ?? nowIso();
   const created_by = input.createdBy ?? 'pipeline_recordfix_shell';
   const derivation_chain_id = input.derivationChainId ?? deriveDerivationChainId(input.episodeId);
-  const selectedMechanismIds = unique(
-    input.selectedMechanismIds && input.selectedMechanismIds.length > 0
-      ? input.selectedMechanismIds
-      : input.chosenPathAtomIds.length > 0
-        ? input.chosenPathAtomIds
-        : input.observationAtomIds
-  );
+  // selectedMechanismIds 必须由调用方显式传入（mechanism_class_ref），不得回退到 path/atom/episodeId
+  const selectedMechanismIds = input.selectedMechanismIds && input.selectedMechanismIds.length > 0
+    ? unique(input.selectedMechanismIds)
+    : [];
 
   const reconstructed_timeline = deriveTimeline(input.chosenPathAtomIds, input.observationAtomIds);
   const majorChain = unique(reconstructed_timeline.map((step) => step.node_ref));
@@ -161,7 +158,7 @@ export function createAcceptedReconstruction(input: ReconstructionInput): Accept
     id: deriveReconstructionId(input.episodeId, version),
     version,
     episode_id: input.episodeId,
-    selectedMechanismIds: selectedMechanismIds.length > 0 ? selectedMechanismIds : [input.episodeId],
+    selectedMechanismIds,
     mechanism_instance_ids: input.mechanismInstanceIds ?? [],
     ontology_snapshot_ref: input.ontologySnapshotRef ?? 'ontology_current',
     derivation_chain_id,

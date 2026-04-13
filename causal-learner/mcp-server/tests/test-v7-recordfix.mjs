@@ -4,7 +4,12 @@
  */
 
 import { CausalPipeline } from '../dist/core/pipeline.js';
-import { acceptInstance, createMechanismInstance } from '../dist/core/mechanism-instance.js';
+import {
+  acceptInstance,
+  rejectInstance,
+  supersedeInstance,
+  createMechanismInstance,
+} from '../dist/core/mechanism-instance.js';
 
 let passed = 0;
 let failed = 0;
@@ -128,6 +133,111 @@ console.log('\n📦 Test 4: reconstruction.mechanism_instance_ids 写入正确')
   assert(
     result.mechanismInstance.mechanism_class_ref.startsWith('proxy:'),
     `mechanism_class_ref 使用 proxy:* 前缀 (${result.mechanismInstance.mechanism_class_ref})`
+  );
+
+  pipeline.close();
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// 测试 5: 非 candidate 调 accept/reject/supersede 必须抛错
+// ──────────────────────────────────────────────────────────────────────────────
+console.log('\n📦 Test 5: 状态机 guard — 非 candidate/accepted 非法流转抛错');
+
+{
+  const base = { episode_id: 'ep_sm', mechanism_class_ref: 'proxy:ep_sm', bindings: { slot_0: 'a1' } };
+
+  // accepted 状态不能再 accept / reject
+  const miAccepted = acceptInstance(createMechanismInstance(base), { claim_ids: ['claim_x'] });
+
+  let threw_accept = false;
+  try { acceptInstance(miAccepted, { claim_ids: ['claim_y'] }); } catch { threw_accept = true; }
+  assert(threw_accept, "accepted → acceptInstance 抛错");
+
+  let threw_reject = false;
+  try { rejectInstance(miAccepted, 'test'); } catch { threw_reject = true; }
+  assert(threw_reject, "accepted → rejectInstance 抛错");
+
+  // candidate 状态不能 supersede
+  const miCand = createMechanismInstance(base);
+  let threw_supersede = false;
+  try { supersedeInstance(miCand, 'MI_new'); } catch { threw_supersede = true; }
+  assert(threw_supersede, "candidate → supersedeInstance 抛错");
+
+  // accepted → superseded 合法
+  let ok_supersede = false;
+  try { supersedeInstance(miAccepted, 'MI_replacement_001'); ok_supersede = true; } catch {}
+  assert(ok_supersede, "accepted → supersedeInstance 正常通过");
+
+  // rejected 状态不能 accept
+  const miRejected = rejectInstance(createMechanismInstance(base), '测试拒绝');
+  let threw_accept2 = false;
+  try { acceptInstance(miRejected, { claim_ids: ['claim_z'] }); } catch { threw_accept2 = true; }
+  assert(threw_accept2, "rejected → acceptInstance 抛错");
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// 测试 6: selectedMechanismIds 等于 mechanism_class_ref，不再是 atom/path ids
+// ──────────────────────────────────────────────────────────────────────────────
+console.log('\n📦 Test 6: selectedMechanismIds === mechanism_class_ref');
+
+{
+  const pipeline = new CausalPipeline({ seedDefaults: false });
+  const obs = pipeline.submitObservation({
+    rawInput: 'mechanism ids test',
+    facts: [{ pred: 'error', value: 'timeout' }],
+  });
+
+  const result = pipeline.recordFix({
+    storyId: obs.story.id,
+    fixDescription: 'selectedMechanismIds bridge test',
+  });
+
+  const smIds = result.reconstruction.selectedMechanismIds;
+  const mcRef = result.mechanismInstance.mechanism_class_ref;
+
+  assert(smIds.length === 1, `selectedMechanismIds.length === 1 (got ${smIds.length})`);
+  assert(smIds[0] === mcRef, `selectedMechanismIds[0] === mechanism_class_ref (${smIds[0]})`);
+  assert(smIds[0].startsWith('proxy:'), `selectedMechanismIds[0] 是 proxy:* (${smIds[0]})`);
+
+  pipeline.close();
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// 测试 7: kind=none 路径下 support_link_refs 不含 compiledRefIds
+// ──────────────────────────────────────────────────────────────────────────────
+console.log('\n📦 Test 7: kind=none 路径下 support_link_refs 不混入 compiledRefIds');
+
+{
+  const pipeline = new CausalPipeline({ seedDefaults: false });
+  const obs = pipeline.submitObservation({
+    rawInput: 'support_link_refs clean test',
+    facts: [{ pred: 'symptom', value: 'crash' }],
+  });
+
+  // 无路径 → kind=none → mechanismInstance 是 rejected
+  const result = pipeline.recordFix({
+    storyId: obs.story.id,
+    fixDescription: '无路径不更新',
+  });
+
+  assert(result.ontologyUpdate.kind === 'none', `kind=none 路径 (got: ${result.ontologyUpdate.kind})`);
+  // rejected 状态下 support_link_refs 应为空（无 compiledRefIds 污染）
+  assert(
+    result.mechanismInstance.support_link_refs.length === 0,
+    `kind=none 路径 mechanismInstance.support_link_refs 为空 (len=${result.mechanismInstance.support_link_refs.length})`
+  );
+
+  // 直接测试 acceptInstance 不再接收 compiledRefIds 作为 support_link_refs
+  const mi = createMechanismInstance({
+    episode_id: 'ep_clean',
+    mechanism_class_ref: 'proxy:ep_clean',
+    bindings: { slot_0: 'atom_x' },
+    claim_ids: ['hyp_1'],
+  });
+  const accepted = acceptInstance(mi, { claim_ids: ['hyp_1'] });
+  assert(
+    accepted.support_link_refs.length === 0,
+    `acceptInstance 不填 support_link_refs 时保持空 (len=${accepted.support_link_refs.length})`
   );
 
   pipeline.close();

@@ -441,22 +441,21 @@ export class CausalPipeline {
     const mechanismInstance: MechanismInstance = compile && compile.compiledRefs > 0
       ? acceptInstance(rawMechanismInstance, {
           claim_ids: hypothesisId ? [hypothesisId] : [],
-          support_link_refs: compile.compiledRefIds.length > 0
-            ? compile.compiledRefIds.slice(0, 3)
-            : undefined,
+          // support_link_refs 语义是 SupportLink/RefuteLink，不是 Ref；compiledRefIds 不填此处
         })
       : rejectInstance(rawMechanismInstance, compile
           ? '路径 compile 成功但 compiledRefs=0'
           : (hypothesisId ? 'canPromote 门控未通过' : '无有效路径'));
 
     // Step 4: 创建 AcceptedReconstruction（D2：用 mechanismInstance.id 写入）
+    // selectedMechanismIds 直接用 mechanism_class_ref，不再绕回 path/atom ids
     const reconstruction = createAcceptedReconstruction({
       episodeId: input.storyId,
       chosenPathAtomIds: pathWithFix ?? storySnapshot.observationAtomIds,
       observationAtomIds: storySnapshot.observationAtomIds,
       derivationChainId: hypothesisId ? `DC_${input.storyId}_${hypothesisId}` : undefined,
       traceId: hypothesisId ? `TRACE_${hypothesisId}` : undefined,
-      selectedMechanismIds: pathWithFix ?? storySnapshot.observationAtomIds,
+      selectedMechanismIds: [mechanismInstance.mechanism_class_ref],
       ontologySnapshotRef: 'ontology_current',
       mechanismInstanceIds: [mechanismInstance.id],
     });

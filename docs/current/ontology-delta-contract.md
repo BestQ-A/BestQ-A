@@ -85,7 +85,7 @@ OntologyDelta:
 | `id` | 全局唯一 |
 | `episode_id` | 必须指向已存在的 Episode |
 | `reconstruction_id` | 必须指向已存在的 Reconstruction |
-| `claim_ids` | 非空数组；每个 ID 指向 `status = accepted` 的 Claim |
+| `claim_ids` | `kind != 'none'` 时非空，每个 ID 指向 `status = accepted` 的 Claim；`kind = 'none'` 时可为空，但必须有 `no_update_reason` |
 | `kind` | 枚举：`applied` / `none` |
 | `changes` | `kind = applied` 时非空；`kind = none` 时必须为空数组 |
 | `no_update_reason` | `kind = none` 时必填；`kind = applied` 时必须为 null 或缺省 |
@@ -315,7 +315,7 @@ artifacts/<run_id>/ontology_deltas/<delta_id>.json
 | # | 不变量 | 违反后果 |
 |---|--------|---------|
 | I1 | 每个已完成 Episode 必须产出 `OntologyDelta`；无更新时用 `kind=none` | Episode 处于"求解完但世界模型未知"的悬空态 |
-| I2 | 变更绑定：OntologyDelta 必须关联 episode_id + reconstruction_id + claim_ids | 变更来源不可追溯 |
+| I2 | 变更绑定：OntologyDelta 必须关联 episode_id + reconstruction_id；`kind != 'none'` 时 claim_ids 非空；`kind = 'none'` 时 no_update_reason 非空 | 变更来源不可追溯 |
 | I3 | 回归检查必填：`fidelity_regression_check` 不可为空 | 无法确认 Ontology 变更不破坏历史 |
 | I4 | 原子变更：每个 OntologyChange 恰好描述一条原子操作 | 复合变更无法单独回滚 |
 | I5 | 声明先于执行：compile 物理操作必须以 OntologyDelta 为前提 | 无审计记录的 Ontology 变更 |

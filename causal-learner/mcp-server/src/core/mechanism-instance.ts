@@ -99,6 +99,9 @@ function newInstanceId(episode_id: string): string {
  * 调用方负责后续通过 acceptInstance / rejectInstance 完成裁决。
  */
 export function createMechanismInstance(input: CreateMechanismInstanceInput): MechanismInstance {
+  if (Object.keys(input.bindings).length === 0) {
+    throw new Error('createMechanismInstance: bindings must not be empty (I5 invariant)');
+  }
   return {
     id: newInstanceId(input.episode_id),
     mechanism_class_ref: input.mechanism_class_ref,
@@ -124,6 +127,9 @@ export function acceptInstance(
   instance: MechanismInstance,
   opts?: { claim_ids?: string[]; support_link_refs?: string[] }
 ): MechanismInstance {
+  if (instance.status !== 'candidate') {
+    throw new Error(`acceptInstance: can only transition from 'candidate', got status='${instance.status}'`);
+  }
   const claim_ids = opts?.claim_ids ?? instance.claim_ids;
   const support_link_refs = opts?.support_link_refs ?? instance.support_link_refs;
   if (claim_ids.length === 0 && support_link_refs.length === 0) {
@@ -145,6 +151,9 @@ export function rejectInstance(
   instance: MechanismInstance,
   reason: string
 ): MechanismInstance {
+  if (instance.status !== 'candidate') {
+    throw new Error(`rejectInstance: can only transition from 'candidate', got status='${instance.status}'`);
+  }
   return {
     ...instance,
     status: 'rejected',
@@ -161,6 +170,9 @@ export function supersedeInstance(
   instance: MechanismInstance,
   replacedByInstanceId: string
 ): MechanismInstance {
+  if (instance.status !== 'accepted') {
+    throw new Error(`supersedeInstance: can only transition from 'accepted', got status='${instance.status}'`);
+  }
   return {
     ...instance,
     status: 'superseded',
