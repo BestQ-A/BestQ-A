@@ -737,6 +737,19 @@ export interface OutcomeRecord {
   summary: string;
 }
 
+/**
+ * v7 §3.3 Conclusion — 主流程输出的最终结论对象。
+ * 与 AcceptedReconstruction 配套，满足 §10 条件 5。
+ */
+export interface Conclusion {
+  /** 自然语言答案或结论摘要 */
+  answer: string;
+  /** 推荐后续行动（可选） */
+  recommendedActions?: string[];
+  /** 0..1 信心值，来源于 Reconstruction 保真度或证据强度 */
+  confidence: number;
+}
+
 // =============================================================================
 // v7 Utility: Fidelity Grade
 // (FidelityScore, AcceptedReconstruction → see reconstruction.ts)

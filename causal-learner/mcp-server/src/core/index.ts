@@ -18,6 +18,8 @@ export type {
   EventStatus,
   StorageStats,
   TestResult,
+  // v7 §3.3 Conclusion（§10 条件 5）
+  Conclusion,
   // v7 §3.2 Episode 支撑类型
   ObservationRecord,
   StateSnapshot,

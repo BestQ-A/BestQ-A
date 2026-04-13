@@ -22,6 +22,18 @@ import { PatternEngine } from './pattern-template.js';
 import { getRefAlgebra } from './ref-algebra.js';
 import { HypothesisStore } from './hypothesis.js';
 import type { InterventionOutcome } from './hypothesis.js';
+import { toEpisode, type Episode } from './story.js';
+import type { AcceptedReconstruction } from './reconstruction.js';
+import type { Conclusion } from './types.js';
+import {
+  createAcceptedReconstruction,
+} from './reconstruction.js';
+import type { OntologyUpdate } from './ontology-delta.js';
+import {
+  buildRelationChange,
+  createNoUpdateReason,
+  createOntologyDelta,
+} from './ontology-delta.js';
 
 // =============================================================================
 // 配置与接口
@@ -99,6 +111,14 @@ export interface FixInput {
 export interface FixResult {
   /** 更新后的 Story */
   story: Story;
+  /** Episode 兼容壳 */
+  episode: Episode;
+  /** Reconstruction 产物（v7 §10 条件 3） */
+  reconstruction: AcceptedReconstruction;
+  /** 最终结论（v7 §10 条件 5：主流程输出 Conclusion + Reconstruction） */
+  conclusion: Conclusion;
+  /** Ontology 更新或不更新说明（v7 §10 条件 4） */
+  ontologyUpdate: OntologyUpdate;
   /** 编译结果（有 chosenPathAtomIds 时存在） */
   compile?: CompileResult;
   /** 记录的证据条数 */
@@ -319,6 +339,20 @@ export class CausalPipeline {
    */
   recordFix(input: FixInput): FixResult {
     const outcome: InterventionOutcome = input.interventionOutcome ?? 'mechanism_confirmed';
+    const fallbackTime = new Date().toISOString();
+    const existingStory = this.stories.get(input.storyId);
+    const storySnapshot: Story = existingStory ?? {
+      id: input.storyId,
+      rawInput: input.fixDescription,
+      context: input.context ?? {},
+      observationAtomIds: [],
+      candidatePaths: [],
+      executedSkillIds: [],
+      status: 'open',
+      operator: input.operator ?? 'system',
+      createdAt: fallbackTime,
+      updatedAt: fallbackTime,
+    };
 
     // Step 1: 创建修复 Atom（ACTION 类型）
     const fixAtom = this.graph.addAtom(input.fixDescription, AtomKind.ACTION);
@@ -327,10 +361,11 @@ export class CausalPipeline {
     let compile: CompileResult | undefined;
     let evidenceCount = 0;
     let hypothesisId: string | undefined;
+    let pathWithFix: string[] | undefined;
 
     if (input.chosenPathAtomIds && input.chosenPathAtomIds.length >= 2) {
       // 确保修复 Atom 在路径中
-      const pathWithFix = input.chosenPathAtomIds.includes(fixAtom.id)
+      pathWithFix = input.chosenPathAtomIds.includes(fixAtom.id)
         ? input.chosenPathAtomIds
         : [...input.chosenPathAtomIds, fixAtom.id];
 
@@ -371,12 +406,57 @@ export class CausalPipeline {
       // canPromote 未通过 → compile 保持 undefined，story 将标记 partial
     }
 
+    const reconstruction = createAcceptedReconstruction({
+      episodeId: input.storyId,
+      chosenPathAtomIds: pathWithFix ?? storySnapshot.observationAtomIds,
+      observationAtomIds: storySnapshot.observationAtomIds,
+      createdBy: 'pipeline_s6',
+      derivationChainId: hypothesisId ? `DC_${input.storyId}_${hypothesisId}` : undefined,
+      traceId: hypothesisId ? `TRACE_${hypothesisId}` : undefined,
+      selectedMechanismIds: pathWithFix ?? storySnapshot.observationAtomIds,
+      ontologySnapshotRef: 'ontology_current',
+    });
+
+    let ontologyUpdate: OntologyUpdate;
+    if (compile && compile.compiledRefs > 0 && pathWithFix && pathWithFix.length >= 2) {
+      const changes = pathWithFix.slice(0, -1).map((fromAtomId, index) =>
+        buildRelationChange(fromAtomId, pathWithFix[index + 1], input.storyId)
+      );
+
+      ontologyUpdate = createOntologyDelta(
+        input.storyId,
+        reconstruction,
+        [hypothesisId ?? fixAtom.id],
+        changes
+      );
+    } else {
+      const reasonKind =
+        input.chosenPathAtomIds && input.chosenPathAtomIds.length >= 2
+          ? (hypothesisId ? 'pending_more_evidence' : 'episode_inconclusive')
+          : (reconstruction.fidelity.score >= 0.9 ? 'ontology_sufficient' : 'episode_inconclusive');
+
+      ontologyUpdate = createNoUpdateReason({
+        episode_id: input.storyId,
+        reconstruction_id: reconstruction.id,
+        reason_kind: reasonKind,
+        explanation: reasonKind === 'ontology_sufficient'
+          ? '当前 Ontology 已能充分解释该 Episode。'
+          : reasonKind === 'pending_more_evidence'
+            ? '已生成 Reconstruction，但现有证据不足以安全提交 OntologyDelta。'
+            : '当前 Episode 的证据链仍不足以生成稳定的 Ontology 更新。',
+        follow_up: reasonKind === 'pending_more_evidence'
+          ? '补充更多已接受的 claim 或更明确的证据再重试。'
+          : null,
+      });
+    }
+
     // Step 3: 根据 compile 结果决定 Story 状态
     let story: Story;
     if (compile && compile.compiledRefs > 0) {
       // compile 成功 → resolve + markCompiled + myelinate
       story = (this.stories.resolve(input.storyId, 'success', input.fixDescription)
-                ?? this.stories.get(input.storyId)) as Story;
+                ?? this.stories.get(input.storyId)
+                ?? storySnapshot) as Story;
       this.stories.markCompiled(input.storyId);
       this.graph.myelinate({ minUseCount: 3, minWeight: 0.6 });
     } else if (input.chosenPathAtomIds && input.chosenPathAtomIds.length >= 2) {
@@ -385,18 +465,38 @@ export class CausalPipeline {
         ? '路径不合法'
         : (hypothesisId ? 'canPromote 门控未通过' : '编译未执行');
       story = (this.stories.resolve(input.storyId, 'partial', `编译未通过：${reason}`)
-                ?? this.stories.get(input.storyId)) as Story;
+                ?? this.stories.get(input.storyId)
+                ?? storySnapshot) as Story;
     } else {
       // 没有提供路径 → 仅记录修复描述，直接 resolve
       story = (this.stories.resolve(input.storyId, 'success', input.fixDescription)
-                ?? this.stories.get(input.storyId)) as Story;
+                ?? this.stories.get(input.storyId)
+                ?? storySnapshot) as Story;
     }
 
     // Step 4: 生成 Regulation 视图（无论是否 compile 成功都刷新）
     const regulationViews = this.rvBuilder.buildAll({ minWeight: 0.3 });
+    const episode: Episode = {
+      ...toEpisode(story),
+      acceptedReconstructionId: reconstruction.id,
+      ontologyDeltaId: 'id' in ontologyUpdate ? ontologyUpdate.id : undefined,
+    };
+
+    // Step 5: 生成 Conclusion（v7 §10 条件 5）
+    const conclusion: Conclusion = {
+      answer: story.outcomeNotes ?? input.fixDescription,
+      confidence: reconstruction.fidelity.score,
+      recommendedActions: compile && compile.compiledRefs > 0
+        ? [`编译路径已落盘，${compile.compiledRefs} 条 Ref 可供后续重建使用`]
+        : undefined,
+    };
 
     return {
       story,
+      episode,
+      reconstruction,
+      conclusion,
+      ontologyUpdate,
       compile,
       evidenceCount,
       regulationViews,
