@@ -300,14 +300,13 @@ export type {
   RegressionDetail,
   OntologyDeltaKind,
   OntologyDelta,
-  NoUpdateReason,
-  OntologyUpdate,
+  NoUpdateReasonPayload,
 } from './ontology-delta.js';
 
 export {
   createRegressionCheck,
   createOntologyDelta,
-  createNoUpdateReason,
+  createOntologyDeltaNone,
   buildRelationChange,
 } from './ontology-delta.js';
 

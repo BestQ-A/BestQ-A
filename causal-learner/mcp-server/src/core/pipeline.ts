@@ -34,11 +34,11 @@ import {
   acceptInstance,
   rejectInstance,
 } from './mechanism-instance.js';
-import type { OntologyUpdate } from './ontology-delta.js';
+import type { OntologyDelta } from './ontology-delta.js';
 import {
   buildRelationChange,
-  createNoUpdateReason,
   createOntologyDelta,
+  createOntologyDeltaNone,
 } from './ontology-delta.js';
 
 // =============================================================================
@@ -129,7 +129,7 @@ export interface FixResult {
    */
   mechanismInstance: MechanismInstance;
   /** Ontology 更新或不更新说明（v7 §10 条件 4） */
-  ontologyUpdate: OntologyUpdate;
+  ontologyUpdate: OntologyDelta;
   /** 编译结果（有 chosenPathAtomIds 时存在） */
   compile?: CompileResult;
   /** 记录的证据条数 */
@@ -417,23 +417,56 @@ export class CausalPipeline {
       // canPromote 未通过 → compile 保持 undefined，story 将标记 partial
     }
 
+    // Step 3: 创建并裁决 MechanismInstance（D2：先于 Reconstruction 创建）
+    // source_kind='path_projection'：当前为过渡态，路径 Atom 作为 slot 绑定代理
+    const miBindings: Record<string, string> = {};
+    const pathForBindings = pathWithFix ?? storySnapshot.observationAtomIds;
+    pathForBindings.forEach((atomId, i) => { miBindings[`slot_${i}`] = atomId; });
+
+    // D3: 使用 proxy:* 前缀，不伪造真实 MechanismClass ID
+    const mechanismClassRef = hypothesisId
+      ? `proxy:hyp_${hypothesisId}`
+      : `proxy:episode_${input.storyId}`;
+
+    const rawMechanismInstance = createMechanismInstance({
+      episode_id: input.storyId,
+      mechanism_class_ref: mechanismClassRef,
+      bindings: Object.keys(miBindings).length > 0 ? miBindings : { slot_0: fixAtom.id },
+      source_kind: 'path_projection',
+      source_ref: compile ? `compile:${input.storyId}` : null,
+      claim_ids: hypothesisId ? [hypothesisId] : [],
+      created_by: 'pipeline_s4',
+    });
+
+    const mechanismInstance: MechanismInstance = compile && compile.compiledRefs > 0
+      ? acceptInstance(rawMechanismInstance, {
+          claim_ids: hypothesisId ? [hypothesisId] : [],
+          support_link_refs: compile.compiledRefIds.length > 0
+            ? compile.compiledRefIds.slice(0, 3)
+            : undefined,
+        })
+      : rejectInstance(rawMechanismInstance, compile
+          ? '路径 compile 成功但 compiledRefs=0'
+          : (hypothesisId ? 'canPromote 门控未通过' : '无有效路径'));
+
+    // Step 4: 创建 AcceptedReconstruction（D2：用 mechanismInstance.id 写入）
     const reconstruction = createAcceptedReconstruction({
       episodeId: input.storyId,
       chosenPathAtomIds: pathWithFix ?? storySnapshot.observationAtomIds,
       observationAtomIds: storySnapshot.observationAtomIds,
-      createdBy: 'pipeline_s6',
       derivationChainId: hypothesisId ? `DC_${input.storyId}_${hypothesisId}` : undefined,
       traceId: hypothesisId ? `TRACE_${hypothesisId}` : undefined,
       selectedMechanismIds: pathWithFix ?? storySnapshot.observationAtomIds,
       ontologySnapshotRef: 'ontology_current',
+      mechanismInstanceIds: [mechanismInstance.id],
     });
 
-    let ontologyUpdate: OntologyUpdate;
+    // Step 5: 生成 OntologyDelta（D1：所有路径均返回 OntologyDelta，不再用独立 NoUpdateReason）
+    let ontologyUpdate: OntologyDelta;
     if (compile && compile.compiledRefs > 0 && pathWithFix && pathWithFix.length >= 2) {
       const changes = pathWithFix.slice(0, -1).map((fromAtomId, index) =>
-        buildRelationChange(fromAtomId, pathWithFix[index + 1], input.storyId)
+        buildRelationChange(fromAtomId, pathWithFix![index + 1], input.storyId)
       );
-
       ontologyUpdate = createOntologyDelta(
         input.storyId,
         reconstruction,
@@ -446,22 +479,25 @@ export class CausalPipeline {
           ? (hypothesisId ? 'pending_more_evidence' : 'episode_inconclusive')
           : (reconstruction.fidelity.score >= 0.9 ? 'ontology_sufficient' : 'episode_inconclusive');
 
-      ontologyUpdate = createNoUpdateReason({
-        episode_id: input.storyId,
-        reconstruction_id: reconstruction.id,
-        reason_kind: reasonKind,
-        explanation: reasonKind === 'ontology_sufficient'
-          ? '当前 Ontology 已能充分解释该 Episode。'
-          : reasonKind === 'pending_more_evidence'
-            ? '已生成 Reconstruction，但现有证据不足以安全提交 OntologyDelta。'
-            : '当前 Episode 的证据链仍不足以生成稳定的 Ontology 更新。',
-        follow_up: reasonKind === 'pending_more_evidence'
-          ? '补充更多已接受的 claim 或更明确的证据再重试。'
-          : null,
-      });
+      ontologyUpdate = createOntologyDeltaNone(
+        input.storyId,
+        reconstruction,
+        hypothesisId ? [hypothesisId] : [],
+        {
+          reason_kind: reasonKind,
+          explanation: reasonKind === 'ontology_sufficient'
+            ? '当前 Ontology 已能充分解释该 Episode。'
+            : reasonKind === 'pending_more_evidence'
+              ? '已生成 Reconstruction，但现有证据不足以安全提交 OntologyDelta。'
+              : '当前 Episode 的证据链仍不足以生成稳定的 Ontology 更新。',
+          follow_up: reasonKind === 'pending_more_evidence'
+            ? '补充更多已接受的 claim 或更明确的证据再重试。'
+            : null,
+        }
+      );
     }
 
-    // Step 3: 根据 compile 结果决定 Story 状态
+    // Step 6: 根据 compile 结果决定 Story 状态
     let story: Story;
     if (compile && compile.compiledRefs > 0) {
       // compile 成功 → resolve + markCompiled + myelinate
@@ -485,37 +521,15 @@ export class CausalPipeline {
                 ?? storySnapshot) as Story;
     }
 
-    // Step 4: 生成 Regulation 视图（无论是否 compile 成功都刷新）
+    // Step 7: 生成 Regulation 视图 + Episode
     const regulationViews = this.rvBuilder.buildAll({ minWeight: 0.3 });
     const episode: Episode = {
       ...toEpisode(story),
       acceptedReconstructionId: reconstruction.id,
-      ontologyDeltaId: 'id' in ontologyUpdate ? ontologyUpdate.id : undefined,
+      ontologyDeltaId: ontologyUpdate.id,  // D1：所有路径均有 id
     };
 
-    // Step 4.5: 生成 MechanismInstance（mechanism-instance-contract.md §8 条件 1）
-    // source_kind='path_projection'：当前为过渡态，路径 Atom 作为 slot 绑定代理
-    const miBindings: Record<string, string> = {};
-    const pathForBindings = pathWithFix ?? storySnapshot.observationAtomIds;
-    pathForBindings.forEach((atomId, i) => { miBindings[`slot_${i}`] = atomId; });
-
-    const rawMechanismInstance = createMechanismInstance({
-      episode_id: input.storyId,
-      mechanism_class_id: hypothesisId ? `MC_hyp_${hypothesisId}` : `MC_fallback_${input.storyId}`,
-      bindings: Object.keys(miBindings).length > 0 ? miBindings : { slot_0: fixAtom.id },
-      source_kind: 'path_projection',
-      source_ref: compile ? `compile:${input.storyId}` : null,
-      claim_ids: hypothesisId ? [hypothesisId] : [],
-      created_by: 'pipeline_s4',
-    });
-
-    const mechanismInstance: MechanismInstance = compile && compile.compiledRefs > 0
-      ? acceptInstance(rawMechanismInstance, { claim_ids: hypothesisId ? [hypothesisId] : [] })
-      : rejectInstance(rawMechanismInstance, compile
-          ? '路径 compile 成功但 compiledRefs=0'
-          : (hypothesisId ? 'canPromote 门控未通过' : '无有效路径'));
-
-    // Step 5: 生成 Conclusion（v7 §10 条件 5）
+    // Step 8: 生成 Conclusion（v7 §10 条件 5）
     const conclusion: Conclusion = {
       answer: story.outcomeNotes ?? input.fixDescription,
       confidence: reconstruction.fidelity.score,

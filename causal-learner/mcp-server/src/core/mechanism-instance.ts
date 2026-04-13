@@ -31,8 +31,8 @@ export interface MechanismInstance {
   /** 唯一 ID，格式 MI_<episode_id短串>_<hex4> */
   id: string;
 
-  /** 指向 MechanismClass */
-  mechanism_class_id: string;
+  /** 指向 MechanismClass（允许 proxy:* 前缀表示过渡态） */
+  mechanism_class_ref: string;
 
   /** 指向 Episode */
   episode_id: string;
@@ -58,6 +58,9 @@ export interface MechanismInstance {
   /** 生命周期状态 */
   status: MechanismInstanceStatus;
 
+  /** rejected 时记录拒绝原因；其他状态为 null */
+  rejection_reason?: string | null;
+
   /** status='superseded' 时必填，指向取代本实例的新实例 ID（I4 不变量） */
   superseded_by: string | null;
 
@@ -72,7 +75,7 @@ export interface MechanismInstance {
 
 interface CreateMechanismInstanceInput {
   episode_id: string;
-  mechanism_class_id: string;
+  mechanism_class_ref: string;
   bindings: Record<string, string>;
   source_kind?: MechanismInstanceSourceKind;
   source_ref?: string | null;
@@ -98,7 +101,7 @@ function newInstanceId(episode_id: string): string {
 export function createMechanismInstance(input: CreateMechanismInstanceInput): MechanismInstance {
   return {
     id: newInstanceId(input.episode_id),
-    mechanism_class_id: input.mechanism_class_id,
+    mechanism_class_ref: input.mechanism_class_ref,
     episode_id: input.episode_id,
     bindings: { ...input.bindings },
     source_kind: input.source_kind ?? 'path_projection',
@@ -106,6 +109,7 @@ export function createMechanismInstance(input: CreateMechanismInstanceInput): Me
     claim_ids: [...(input.claim_ids ?? [])],
     support_link_refs: [...(input.support_link_refs ?? [])],
     status: 'candidate',
+    rejection_reason: null,
     superseded_by: null,
     created_at: input.created_at ?? nowIso(),
     created_by: input.created_by ?? 'pipeline_s3',
@@ -120,11 +124,16 @@ export function acceptInstance(
   instance: MechanismInstance,
   opts?: { claim_ids?: string[]; support_link_refs?: string[] }
 ): MechanismInstance {
+  const claim_ids = opts?.claim_ids ?? instance.claim_ids;
+  const support_link_refs = opts?.support_link_refs ?? instance.support_link_refs;
+  if (claim_ids.length === 0 && support_link_refs.length === 0) {
+    throw new Error('acceptInstance: MechanismInstance must have at least one claim_id or support_link_ref');
+  }
   return {
     ...instance,
     status: 'accepted',
-    claim_ids: opts?.claim_ids ?? instance.claim_ids,
-    support_link_refs: opts?.support_link_refs ?? instance.support_link_refs,
+    claim_ids,
+    support_link_refs,
   };
 }
 
@@ -140,8 +149,7 @@ export function rejectInstance(
     ...instance,
     status: 'rejected',
     superseded_by: null,
-    // rejection_reason 附在 bindings 特殊键中保持接口稳定
-    bindings: { ...instance.bindings, _rejection_reason: reason },
+    rejection_reason: reason,
   };
 }
 

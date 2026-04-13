@@ -11,7 +11,7 @@ describes: "过程重建对象规范"
 > 定义 Derivation Space 中 `AcceptedReconstruction` 的完整 schema、Fidelity 评分方法、与 Episode / DerivationTrace 的绑定关系。
 > v7 命名：`AcceptedReconstruction`（v6 曾用名 `Reconstruction`，v7 §2.D / §3.3 更名以区分"过程重建的输出"与"过程重建的动作"）。
 > AcceptedReconstruction 是 BestQ-A 区别于普通 RAG 的核心——没有 AcceptedReconstruction，系统只有 retrieval，没有"过程重建"。
-> 上游依赖：[v7-world-model-contract.md](v7-world-model-contract.md) §2.D / §3.3 / §5.1 S6
+> 上游依赖：[v7-world-model-contract.md](v7-world-model-contract.md) §2.D / §3.3 / §5.1 S6、[mechanism-instance-contract.md](mechanism-instance-contract.md)
 > 姊妹合同：[derivation-chain-contract.md](derivation-chain-contract.md)、[ontology-delta-contract.md](ontology-delta-contract.md)
 
 ---
@@ -47,6 +47,7 @@ AcceptedReconstruction:           # v7 §3.3 命名
   # 绑定
   episode_id: string              # 被重建的 Episode
   selectedMechanismIds: string[]  # 重建中使用的 MechanismClass 集合（v7 字段名）
+  mechanism_instance_ids: string[] # v7 bridge：对应 Episode 内被接受的 MechanismInstance 集合
   ontology_snapshot_ref: string   # 重建时的 Ontology 版本标识
 
   # 核心产出
@@ -85,6 +86,7 @@ AcceptedReconstruction:           # v7 §3.3 命名
 | `id` | 全局唯一，格式 `RC_<episode_id>_<version>` |
 | `episode_id` | 必须指向已存在的 Episode |
 | `selectedMechanismIds` | 非空数组；每个 ID 必须指向已存在的 MechanismClass |
+| `mechanism_instance_ids` | draft 阶段允许为空；转 current 前必须非空，且每个 ID 指向已存在的 MechanismInstance |
 | `ontology_snapshot_ref` | 不可为空——必须记录"用哪个版本的 Ontology 做的重建" |
 | `traceId` | 必须指向已存在的 DerivationTrace |
 | `majorChain` | 非空数组；从 reconstructed_timeline 中提取的关键节点 ID 列表 |
@@ -174,7 +176,24 @@ Episode ──1:N──> Reconstruction
 
 ---
 
-## §5 与 DerivationTrace 的绑定
+## §5 与 MechanismInstance 的绑定
+
+```text
+AcceptedReconstruction ──N:1──> MechanismInstance ──N:1──> MechanismClass
+```
+
+- `selectedMechanismIds` 记录使用到的机制类
+- `mechanism_instance_ids` 记录这些机制类在当前 Episode 中的具体绑定
+- 在 target state 中，`AcceptedReconstruction` 不得直接从裸 path / atom 代理跳到 MechanismClass
+
+**第一轮兼容说明**：
+
+- 允许 `selectedMechanismIds` 暂时仍由 path proxy 生成
+- 但本合同转 `current` 前，必须完成 `mechanism_instance_ids` 的显式绑定
+
+---
+
+## §6 与 DerivationTrace 的绑定
 
 ```
 AcceptedReconstruction ──1:1──> DerivationTrace
@@ -194,7 +213,7 @@ AcceptedReconstruction ──1:1──> DerivationTrace
 
 ---
 
-## §6 落盘格式
+## §7 落盘格式
 
 Reconstruction 作为 JSON 对象落盘：
 
@@ -215,21 +234,22 @@ JSON 根字段必须包含元数据：
 
 ---
 
-## §7 不变量
+## §8 不变量
 
 | # | 不变量 | 违反时的后果 |
 |---|--------|-------------|
 | I1 | 非 retrieval：必须包含 `reconstructed_timeline` | 审计红灯 |
 | I2 | Ontology 绑定：`ontology_snapshot_ref` 不可为空 | 重建结果无法复现——不知道用的哪版 Ontology |
 | I3 | Fidelity 必填：即使 score = 0.0 也必须有完整 FidelityScore | 审计红灯 |
-| I4 | 步骤可审计：关联 DerivationTrace 每步 `audit_replayable` 必须为 true | 推导链断裂 |
-| I5 | 版本单调：同一 Episode 的 version 严格递增 | 版本冲突 |
-| I6 | supersede 链完整：v(N+1).supersedes 必须指向 v(N).id | 历史断裂 |
-| I7 | 首步锚定：reconstructed_timeline 首步 kind 必须是 `initial_condition` | 重建缺起点 |
+| I4 | bridge 不可跳过：转 current 前 `mechanism_instance_ids` 必须非空 | MechanismClass 与 Episode 之间无实例层 |
+| I5 | 步骤可审计：关联 DerivationTrace 每步 `audit_replayable` 必须为 true | 推导链断裂 |
+| I6 | 版本单调：同一 Episode 的 version 严格递增 | 版本冲突 |
+| I7 | supersede 链完整：v(N+1).supersedes 必须指向 v(N).id | 历史断裂 |
+| I8 | 首步锚定：reconstructed_timeline 首步 kind 必须是 `initial_condition` | 重建缺起点 |
 
 ---
 
-## §8 与现有代码的映射
+## §9 与现有代码的映射
 
 | 组件 | 当前状态 | Gap |
 |------|---------|-----|
@@ -237,16 +257,18 @@ JSON 根字段必须包含元数据：
 | FidelityScore 计算 | **未实现** | 需新建 `core/reconstruction.ts` |
 | Episode.accepted_reconstruction | Episode = Story，无该字段 | Story 升级为 Episode 后添加 |
 | reconstructed_timeline | **未实现** | 需定义 ReconstructedStep 类型 |
+| mechanism_instance_ids | **未实现** | 需新增 `core/mechanism-instance.ts` 并从 PatternInstance / path projection 过渡 |
 | 落盘路径 | `artifacts/` 目录已存在 | eval.mjs 扩展输出 `reconstructions/` 子目录 |
 | fidelity 回归检查 | **未实现** | 需在 OntologyDelta 提交前集成 |
 
 ---
 
-## §9 版本历史
+## §10 版本历史
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
 | 1 | 2026-04-13 | 初版。定义 AcceptedReconstruction schema、FidelityScore 四等级、key_node_coverage 评分方法、Episode/DerivationTrace 绑定关系、7 条不变量。对象命名对齐 v7 §3.3 |
+| 2 | 2026-04-14 | 引入 `mechanism_instance_ids` 作为 bridge 字段，明确 MechanismClass → MechanismInstance → Reconstruction 的目标绑定链 |
 
 ---
 

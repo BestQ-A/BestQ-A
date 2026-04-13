@@ -58,22 +58,7 @@ export interface FidelityRegressionCheck {
   isMonotonic: boolean;
 }
 
-export interface OntologyDelta {
-  id: string;
-  episode_id: string;
-  reconstruction_id: string;
-  claim_ids: string[];
-  kind: OntologyDeltaKind;
-  changes: OntologyChange[];
-  fidelity_regression_check: FidelityRegressionCheck;
-  created_at: string;
-  created_by: string;
-  applied_at: string | null;
-}
-
-export interface NoUpdateReason {
-  episode_id: string;
-  reconstruction_id: string;
+export interface NoUpdateReasonPayload {
   reason_kind:
     | 'ontology_sufficient'
     | 'episode_inconclusive'
@@ -84,12 +69,19 @@ export interface NoUpdateReason {
   follow_up: string | null;
 }
 
-type NoUpdateReasonInput = Omit<NoUpdateReason, 'reconstruction_id'> & {
+export interface OntologyDelta {
+  id: string;
+  episode_id: string;
   reconstruction_id: string;
-  followUp?: string | null;
-};
-
-export type OntologyUpdate = OntologyDelta | NoUpdateReason;
+  claim_ids: string[];
+  kind: OntologyDeltaKind;
+  changes: OntologyChange[];
+  no_update_reason?: NoUpdateReasonPayload;
+  fidelity_regression_check: FidelityRegressionCheck;
+  created_at: string;
+  created_by: string;
+  applied_at: string | null;
+}
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -144,18 +136,28 @@ export function createOntologyDelta(
     fidelity_regression_check: createRegressionCheck(reconstruction.fidelity),
     created_at: nowIso(),
     created_by: 'pipeline_s7',
-    applied_at: changes.length > 0 ? nowIso() : null,
+    applied_at: null,
   };
 }
 
-export function createNoUpdateReason(input: NoUpdateReasonInput): NoUpdateReason {
-  const follow_up = input.follow_up ?? input.followUp ?? null;
+export function createOntologyDeltaNone(
+  episodeId: string,
+  reconstruction: AcceptedReconstruction,
+  claimIds: string[],
+  reason: NoUpdateReasonPayload
+): OntologyDelta {
   return {
-    episode_id: input.episode_id,
-    reconstruction_id: input.reconstruction_id,
-    reason_kind: input.reason_kind,
-    explanation: input.explanation,
-    follow_up,
+    id: newDeltaId(episodeId),
+    episode_id: episodeId,
+    reconstruction_id: reconstruction.id,
+    claim_ids: unique(claimIds.filter(Boolean)),
+    kind: 'none',
+    changes: [],
+    no_update_reason: reason,
+    fidelity_regression_check: createRegressionCheck(reconstruction.fidelity),
+    created_at: nowIso(),
+    created_by: 'pipeline_s7',
+    applied_at: null,
   };
 }
 

@@ -8,9 +8,9 @@ describes: "本体增量对象规范"
 
 # OntologyDelta 合同：本体增量对象规范
 
-> 定义 Derivation Space 中 `OntologyDelta` 和 `NoUpdateReason` 的完整 schema、变更动作枚举、fidelity 回归检查协议。
+> 定义 Derivation Space 中 `OntologyDelta` 的完整 schema、变更动作枚举、`kind=none` 时的 `no_update_reason` payload，以及 fidelity 回归检查协议。
 > v7 命名对齐：v7 §2.E / §3.4 定义了六种 OntologyDelta.kind（PromoteMechanism / SplitClass / MergeClass / DeprecateRelation / RegisterPattern / none），本合同 §3 的 changes 动作枚举与之兼容（更细粒度）。
-> 每个已完成 Episode 必须产出 OntologyDelta 或 NoUpdateReason——求解与世界模型更新绝不分离。
+> 每个已完成 Episode 必须产出一个 `OntologyDelta`。当本轮不更新时，结果仍然是 `OntologyDelta(kind=none)`，并附带 `no_update_reason` payload。
 > 上游依赖：[v7-world-model-contract.md](v7-world-model-contract.md) §2.E / §3.4 / §5.2 L2–L4 / §7
 > 姊妹合同：[reconstruction-contract.md](reconstruction-contract.md)、[derivation-chain-contract.md](derivation-chain-contract.md)
 
@@ -32,14 +32,15 @@ describes: "本体增量对象规范"
 - 不是 compile side effect——compile 是图存储层操作（Atom/Ref 写入），OntologyDelta 是逻辑层声明
 - 不是 batch migration——OntologyDelta 始终绑定单个 Episode
 
-### §1.2 NoUpdateReason（R6）
+### §1.2 `no_update_reason` payload（R6 的载荷形态）
 
-**定义**：当 Episode 不产生 Ontology 修正时的显式理由对象。
+**定义**：当 Episode 不产生 Ontology 修正时，附着在 `OntologyDelta(kind=none)` 上的结构化理由载荷。
 
 **是什么**：
 
 - 结构化的"为什么没更新"声明
 - 不等于 null / 空对象——必须有 `reason_kind` + `explanation`
+- 是 `OntologyDelta` 的子结构，不是与其并列的一等顶层实例
 
 **不是什么**：
 
@@ -61,8 +62,12 @@ OntologyDelta:
   claim_ids: string[]           # 变更依据的 accepted Claim 集合
 
   # 变更内容
-  kind: string                  # "applied" | "none"（none 时 changes 为空，须附 no_update_reason）
+  kind: string                  # "applied" | "none"
   changes: OntologyChange[]     # 见 §3
+  no_update_reason:             # 仅 kind=none 时必填，见 §4
+    reason_kind: string
+    explanation: string
+    follow_up: string | null
 
   # Fidelity 回归检查
   fidelity_regression_check: RegressionCheck  # 见 §5
@@ -83,6 +88,7 @@ OntologyDelta:
 | `claim_ids` | 非空数组；每个 ID 指向 `status = accepted` 的 Claim |
 | `kind` | 枚举：`applied` / `none` |
 | `changes` | `kind = applied` 时非空；`kind = none` 时必须为空数组 |
+| `no_update_reason` | `kind = none` 时必填；`kind = applied` 时必须为 null 或缺省 |
 | `fidelity_regression_check` | 不可为空——即使只有 0 个历史 Episode 也必须给出空检查结果 |
 | `applied_at` | `kind = applied` 且回归检查通过后必填；否则为 null |
 
@@ -99,7 +105,7 @@ OntologyDelta:
 | `MergeClass` | `deprecate_entity` × 2 + `add_entity`（合并为新类） |
 | `DeprecateRelation` | `remove_relation` |
 | `RegisterPattern` | `add_relation` + `promote_mechanism`（注册新模式） |
-| `none` | changes 为空，附 NoUpdateReason |
+| `none` | changes 为空，附 `no_update_reason` payload |
 
 每个 `OntologyChange` 描述一条原子变更。
 
@@ -159,12 +165,10 @@ OntologyChange:
 
 ---
 
-## §4 NoUpdateReason Schema
+## §4 `no_update_reason` Payload Schema
 
 ```yaml
-NoUpdateReason:
-  episode_id: string
-  reconstruction_id: string     # 即使不更新 Ontology，也必须有 Reconstruction
+NoUpdateReasonPayload:
   reason_kind: string           # 见 §4.1 枚举
   explanation: string           # 人类可读解释
   follow_up: string | null      # 可选：后续行动建议
@@ -182,7 +186,7 @@ NoUpdateReason:
 
 ### §4.2 约束
 
-- `reason_kind = "ontology_sufficient"` 时必须有 `reconstruction_id` 且对应 Reconstruction 的 fidelity.score >= 0.90
+- `reason_kind = "ontology_sufficient"` 时，其所在 `OntologyDelta.reconstruction_id` 对应 Reconstruction 的 fidelity.score 必须 >= 0.90
 - `reason_kind = "duplicate_episode"` 时 `explanation` 必须包含被重复的 episode_id
 - `reason_kind = "pending_more_evidence"` 时 `follow_up` 不可为 null
 
@@ -295,10 +299,13 @@ JSON 根字段元数据：
 }
 ```
 
-当 `kind = "none"` 时，落盘文件内容为 NoUpdateReason：
+当 `kind = "none"` 时，落盘文件仍然是 `OntologyDelta`，只是：
+
+- `changes = []`
+- `no_update_reason != null`
 
 ```
-artifacts/<run_id>/ontology_deltas/<episode_id>_no_update.json
+artifacts/<run_id>/ontology_deltas/<delta_id>.json
 ```
 
 ---
@@ -307,12 +314,12 @@ artifacts/<run_id>/ontology_deltas/<episode_id>_no_update.json
 
 | # | 不变量 | 违反后果 |
 |---|--------|---------|
-| I1 | 必选一：每个已完成 Episode 必须产出 OntologyDelta（`kind=applied`）或 NoUpdateReason（`kind=none`） | Episode 处于"求解完但世界模型未知"的悬空态 |
+| I1 | 每个已完成 Episode 必须产出 `OntologyDelta`；无更新时用 `kind=none` | Episode 处于"求解完但世界模型未知"的悬空态 |
 | I2 | 变更绑定：OntologyDelta 必须关联 episode_id + reconstruction_id + claim_ids | 变更来源不可追溯 |
 | I3 | 回归检查必填：`fidelity_regression_check` 不可为空 | 无法确认 Ontology 变更不破坏历史 |
 | I4 | 原子变更：每个 OntologyChange 恰好描述一条原子操作 | 复合变更无法单独回滚 |
 | I5 | 声明先于执行：compile 物理操作必须以 OntologyDelta 为前提 | 无审计记录的 Ontology 变更 |
-| I6 | NoUpdateReason 结构化：`kind=none` 时 reason_kind 不可为空 | 无理由的不更新等于信息丢失 |
+| I6 | `kind=none` 结构化：`no_update_reason.reason_kind` 不可为空 | 无理由的不更新等于信息丢失 |
 | I7 | 晋升门槛：`promote_mechanism` 必须满足 v6 §7 所有检查项 | 低质量 MechanismClass 进入 Ontology |
 | I8 | applied_at 门控：仅在 regression_detected = false 后设置 | 带回归的变更被静默应用 |
 
@@ -322,10 +329,10 @@ artifacts/<run_id>/ontology_deltas/<episode_id>_no_update.json
 
 | 组件 | 当前状态 | Gap |
 |------|---------|-----|
-| OntologyDelta 类型 | **未实现**——compile 直接写 Ref，无中间声明层 | 需在 `core/types.ts` 新增接口 |
-| NoUpdateReason 类型 | **未实现** | 需在 `core/types.ts` 新增 |
+| OntologyDelta 类型 | **部分实现**——已有 `core/ontology-delta.ts`，但 `kind=none` 与独立 NoUpdateReason 仍并存 | 需收敛为单一 `OntologyDelta` 对象 |
+| `no_update_reason` payload | **未实现为 payload** | 需从独立 `NoUpdateReason` 顶层类型收束为 `OntologyDelta(kind=none)` 子结构 |
 | OntologyChange 类型 | **未实现** | 需在 `core/types.ts` 新增 |
-| Fidelity 回归检查 | **未实现** | 需新建 `core/ontology-delta.ts` |
+| Fidelity 回归检查 | **部分实现**——已有壳，但仍是占位结果 | 需接入真实 replay / regression gate |
 | compile 声明化 | compile 直接执行物理操作 | 需重构为 OntologyDelta → compile 两步 |
 | 落盘路径 | `artifacts/` 已存在 | eval.mjs 扩展输出 `ontology_deltas/` 子目录 |
 
@@ -335,7 +342,8 @@ artifacts/<run_id>/ontology_deltas/<episode_id>_no_update.json
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
-| 1 | 2026-04-13 | 初版。定义 OntologyDelta/NoUpdateReason/OntologyChange schema、16 种变更动作、fidelity 回归检查协议、晋升门槛交互、compile 关系、8 条不变量 |
+| 1 | 2026-04-13 | 初版。定义 OntologyDelta / NoUpdateReason / OntologyChange schema、16 种变更动作、fidelity 回归检查协议、晋升门槛交互、compile 关系、8 条不变量 |
+| 2 | 2026-04-14 | 收束对象身份：`NoUpdateReason` 不再作为并列顶层实例，而改为 `OntologyDelta(kind=none)` 的 `no_update_reason` payload；统一 Episode 绑定与落盘路径 |
 
 ---
 
