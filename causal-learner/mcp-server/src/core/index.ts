@@ -413,3 +413,33 @@ export type {
 export {
   HypothesisStore,
 } from './hypothesis.js';
+
+// MechanismClass (v7 本体层动力学模板)
+export type {
+  MechanismCompilationStatus,
+  MechanismPhase,
+  MechanismClass,
+  PromoteSuccess,
+  PromoteNoPromotion,
+  PromoteResult,
+  ValidationResult as MechanismValidationResult,
+} from './mechanism-class.js';
+
+export {
+  createMechanismClass,
+  promoteMechanismClass,
+  validateMechanismClass,
+} from './mechanism-class.js';
+
+// MechanismInstance (v7 经历层绑定实例 — MechanismClass × Episode)
+export type {
+  MechanismInstance,
+  EvaluationScores,
+} from './mechanism-instance.js';
+
+export {
+  createMechanismInstance,
+  evaluateMechanismInstance,
+  acceptInstance,
+  deriveFidelityScore,
+} from './mechanism-instance.js';
