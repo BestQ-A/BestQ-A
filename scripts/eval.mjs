@@ -298,6 +298,9 @@ function buildSummary({ runId, commit, metrics, statsBefore, statsAfter, vr, fai
     '- `stats_after.json` — 运行后快照',
     '- `run.log` — 完整 stdout/stderr',
     '- `summary.md` — 本文件',
+    '- `reconstructions/` — AcceptedReconstruction JSON（reconstruction-contract.md §5）',
+    '- `derivation_traces/` — DerivationTrace JSON（derivation-chain-contract.md §5）',
+    '- `ontology_deltas/` — OntologyDelta / NoUpdateReason JSON（ontology-delta-contract.md §6）',
     '',
   ];
   return lines.join('\n');
@@ -320,6 +323,20 @@ function buildSummary({ runId, commit, metrics, statsBefore, statsAfter, vr, fai
   const runId = await nextRunId(OUT_DIR);
   const runDir = path.join(OUT_DIR, runId);
   await mkdir(runDir, { recursive: true });
+
+  // 7.1.1 v7 Derivation Space 三类 artifact 子目录（满足合约落盘路径门控条件）
+  //   reconstructions/  ← reconstruction-contract.md §5
+  //   derivation_traces/ ← derivation-chain-contract.md §5
+  //   ontology_deltas/  ← ontology-delta-contract.md §6
+  const reconstructionsDir  = path.join(runDir, 'reconstructions');
+  const derivationTracesDir = path.join(runDir, 'derivation_traces');
+  const ontologyDeltasDir   = path.join(runDir, 'ontology_deltas');
+  await Promise.all([
+    mkdir(reconstructionsDir,  { recursive: true }),
+    mkdir(derivationTracesDir, { recursive: true }),
+    mkdir(ontologyDeltasDir,   { recursive: true }),
+  ]);
+
   logLine(`run_id=${runId} runDir=${runDir}`);
   logLine(`dataset=${DATASET} n_instances=${N_INSTANCES} phase=${PHASE}`);
 
