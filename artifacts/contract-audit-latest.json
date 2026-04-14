@@ -1,15 +1,15 @@
 {
-  "timestamp": "2026-04-14T02:23:00.404Z",
-  "files_scanned": 80,
+  "timestamp": "2026-04-14T02:43:19.136Z",
+  "files_scanned": 81,
   "errors": [],
   "warnings": [],
   "summary": {
-    "ok": 80,
+    "ok": 81,
     "warn": 0,
     "err": 0
   },
   "kind_distribution": {
-    "contract": 30,
+    "contract": 31,
     "instance": 36,
     "record": 2,
     "code": 11,
@@ -49,7 +49,7 @@
     {
       "file": "docs/current/artifact-contract.md",
       "kind": "contract",
-      "density": 0.132
+      "density": 0.0904
     },
     {
       "file": "docs/current/compile-promotion-contract.md",
@@ -75,6 +75,11 @@
       "file": "docs/current/derivation-chain-contract.md",
       "kind": "contract",
       "density": 0.062
+    },
+    {
+      "file": "docs/current/episode-event-contract.md",
+      "kind": "contract",
+      "density": 0.0665
     },
     {
       "file": "docs/current/epistemic-contract.md",
@@ -194,7 +199,7 @@
     {
       "file": "docs/current/v7-world-model-contract.md",
       "kind": "contract",
-      "density": 0.0616
+      "density": 0.0566
     },
     {
       "file": "docs/bestqa-roadmap.md",
@@ -740,7 +745,7 @@
       "kind": "contract",
       "legacy_kind": null,
       "describes": "artifacts 运行产物目录规范",
-      "density": 0.132,
+      "density": 0.0904,
       "errors": 0,
       "warnings": 0
     },
@@ -796,6 +801,17 @@
       "legacy_kind": null,
       "describes": "推导链对象规范",
       "density": 0.062,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/episode-event-contract.md",
+      "format": "md",
+      "status": "draft",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "Episode 事件时间线",
+      "density": 0.0665,
       "errors": 0,
       "warnings": 0
     },
@@ -1059,7 +1075,7 @@
       "kind": "contract",
       "legacy_kind": null,
       "describes": "五层世界动力学引擎",
-      "density": 0.0616,
+      "density": 0.0566,
       "errors": 0,
       "warnings": 0
     },

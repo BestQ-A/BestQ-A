@@ -213,6 +213,8 @@ interface Episode {
   observationRecordIds: string[];
   actionExecutionIds: string[];
   transitionIds: string[];
+  /** append-only 事件时间线（按 seq 升序）— 见 episode-event-contract.md */
+  episodeEventIds: string[];
   outcomeRecordId?: string;
   acceptedReconstructionId?: string;
   ontologyDeltaId?: string;
@@ -489,25 +491,29 @@ agent 可以无限扩大量，但权限不能跳过法律。
 
 ## §9 当前缺口总结
 
-相对 v7，当前仓内最关键的缺口是：
+相对 v7，当前仓内最关键的缺口是（截至 2026-04-14）：
 
-1. `Episode` 仍然只是 `Story` 级样本，没有 timeline / transitions
-2. `Reconstruction` 尚不是一等对象
-3. `OntologyDelta` 尚不是一等对象
-4. `MechanismInstance` 尚不存在，MechanismClass 到 Reconstruction 仍缺桥层
-5. `SupportLink` 仍主要以间接关联存在，未成为显式边
-6. `MechanismClass` 仍偏关系模板，尚未升级为动力学模板
+| # | 缺口 | 状态 |
+|---|------|------|
+| 1 | `Episode` 具备完整 timeline（StateSnapshot / Transition）| ⚠️ 部分闭合：event log 已存在（`EpisodeEventStore`），但 StateSnapshot / Transition 仍未实现 |
+| 2 | `AcceptedReconstruction` 成为一等可落盘对象 | ✅ 已闭合 |
+| 3 | `OntologyDelta` 成为每个完成 episode 的必备输出 | ✅ 已闭合（kind=none 路径亦已覆盖） |
+| 4 | `MechanismInstance` 桥层存在（MechanismClass → MI → Reconstruction）| ✅ 已闭合 |
+| 5 | `SupportLink` 升级为显式边 | ❌ 仍主要以间接 ID 关联存在 |
+| 6 | `MechanismClass` 从关系模板升级为动力学模板 | ❌ 仍使用 `proxy:*` 过渡引用 |
 
 ---
 
 ## §10 转 current 的条件
 
-- [ ] `Story` 被提升为 `Episode` 兼容层，具备 timeline / transitions
-- [ ] `ObservationRecord` 与 `episodeId` 显式绑定
-- [ ] `AcceptedReconstruction` 成为显式对象并可落盘
-- [ ] `OntologyDelta` 成为每个已完成 episode 的必备输出；无更新时用 `kind=none`
-- [ ] 至少一条主流程输出 `Conclusion + Reconstruction`
-- [ ] contract-audit 能检查以上对象的存在性与基本绑定关系
+- [ ] `Episode` 具备完整 timeline（`StateSnapshot` / `Transition` / `ActionExecution` 真实实现）
+- [ ] `ObservationRecord` 与 `episodeId` 显式绑定（当前仍通过 Story atoms 间接关联）
+- [x] `AcceptedReconstruction` 成为显式对象并可落盘（2026-04-14）
+- [x] `OntologyDelta` 成为每个已完成 episode 的必备输出；无更新时用 `kind=none`（2026-04-14）
+- [x] 至少一条主流程输出 `Conclusion + Reconstruction`（2026-04-14，§10 条件 5）
+- [x] contract-audit 能检查以上对象的存在性与基本绑定关系（V7-1~V7-5，2026-04-14）
+- [ ] `MechanismClass` 脱离 `proxy:*` 过渡态，成为真实动力学模板
+- [ ] `SupportLink` 升级为显式边并纳入 contract-audit 第二轮检查
 
 ---
 
@@ -516,3 +522,4 @@ agent 可以无限扩大量，但权限不能跳过法律。
 | 版本 | 日期 | 变更 |
 |---|---|---|
 | 1 | 2026-04-13 | 初版。把 v6 重新定位为 relation-law kernel，并补入五层世界动力学架构、Episode 轨迹与本体演化法律 |
+| 2 | 2026-04-14 | §3.2 Episode 接口加入 `episodeEventIds: string[]`；§9 缺口状态更新（缺口 2/3/4 已闭合）；§10 已完成条件打钩 |

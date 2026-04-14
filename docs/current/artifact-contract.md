@@ -84,3 +84,44 @@ artifacts/<run_id>/
 - CI 只保留最近 50 个 `run_id` 目录，更老的移到 `.omx/runs-archive/`（本地）或删除（CI）
 - `summary.md` 必须引用上一次成功运行的 `run_id` 做 delta 对比
 - `metrics.json` 字段变更必须先改 [metrics-contract.md](metrics-contract.md) 再改代码
+
+---
+
+## 5. v7 对象导出目录
+
+v7 对象实例文件通过 `scripts/export-v7-artifacts.mjs` 产出，落盘到独立的 `run_id` 目录，与 eval/bench 产物分离。
+
+### 5.1 目录结构
+
+```
+artifacts/<v7e_run_id>/                   # v7 export run（YYYYMMDD-v7e-XXXX）
+├── reconstructions/<id>.json             # conforms_to: reconstruction-contract.md
+├── ontology_deltas/<id>.json             # conforms_to: ontology-delta-contract.md
+├── derivation_chains/<id>.json           # conforms_to: derivation-chain-contract.md
+├── mechanism_instances/<id>.json         # conforms_to: mechanism-instance-contract.md
+└── episodes/<id>.json                    # conforms_to: v7-world-model-contract.md
+```
+
+`v7e_run_id` 格式：`YYYYMMDD-v7e-XXXX`（XXXX 为时间戳 base36 后 4 位）。
+
+### 5.2 文件元数据要求
+
+每个 v7 实例文件必须包含以下根字段（由 `contract-audit` 的 R6–R8 规则强制检查）：
+
+```json
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/<对应-contract>.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "<ISO 8601>"
+}
+```
+
+### 5.3 与 §1 的区别
+
+| 产物类型 | run_id 格式 | 主要消费者 |
+|---------|------------|-----------|
+| eval/bench 运行 | `YYYYMMDD-NNN` | CI metrics 对比、人工 review |
+| v7 对象导出 | `YYYYMMDD-v7e-XXXX` | `contract-audit` §10 binding pass |
+
+两类产物均纳入 `contract-audit` 扫描范围（`artifacts/**/*.json`），但 binding pass 只对 `kind=instance` 且 `format=json` 的 v7 文件生效。
