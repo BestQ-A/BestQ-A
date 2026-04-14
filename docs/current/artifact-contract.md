@@ -109,7 +109,8 @@ artifacts/<v7e_run_id>/                   # v7 export run（YYYYMMDD-v7e-XXXX）
 ├── state_snapshots/<id>.json             # conforms_to: state-snapshot-contract.md
 ├── transitions/<id>.json                 # conforms_to: transition-contract.md
 ├── mechanism_classes/<id>.json           # conforms_to: mechanism-class-contract.md
-└── program_revision_proposals/<id>.json  # conforms_to: program-revision-proposal-contract.md
+├── program_revision_proposals/<id>.json  # conforms_to: program-revision-proposal-contract.md
+└── review_decisions/<id>.json            # conforms_to: review-decision-contract.md
 ```
 
 `v7e_run_id` 格式：`YYYYMMDD-v7e-XXXX`（XXXX 为时间戳 base36 后 4 位）。

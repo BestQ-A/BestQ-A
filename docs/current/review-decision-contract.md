@@ -1,56 +1,124 @@
-# ReviewDecision Contract
+---
+kind: contract
+status: draft
+phase: 4
+schema_version: 1
+describes: "ProgramRevisionProposal 审查决策对象规范"
+upstream:
+  - program-revision-proposal-contract.md
+  - ontology-delta-contract.md
+downstream:
+  - ontology-delta-contract.md
+  - v7-world-model-contract.md
+---
 
-$kind: review-decision-contract
-$version: 1
-$status: current
-$conforms_to: artifact-contract.md
+# ReviewDecision 合同：ProgramRevisionProposal 的审查裁决层
 
-## 对象职责
+## §1 定位
 
-ReviewDecision 是 ProgramRevisionProposal review lane 的裁决对象，捕获一次人工（或规则触发）审查后做出的决定，并以最小映射驱动 OntologyDelta。
+当前系统已经具备：
 
-## 三态转移
-
+```text
+PredictionError
+  → ProgramRevisionProposal
 ```
-PRP.status=proposed → accepted   → OntologyDelta(kind=AppliedRevision)
-PRP.status=proposed → rejected   → OntologyDelta(kind=none, reason_kind=human_override)
-PRP.status=proposed → superseded → 无 OntologyDelta（由接管的新 PRP 负责）
+
+但这还不等于真正的本体变化。
+
+在 `ProgramRevisionProposal` 和 `OntologyDelta` 之间，还需要一层显式审查对象：
+
+> **这条修正建议被接受、被拒绝，还是被另一条更好的建议取代？**
+
+`ReviewDecision` 的职责，就是把这个中间裁决层对象化。
+
+一句话：
+
+```text
+ProgramRevisionProposal = 偏差驱动的修正建议
+ReviewDecision          = 这条建议在制度层被如何裁决
+OntologyDelta           = 被裁决后的正式本体变更结果
 ```
 
-## 字段规范
+## §2 关系链
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| id | string | 是 | RD_ 前缀随机 id |
-| proposalRef | string | 是 | 被审查的 ProgramRevisionProposal.id |
-| decision | ReviewDecisionKind | 是 | accepted \| rejected \| superseded |
-| supersededByRef | string \| null | 条件必填 | decision=superseded 时非空 |
-| rationale | string | 是 | 裁决理由（非空） |
-| generatedDeltaRef | string \| null | — | 生成的 OntologyDelta.id；superseded 时为 null |
-| reviewedAt | string | 是 | ISO 8601 时间戳 |
-| reviewedBy | string | 是 | 审查者 id |
+目标关系链：
 
-## 不变量
+```text
+ProgramRevisionProposal
+  → ReviewDecision
+  → OntologyDelta(kind=AppliedRevision | none)
+```
 
-| 编号 | 描述 |
-|------|------|
-| RD-1 | proposalRef 非空 |
-| RD-2 | decision 为合法枚举值（accepted \| rejected \| superseded） |
-| RD-3 | decision=superseded 时 supersededByRef 非空 |
-| RD-4 | rationale 非空 |
+## §3 TypeScript 接口草案
 
-## OntologyDelta 映射
+```typescript
+type ReviewDecisionKind = 'accepted' | 'rejected' | 'superseded';
 
-| decision | 产生 OntologyDelta | kind | no_update_reason.reason_kind |
-|----------|--------------------|------|------------------------------|
-| accepted | 是 | AppliedRevision | — |
-| rejected | 是 | none | human_override |
-| superseded | 否 | — | — |
+interface ReviewDecision {
+  id: string;
+  proposalRef: string;
+  decision: ReviewDecisionKind;
+  supersededByRef: string | null;
+  rationale: string;
+  generatedDeltaRef: string | null;
+  reviewedAt: string;
+  reviewedBy: string;
+}
+```
 
-OntologyDelta 使用 `review:<proposalId>` 虚拟 episode_id，与真实 Episode pipeline 解耦，不触发 fidelity_regression_check。
+## §4 最小不变量
 
-## 不做（P06 边界）
+1. `proposalRef` 必须非空
+2. `decision` 必须是 `accepted | rejected | superseded`
+3. `decision = superseded` 时，`supersededByRef` 必须非空
+4. `rationale` 必须非空
+5. `decision = accepted | rejected` 时，`generatedDeltaRef` 必须非空
+6. `decision = superseded` 时，`generatedDeltaRef` 必须为 null
 
-- 不自动修改 MechanismProgram 或 ObservationModel
-- 不自动将 OntologyDelta.applied_at 标记为非 null
-- 不跨 proposal 聚合或 merge
+## §5 与现有对象的边界
+
+### 5.1 与 `ProgramRevisionProposal`
+
+`ProgramRevisionProposal` 只表达“建议修什么”。  
+`ReviewDecision` 才表达“制度层如何裁决这条建议”。
+
+### 5.2 与 `OntologyDelta`
+
+`ReviewDecision` 不是 `OntologyDelta`。  
+它只负责驱动：
+
+- `accepted` → `OntologyDelta(kind=AppliedRevision)`
+- `rejected` → `OntologyDelta(kind=none, no_update_reason=human_override)`
+- `superseded` → 暂不生成 delta
+
+### 5.3 与 `MechanismClass promotion gate`
+
+`ReviewDecision` 不等于本体晋升门控。  
+它只审查 proposal，不自动让 `MechanismClass` 晋升为 `compiled`。
+
+## §6 第一轮实现建议
+
+第一轮最小实现：
+
+1. `review-decision.ts`
+2. `review-decision-store.ts`
+3. 三个 helper：
+   - `acceptProposal()`
+   - `rejectProposal()`
+   - `supersedeProposal()`
+4. 最小测试覆盖三态转移与 `OntologyDelta` 绑定
+
+## §7 转 current 的条件
+
+- [x] `ReviewDecision` 成为显式对象并可持久化（review-decision.ts + review-decision-store.ts，2026-04-14）
+- [x] 至少一条 `accepted` 路径生成 `OntologyDelta(kind=AppliedRevision)`（T4 验证，2026-04-14）
+- [x] 至少一条 `rejected` 路径生成 `OntologyDelta(kind=none)`（T5 验证，2026-04-14）
+- [x] 至少一条 `superseded` 路径不生成 delta 但能稳定记录取代关系（T6 验证，2026-04-14）
+- [x] contract-audit 能检查基础绑定真值（§22 RD-1~RD-4，2026-04-14）
+
+## §8 版本历史
+
+| 版本 | 日期 | 变更 |
+|------|------|------|
+| 1 | 2026-04-14 | 初版。把 ProgramRevisionProposal 与 OntologyDelta 之间的制度裁决层显式对象化 |
+| 2 | 2026-04-14 | 升级为 current：ReviewDecision/Store、三态 helper、pipeline 集成、contract-audit §22 RD-1~RD-4、artifact export 均已落地 |

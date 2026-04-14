@@ -102,6 +102,7 @@ async function main() {
     transitions:                   path.join(runDir, 'transitions'),
     mechanism_classes:             path.join(runDir, 'mechanism_classes'),
     program_revision_proposals:    path.join(runDir, 'program_revision_proposals'),
+    review_decisions:              path.join(runDir, 'review_decisions'),
   };
   for (const d of Object.values(dirs)) await mkdir(d, { recursive: true });
 
@@ -116,6 +117,7 @@ async function main() {
   const { createExperimentDesign }       = await fromDist('experiment-design.js');
   const { DEFAULT_MECHANISM_PROGRAM_ID } = await fromDist('mechanism-program.js');
   const { DEFAULT_MECHANISM_CLASS_ID, createDefaultMechanismClass } = await fromDist('mechanism-class.js');
+  const { acceptProposal } = await fromDist('review-decision.js');
 
   const pipeline = new CausalPipeline({ seedDefaults: false });
   const stats = {
@@ -130,6 +132,7 @@ async function main() {
     transitions: 0,
     mechanism_classes: 0,
     program_revision_proposals: 0,
+    review_decisions: 0,
   };
 
   // ──────────────────────────────────────────────────────────────────────
@@ -331,6 +334,11 @@ async function main() {
     if (axA.programRevisionProposal) {
       await writeArtifact(dirs.program_revision_proposals, `${axA.programRevisionProposal.id}.json`, axA.programRevisionProposal, 'docs/current/program-revision-proposal-contract.md');
       stats.program_revision_proposals++;
+
+      // ReviewDecision（RD-1~RD-4 验证：accepted 路径 → OntologyDelta）
+      const rdResult = acceptProposal(axA.programRevisionProposal, 'artifact export demo', 'export_script');
+      await writeArtifact(dirs.review_decisions, `${rdResult.reviewDecision.id}.json`, rdResult.reviewDecision, 'docs/current/review-decision-contract.md');
+      stats.review_decisions++;
     }
 
     // StateSnapshot: source initial snapshot + post-action target snapshot

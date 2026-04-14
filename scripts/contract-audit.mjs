@@ -1468,6 +1468,61 @@ async function checkSupportLinkDeepBindings(results) {
   }
 }
 
+/**
+ * §22 ReviewDecision binding pass
+ *
+ * RD-1: proposalRef 非空且指向已知 PRP
+ * RD-2: decision 必须是合法值
+ * RD-3: decision=superseded 时 supersededByRef 非空
+ * RD-4: rationale 非空
+ */
+async function checkReviewDecisionBindings(results) {
+  const RD_CONTRACT  = 'docs/current/review-decision-contract.md';
+  const PRP_CONTRACT = 'docs/current/program-revision-proposal-contract.md';
+  const VALID_DECISIONS = new Set(['accepted', 'rejected', 'superseded']);
+
+  const rdMap  = new Map();
+  const prpMap = new Map();
+
+  for (const r of results) {
+    if (!r.fm || r.fm.$kind !== 'instance') continue;
+    const obj = r.fm;
+    const id  = obj.id;
+    if (!id) continue;
+    if      (obj.$conforms_to === RD_CONTRACT)  rdMap.set(id,  { file: r.file, obj, findingsRef: r.findings });
+    else if (obj.$conforms_to === PRP_CONTRACT) prpMap.set(id, { file: r.file, obj, findingsRef: r.findings });
+  }
+
+  for (const { file, obj, findingsRef } of rdMap.values()) {
+    // RD-1：proposalRef 非空且可解析
+    if (!obj.proposalRef || String(obj.proposalRef).trim() === '') {
+      findingsRef.push({ file, line: 1, code: 'bad-rd-proposal-ref', level: 'error',
+        msg: `ReviewDecision.proposalRef 缺失` });
+    } else if (!prpMap.has(obj.proposalRef)) {
+      findingsRef.push({ file, line: 1, code: 'bad-rd-proposal-ref', level: 'error',
+        msg: `ReviewDecision.proposalRef 引用不存在：${obj.proposalRef}` });
+    }
+
+    // RD-2：decision 合法值
+    if (!obj.decision || !VALID_DECISIONS.has(obj.decision)) {
+      findingsRef.push({ file, line: 1, code: 'bad-rd-decision', level: 'error',
+        msg: `ReviewDecision.decision 非法：${obj.decision ?? '<missing>'}` });
+    }
+
+    // RD-3：decision=superseded 时 supersededByRef 非空
+    if (obj.decision === 'superseded' && (!obj.supersededByRef || String(obj.supersededByRef).trim() === '')) {
+      findingsRef.push({ file, line: 1, code: 'bad-rd-superseded-ref', level: 'error',
+        msg: `ReviewDecision.decision=superseded 但 supersededByRef 缺失` });
+    }
+
+    // RD-4：rationale 非空
+    if (!obj.rationale || String(obj.rationale).trim() === '') {
+      findingsRef.push({ file, line: 1, code: 'empty-rd-rationale', level: 'error',
+        msg: `ReviewDecision.rationale 为空` });
+    }
+  }
+}
+
 async function main() {
   const targets = await collectTargets();
   const results = [];
@@ -1492,6 +1547,7 @@ async function main() {
   await checkMechanismClassBindings(results);
   await checkProgramRevisionProposalBindings(results);
   await checkSupportLinkDeepBindings(results);
+  await checkReviewDecisionBindings(results);
 
   // kind 分布
   const kindDist = { contract: 0, instance: 0, record: 0, code: 0, index: 0, legacy_I: 0, legacy_II: 0, missing: 0 };
@@ -1569,6 +1625,11 @@ async function main() {
     bad_support_link_weight: [],
     bad_mechanism_instance_support_link_ref: [],
     bad_derivation_trace_support_link: [],
+    // ReviewDecision binding pass（§22）
+    bad_rd_proposal_ref: [],
+    bad_rd_decision: [],
+    bad_rd_superseded_ref: [],
+    empty_rd_rationale: [],
   };
   const codeToBucket = {
     'missing-conforms-to': 'missing_conforms_to',
@@ -1644,6 +1705,11 @@ async function main() {
     'bad-support-link-weight':                    'bad_support_link_weight',
     'bad-mechanism-instance-support-link-ref':    'bad_mechanism_instance_support_link_ref',
     'bad-derivation-trace-support-link':          'bad_derivation_trace_support_link',
+    // ReviewDecision binding pass（§22）
+    'bad-rd-proposal-ref':    'bad_rd_proposal_ref',
+    'bad-rd-decision':        'bad_rd_decision',
+    'bad-rd-superseded-ref':  'bad_rd_superseded_ref',
+    'empty-rd-rationale':     'empty_rd_rationale',
   };
   for (const r of results) {
     for (const f of r.findings) {
@@ -1722,7 +1788,7 @@ async function main() {
   process.exit(errors.length > 0 ? 1 : 0);
 }
 
-export { checkV7Bindings, checkObservationModelBindings, checkCounterfactualBindings, checkExperimentDesignBindings, checkActionExecutionBindings, checkOutcomeRecordBindings, checkPredictionErrorBindings, checkStateSnapshotBindings, checkTransitionBindings, checkMechanismClassBindings, checkProgramRevisionProposalBindings, checkSupportLinkDeepBindings };
+export { checkV7Bindings, checkObservationModelBindings, checkCounterfactualBindings, checkExperimentDesignBindings, checkActionExecutionBindings, checkOutcomeRecordBindings, checkPredictionErrorBindings, checkStateSnapshotBindings, checkTransitionBindings, checkMechanismClassBindings, checkProgramRevisionProposalBindings, checkSupportLinkDeepBindings, checkReviewDecisionBindings };
 
 const _IS_MAIN = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename);
 if (_IS_MAIN) {
