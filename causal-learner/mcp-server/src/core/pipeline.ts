@@ -57,6 +57,12 @@ import {
   createDefaultObservationModel,
   DEFAULT_OBSERVATION_MODEL_ID,
 } from './observation-model.js';
+import { MechanismProgramStore } from './mechanism-program-store.js';
+import type { MechanismProgramStoreStats } from './mechanism-program-store.js';
+import {
+  createDefaultMechanismProgram,
+  DEFAULT_MECHANISM_PROGRAM_ID,
+} from './mechanism-program.js';
 import crypto from 'crypto';
 
 // =============================================================================
@@ -93,6 +99,8 @@ export interface PipelineConfig {
   observationRecordsDbPath: string;
   /** ObservationModel 持久化数据库路径 */
   observationModelsDbPath: string;
+  /** MechanismProgram 持久化数据库路径 */
+  mechanismProgramsDbPath: string;
 }
 
 /** 提交观测的输入 */
@@ -183,6 +191,7 @@ export interface PipelineStats {
   supportLinks: SupportLinkStoreStats;
   observationRecords: ObservationRecordStoreStats;
   observationModels: ObservationModelStoreStats;
+  mechanismPrograms: MechanismProgramStoreStats;
 }
 
 // =============================================================================
@@ -214,6 +223,8 @@ export class CausalPipeline {
   readonly observationRecords: ObservationRecordStore;
   /** ObservationModel 持久化存储 */
   readonly observationModels: ObservationModelStore;
+  /** MechanismProgram 持久化存储 */
+  readonly mechanismPrograms: MechanismProgramStore;
 
   private rvBuilder: RegulationViewBuilder;
   private config: PipelineConfig;
@@ -234,6 +245,7 @@ export class CausalPipeline {
       supportLinksDbPath:      config.supportLinksDbPath      ?? ':memory:',
       observationRecordsDbPath: config.observationRecordsDbPath ?? ':memory:',
       observationModelsDbPath:  config.observationModelsDbPath  ?? ':memory:',
+      mechanismProgramsDbPath:  config.mechanismProgramsDbPath  ?? ':memory:',
     };
     this.config = resolved;
 
@@ -256,6 +268,11 @@ export class CausalPipeline {
     // 幂等写入默认 ObservationModel（第一轮过渡模型，所有 submitObservation 路径共享）
     if (!this.observationModels.get(DEFAULT_OBSERVATION_MODEL_ID)) {
       this.observationModels.save(createDefaultObservationModel());
+    }
+    this.mechanismPrograms    = new MechanismProgramStore(resolved.mechanismProgramsDbPath);
+    // 幂等写入默认 MechanismProgram（第一轮过渡模型，所有 recordFix 路径共享）
+    if (!this.mechanismPrograms.get(DEFAULT_MECHANISM_PROGRAM_ID)) {
+      this.mechanismPrograms.save(createDefaultMechanismProgram());
     }
 
     if (resolved.seedDefaults) {
@@ -546,6 +563,7 @@ export class CausalPipeline {
     const rawMechanismInstance = createMechanismInstance({
       episode_id: input.storyId,
       mechanism_class_ref: mechanismClassRef,
+      mechanism_program_ref: DEFAULT_MECHANISM_PROGRAM_ID,
       bindings: Object.keys(miBindings).length > 0 ? miBindings : { slot_0: fixAtom.id },
       source_kind: 'path_projection',
       source_ref: compile ? `compile:${input.storyId}` : null,
@@ -827,6 +845,7 @@ export class CausalPipeline {
       supportLinks:       this.supportLinks.getStats(),
       observationRecords: this.observationRecords.getStats(),
       observationModels:  this.observationModels.getStats(),
+      mechanismPrograms:  this.mechanismPrograms.getStats(),
     };
   }
 
@@ -850,6 +869,7 @@ export class CausalPipeline {
     this.supportLinks.close();
     this.observationRecords.close();
     this.observationModels.close();
+    this.mechanismPrograms.close();
     // rvBuilder 不拥有独立 DB 连接，无需单独关闭
   }
 }

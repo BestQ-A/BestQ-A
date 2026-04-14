@@ -34,6 +34,9 @@ export interface MechanismInstance {
   /** 指向 MechanismClass（允许 proxy:* 前缀表示过渡态） */
   mechanism_class_ref: string;
 
+  /** 指向 MechanismProgram（bridge §D：draft 阶段允许为空；由程序对象实例化时应填写） */
+  mechanism_program_ref?: string;
+
   /** 指向 Episode */
   episode_id: string;
 
@@ -76,6 +79,7 @@ export interface MechanismInstance {
 interface CreateMechanismInstanceInput {
   episode_id: string;
   mechanism_class_ref: string;
+  mechanism_program_ref?: string;
   bindings: Record<string, string>;
   source_kind?: MechanismInstanceSourceKind;
   source_ref?: string | null;
@@ -105,6 +109,7 @@ export function createMechanismInstance(input: CreateMechanismInstanceInput): Me
   return {
     id: newInstanceId(input.episode_id),
     mechanism_class_ref: input.mechanism_class_ref,
+    mechanism_program_ref: input.mechanism_program_ref,
     episode_id: input.episode_id,
     bindings: { ...input.bindings },
     source_kind: input.source_kind ?? 'path_projection',

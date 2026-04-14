@@ -512,3 +512,24 @@ export type {
 export {
   ObservationModelStore,
 } from './observation-model-store.js';
+
+// MechanismProgram + MechanismProgramStore (v7 机制程序对象 — MechanismClass 到 MechanismInstance 的桥)
+export type {
+  MechanismProgramPhase,
+  MechanismProgram,
+  CreateMechanismProgramInput,
+} from './mechanism-program.js';
+
+export {
+  createMechanismProgram,
+  createDefaultMechanismProgram,
+  DEFAULT_MECHANISM_PROGRAM_ID,
+} from './mechanism-program.js';
+
+export type {
+  MechanismProgramStoreStats,
+} from './mechanism-program-store.js';
+
+export {
+  MechanismProgramStore,
+} from './mechanism-program-store.js';

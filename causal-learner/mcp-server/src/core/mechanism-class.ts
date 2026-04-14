@@ -49,6 +49,10 @@ export interface MechanismClass {
   /** 编译状态 */
   compilation_status: MechanismCompilationStatus;
 
+  // ---- MechanismProgram 关联位 ----
+  /** 关联的 MechanismProgram ID 列表（bridge §C：一个 Class 可有多个 Program 版本） */
+  mechanismProgramIds: string[];
+
   created_at: string;
   created_by: string;
 }
@@ -90,6 +94,7 @@ interface CreateMechanismClassInput {
   outcomes?: string[];
   supporting_episode_ids?: string[];
   compilation_status?: MechanismCompilationStatus;
+  mechanismProgramIds?: string[];
   created_by?: string;
   created_at?: string;
 }
@@ -114,6 +119,7 @@ export function createMechanismClass(input: CreateMechanismClassInput): Mechanis
     outcomes: input.outcomes ?? [],
     supporting_episode_ids: input.supporting_episode_ids ?? [],
     compilation_status: input.compilation_status ?? 'candidate',
+    mechanismProgramIds: input.mechanismProgramIds ?? [],
     created_at: input.created_at ?? nowIso(),
     created_by: input.created_by ?? 'system',
   };
