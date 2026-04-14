@@ -831,6 +831,573 @@ async function checkObservationModelBindings(results) {
   }
 }
 
+/** §12 Counterfactual binding pass：四条跨文件绑定真值检查（在 checkObservationModelBindings 之后调用）。
+ *
+ * 索引：
+ *   cfMap  ← conforms_to 含 'counterfactual-scenario-contract'
+ *   epMap2 ← conforms_to 含 'v7-world-model-contract'
+ *   reconMap2 ← conforms_to 含 'reconstruction-contract'
+ *   mpMap  ← conforms_to 含 'mechanism-program-contract'
+ */
+async function checkCounterfactualBindings(results) {
+  const instanceResults = results.filter(r => r.kind === 'instance' && r.format === 'json');
+
+  const getObj = async (r) => {
+    if (r._parsedObj) return r._parsedObj;
+    try {
+      const text = await readFile(path.resolve(ROOT, r.file), 'utf8');
+      return JSON.parse(stripBom(text));
+    } catch { return null; }
+  };
+
+  const cfMap     = new Map(); // CounterfactualScenario: id → {file, obj, findingsRef}
+  const epMap2    = new Map(); // Episode:                id → {file, obj, findingsRef}
+  const reconMap2 = new Map(); // AcceptedReconstruction: id → {file, obj, findingsRef}
+  const mpMap     = new Map(); // MechanismProgram:       id → {file, obj, findingsRef}
+
+  for (const r of instanceResults) {
+    const ct  = String(r.fm.conforms_to || '');
+    const obj = await getObj(r);
+    if (!obj || typeof obj !== 'object') continue;
+    const id = obj.id;
+    if (!id) continue;
+    const entry = { file: r.file, obj, findingsRef: r.findings };
+
+    if      (ct.includes('counterfactual-scenario-contract')) cfMap.set(id, entry);
+    else if (ct.includes('v7-world-model-contract'))          epMap2.set(id, entry);
+    else if (ct.includes('reconstruction-contract'))          reconMap2.set(id, entry);
+    else if (ct.includes('mechanism-program-contract'))       mpMap.set(id, entry);
+  }
+
+  for (const { file, obj, findingsRef } of cfMap.values()) {
+    // CF-1：baseEpisodeId 必须能 resolve 到 Episode
+    if (!obj.baseEpisodeId) {
+      findingsRef.push({ file, line: 1, code: 'bad-counterfactual-episode-ref', level: 'error',
+        msg: `CounterfactualScenario.baseEpisodeId 缺失` });
+    } else if (!epMap2.has(obj.baseEpisodeId)) {
+      findingsRef.push({ file, line: 1, code: 'bad-counterfactual-episode-ref', level: 'error',
+        msg: `CounterfactualScenario.baseEpisodeId 引用不存在：${obj.baseEpisodeId}` });
+    }
+
+    // CF-2：baseReconstructionId 必须能 resolve 到 AcceptedReconstruction
+    if (!obj.baseReconstructionId) {
+      findingsRef.push({ file, line: 1, code: 'bad-counterfactual-reconstruction-ref', level: 'error',
+        msg: `CounterfactualScenario.baseReconstructionId 缺失` });
+    } else if (!reconMap2.has(obj.baseReconstructionId)) {
+      findingsRef.push({ file, line: 1, code: 'bad-counterfactual-reconstruction-ref', level: 'error',
+        msg: `CounterfactualScenario.baseReconstructionId 引用不存在：${obj.baseReconstructionId}` });
+    }
+
+    // CF-3：mechanismProgramRefs 中的每个 ref 都必须能 resolve 到 MechanismProgram
+    if (Array.isArray(obj.mechanismProgramRefs)) {
+      for (const ref of obj.mechanismProgramRefs) {
+        if (!mpMap.has(ref)) {
+          findingsRef.push({ file, line: 1, code: 'bad-counterfactual-program-ref', level: 'error',
+            msg: `CounterfactualScenario.mechanismProgramRefs 引用不存在：${ref}` });
+        }
+      }
+    }
+
+    // CF-4：modifiedAssumptions 必须是非空数组
+    if (!Array.isArray(obj.modifiedAssumptions) || obj.modifiedAssumptions.length === 0) {
+      findingsRef.push({ file, line: 1, code: 'empty-counterfactual-assumptions', level: 'error',
+        msg: `CounterfactualScenario.modifiedAssumptions 为空或缺失` });
+    }
+  }
+}
+
+/** §13 ExperimentDesign binding pass：三条跨文件绑定真值检查（在 checkCounterfactualBindings 之后调用）。
+ *
+ * 索引：
+ *   edMap      ← conforms_to 含 'experiment-design-contract'
+ *   epMap3     ← conforms_to 含 'v7-world-model-contract'
+ *   cfMap2     ← conforms_to 含 'counterfactual-scenario-contract'
+ */
+async function checkExperimentDesignBindings(results) {
+  const instanceResults = results.filter(r => r.kind === 'instance' && r.format === 'json');
+
+  const getObj = async (r) => {
+    if (r._parsedObj) return r._parsedObj;
+    try {
+      const text = await readFile(path.resolve(ROOT, r.file), 'utf8');
+      return JSON.parse(stripBom(text));
+    } catch { return null; }
+  };
+
+  const edMap  = new Map(); // ExperimentDesign:        id → {file, obj, findingsRef}
+  const epMap3 = new Map(); // Episode:                 id → {file, obj, findingsRef}
+  const cfMap2 = new Map(); // CounterfactualScenario:  id → {file, obj, findingsRef}
+
+  for (const r of instanceResults) {
+    const ct = String(r.fm.conforms_to || '');
+    const obj = await getObj(r);
+    if (!obj || typeof obj !== 'object') continue;
+    const id = obj.id;
+    if (!id) continue;
+    const entry = { file: r.file, obj, findingsRef: r.findings };
+
+    if      (ct.includes('experiment-design-contract'))      edMap.set(id, entry);
+    else if (ct.includes('v7-world-model-contract'))         epMap3.set(id, entry);
+    else if (ct.includes('counterfactual-scenario-contract')) cfMap2.set(id, entry);
+  }
+
+  for (const { file, obj, findingsRef } of edMap.values()) {
+    // ED-1：baseEpisodeId 必须能 resolve 到 Episode
+    if (!obj.baseEpisodeId) {
+      findingsRef.push({ file, line: 1, code: 'bad-experiment-design-episode-ref', level: 'error',
+        msg: 'ExperimentDesign.baseEpisodeId 缺失' });
+    } else if (!epMap3.has(obj.baseEpisodeId)) {
+      findingsRef.push({ file, line: 1, code: 'bad-experiment-design-episode-ref', level: 'error',
+        msg: `ExperimentDesign.baseEpisodeId 引用不存在：${obj.baseEpisodeId}` });
+    }
+
+    // ED-2：basedOnCounterfactualIds 中的每个 id 都必须能 resolve 到 CounterfactualScenario
+    if (Array.isArray(obj.basedOnCounterfactualIds)) {
+      for (const id of obj.basedOnCounterfactualIds) {
+        if (!cfMap2.has(id)) {
+          findingsRef.push({ file, line: 1, code: 'bad-experiment-design-counterfactual-ref', level: 'error',
+            msg: `ExperimentDesign.basedOnCounterfactualIds 引用不存在：${id}` });
+        }
+      }
+    }
+
+    // ED-3：recommendedAction 必须属于 candidateMeasurements 或 candidateInterventions
+    const candidates = [
+      ...(Array.isArray(obj.candidateMeasurements) ? obj.candidateMeasurements : []),
+      ...(Array.isArray(obj.candidateInterventions) ? obj.candidateInterventions : []),
+    ];
+    if (!obj.recommendedAction || !candidates.includes(obj.recommendedAction)) {
+      findingsRef.push({ file, line: 1, code: 'recommended-action-outside-candidates', level: 'error',
+        msg: `ExperimentDesign.recommendedAction 不在候选集合中：${obj.recommendedAction ?? '<missing>'}` });
+    }
+  }
+}
+
+/** §14 ActionExecution binding pass：四条跨文件绑定真值检查（在 checkExperimentDesignBindings 之后调用）。
+ *
+ * 索引：
+ *   axMap ← conforms_to 含 'action-execution-contract'
+ *   edMap ← conforms_to 含 'experiment-design-contract'
+ *   epMap ← conforms_to 含 'v7-world-model-contract'
+ */
+async function checkActionExecutionBindings(results) {
+  const instanceResults = results.filter(r => r.kind === 'instance' && r.format === 'json');
+
+  const getObj = async (r) => {
+    if (r._parsedObj) return r._parsedObj;
+    try {
+      const text = await readFile(path.resolve(ROOT, r.file), 'utf8');
+      return JSON.parse(stripBom(text));
+    } catch { return null; }
+  };
+
+  const axMap = new Map();
+  const edMap = new Map();
+  const epMap = new Map();
+
+  for (const r of instanceResults) {
+    const ct = String(r.fm.conforms_to || '');
+    const obj = await getObj(r);
+    if (!obj || typeof obj !== 'object') continue;
+    const id = obj.id;
+    if (!id) continue;
+    const entry = { file: r.file, obj, findingsRef: r.findings };
+
+    if      (ct.includes('action-execution-contract'))  axMap.set(id, entry);
+    else if (ct.includes('experiment-design-contract')) edMap.set(id, entry);
+    else if (ct.includes('v7-world-model-contract'))    epMap.set(id, entry);
+  }
+
+  for (const { file, obj, findingsRef } of axMap.values()) {
+    const design = obj.basedOnExperimentDesignId ? edMap.get(obj.basedOnExperimentDesignId) : null;
+
+    // AX-1：basedOnExperimentDesignId 可解析
+    if (!obj.basedOnExperimentDesignId) {
+      findingsRef.push({ file, line: 1, code: 'bad-action-execution-design-ref', level: 'error',
+        msg: 'ActionExecution.basedOnExperimentDesignId 缺失' });
+    } else if (!design) {
+      findingsRef.push({ file, line: 1, code: 'bad-action-execution-design-ref', level: 'error',
+        msg: `ActionExecution.basedOnExperimentDesignId 引用不存在：${obj.basedOnExperimentDesignId}` });
+    }
+
+    // AX-2：sourceEpisodeId 可解析
+    if (!obj.sourceEpisodeId) {
+      findingsRef.push({ file, line: 1, code: 'bad-action-execution-source-episode-ref', level: 'error',
+        msg: 'ActionExecution.sourceEpisodeId 缺失' });
+    } else if (!epMap.has(obj.sourceEpisodeId)) {
+      findingsRef.push({ file, line: 1, code: 'bad-action-execution-source-episode-ref', level: 'error',
+        msg: `ActionExecution.sourceEpisodeId 引用不存在：${obj.sourceEpisodeId}` });
+    }
+
+    // AX-3：completed 时 targetEpisodeId 可解析
+    if (obj.executionStatus === 'completed') {
+      if (!obj.targetEpisodeId) {
+        findingsRef.push({ file, line: 1, code: 'bad-action-execution-target-episode-ref', level: 'error',
+          msg: 'ActionExecution.executionStatus=completed 但 targetEpisodeId 缺失' });
+      } else if (!epMap.has(obj.targetEpisodeId)) {
+        findingsRef.push({ file, line: 1, code: 'bad-action-execution-target-episode-ref', level: 'error',
+          msg: `ActionExecution.targetEpisodeId 引用不存在：${obj.targetEpisodeId}` });
+      }
+    }
+
+    // AX-4：actionRef === ExperimentDesign.recommendedAction
+    if (design && obj.actionRef !== design.obj.recommendedAction) {
+      findingsRef.push({ file, line: 1, code: 'action-execution-ref-mismatch', level: 'error',
+        msg: `ActionExecution.actionRef 与 ExperimentDesign.recommendedAction 不一致：${obj.actionRef} !== ${design.obj.recommendedAction}` });
+    }
+  }
+}
+
+async function checkOutcomeRecordBindings(results) {
+  const OUTCOME_RECORD_CONTRACT  = 'docs/current/outcome-record-contract.md';
+  const ACTION_EXECUTION_CONTRACT = 'docs/current/action-execution-contract.md';
+  const EPISODE_CONTRACT          = 'docs/current/v7-world-model-contract.md';
+
+  const VALID_STATUSES = new Set(['success', 'failure', 'partial', 'abandoned']);
+
+  // 建立索引
+  const orcMap = new Map(); // id → { file, obj, findingsRef }
+  const axMap  = new Map(); // id → { file, obj, findingsRef }
+  const epMap  = new Map(); // id → { file, obj, findingsRef }
+
+  for (const r of results) {
+    if (!r.fm || r.fm.$kind !== 'instance') continue;
+    const obj = r.fm;
+    const id  = obj.id;
+    if (!id) continue;
+    if (obj.$conforms_to === OUTCOME_RECORD_CONTRACT) {
+      orcMap.set(id, { file: r.file, obj, findingsRef: r.findings });
+    } else if (obj.$conforms_to === ACTION_EXECUTION_CONTRACT) {
+      axMap.set(id, { file: r.file, obj, findingsRef: r.findings });
+    } else if (obj.$conforms_to === EPISODE_CONTRACT) {
+      epMap.set(id, { file: r.file, obj, findingsRef: r.findings });
+    }
+  }
+
+  for (const { file, obj, findingsRef } of orcMap.values()) {
+    // OR-1：episodeId 必须可解析
+    if (!obj.episodeId || !epMap.has(obj.episodeId)) {
+      findingsRef.push({ file, line: 1, code: 'bad-outcome-record-episode-ref', level: 'error',
+        msg: `OutcomeRecord.episodeId 无法在 Episode 索引中解析：${obj.episodeId}` });
+    }
+
+    // OR-2：causedByActionExecutionId 如存在，必须可解析
+    if (obj.causedByActionExecutionId && !axMap.has(obj.causedByActionExecutionId)) {
+      findingsRef.push({ file, line: 1, code: 'bad-outcome-record-action-ref', level: 'error',
+        msg: `OutcomeRecord.causedByActionExecutionId 无法在 ActionExecution 索引中解析：${obj.causedByActionExecutionId}` });
+    }
+
+    // OR-3：status 必须是合法枚举值
+    if (!VALID_STATUSES.has(obj.status)) {
+      findingsRef.push({ file, line: 1, code: 'bad-outcome-record-status', level: 'error',
+        msg: `OutcomeRecord.status 非法枚举值：${obj.status}` });
+    }
+
+    // OR-4：summary 必须是非空字符串
+    if (!obj.summary || typeof obj.summary !== 'string' || obj.summary.trim() === '') {
+      findingsRef.push({ file, line: 1, code: 'empty-outcome-record-summary', level: 'error',
+        msg: `OutcomeRecord.summary 为空或缺失` });
+    }
+  }
+}
+
+async function checkPredictionErrorBindings(results) {
+  const PREDICTION_ERROR_CONTRACT    = 'docs/current/prediction-error-contract.md';
+  const ACTION_EXECUTION_CONTRACT    = 'docs/current/action-execution-contract.md';
+  const OUTCOME_RECORD_CONTRACT      = 'docs/current/outcome-record-contract.md';
+  const COUNTERFACTUAL_CONTRACT      = 'docs/current/counterfactual-scenario-contract.md';
+
+  // 建立索引
+  const peMap  = new Map(); // id → { file, obj, findingsRef }
+  const axMap  = new Map();
+  const orcMap = new Map();
+  const cfMap  = new Map();
+
+  for (const r of results) {
+    if (!r.fm || r.fm.$kind !== 'instance') continue;
+    const obj = r.fm;
+    const id  = obj.id;
+    if (!id) continue;
+    if (obj.$conforms_to === PREDICTION_ERROR_CONTRACT) {
+      peMap.set(id, { file: r.file, obj, findingsRef: r.findings });
+    } else if (obj.$conforms_to === ACTION_EXECUTION_CONTRACT) {
+      axMap.set(id, { file: r.file, obj, findingsRef: r.findings });
+    } else if (obj.$conforms_to === OUTCOME_RECORD_CONTRACT) {
+      orcMap.set(id, { file: r.file, obj, findingsRef: r.findings });
+    } else if (obj.$conforms_to === COUNTERFACTUAL_CONTRACT) {
+      cfMap.set(id, { file: r.file, obj, findingsRef: r.findings });
+    }
+  }
+
+  for (const { file, obj, findingsRef } of peMap.values()) {
+    // PE-1：causedByActionExecutionId 必须可解析
+    if (!obj.causedByActionExecutionId || !axMap.has(obj.causedByActionExecutionId)) {
+      findingsRef.push({ file, line: 1, code: 'bad-prediction-error-action-ref', level: 'error',
+        msg: `PredictionError.causedByActionExecutionId 无法在 ActionExecution 索引中解析：${obj.causedByActionExecutionId}` });
+    }
+
+    // PE-2：outcomeRecordId 必须可解析
+    if (!obj.outcomeRecordId || !orcMap.has(obj.outcomeRecordId)) {
+      findingsRef.push({ file, line: 1, code: 'bad-prediction-error-outcome-ref', level: 'error',
+        msg: `PredictionError.outcomeRecordId 无法在 OutcomeRecord 索引中解析：${obj.outcomeRecordId}` });
+    }
+
+    // PE-3：basedOnCounterfactualId 如存在，必须可解析
+    if (obj.basedOnCounterfactualId && !cfMap.has(obj.basedOnCounterfactualId)) {
+      findingsRef.push({ file, line: 1, code: 'bad-prediction-error-counterfactual-ref', level: 'error',
+        msg: `PredictionError.basedOnCounterfactualId 无法在 CounterfactualScenario 索引中解析：${obj.basedOnCounterfactualId}` });
+    }
+
+    // PE-4：expectedSummary / actualSummary / deltaSummary 必须都是非空字符串
+    const summaryEmpty =
+      !obj.expectedSummary || typeof obj.expectedSummary !== 'string' || obj.expectedSummary.trim() === '' ||
+      !obj.actualSummary   || typeof obj.actualSummary   !== 'string' || obj.actualSummary.trim()   === '' ||
+      !obj.deltaSummary    || typeof obj.deltaSummary    !== 'string' || obj.deltaSummary.trim()    === '';
+    if (summaryEmpty) {
+      findingsRef.push({ file, line: 1, code: 'empty-prediction-error-summary', level: 'error',
+        msg: `PredictionError.expectedSummary / actualSummary / deltaSummary 中至少一项为空` });
+    }
+  }
+}
+
+async function checkStateSnapshotBindings(results) {
+  const STATE_SNAPSHOT_CONTRACT = 'docs/current/state-snapshot-contract.md';
+  const EPISODE_CONTRACT        = 'docs/current/v7-world-model-contract.md';
+
+  const ssMap = new Map();
+  const epMap = new Map();
+
+  for (const r of results) {
+    if (!r.fm || r.fm.$kind !== 'instance') continue;
+    const obj = r.fm;
+    const id  = obj.id;
+    if (!id) continue;
+    if (obj.$conforms_to === STATE_SNAPSHOT_CONTRACT) {
+      ssMap.set(id, { file: r.file, obj, findingsRef: r.findings });
+    } else if (obj.$conforms_to === EPISODE_CONTRACT) {
+      epMap.set(id, { file: r.file, obj, findingsRef: r.findings });
+    }
+  }
+
+  for (const { file, obj, findingsRef } of ssMap.values()) {
+    // SS-1：episodeId 必须在 Episode 索引中存在
+    if (!obj.episodeId || !epMap.has(obj.episodeId)) {
+      findingsRef.push({ file, line: 1, code: 'bad-state-snapshot-episode-ref', level: 'error',
+        msg: `StateSnapshot.episodeId 无法在 Episode 索引中解析：${obj.episodeId}` });
+    }
+
+    // SS-2：values 必须存在且不可为 null
+    if (obj.values === null || obj.values === undefined) {
+      findingsRef.push({ file, line: 1, code: 'empty-state-snapshot-values', level: 'error',
+        msg: `StateSnapshot.values 不可为 null` });
+    }
+  }
+}
+
+async function checkTransitionBindings(results) {
+  const TRANSITION_CONTRACT     = 'docs/current/transition-contract.md';
+  const STATE_SNAPSHOT_CONTRACT = 'docs/current/state-snapshot-contract.md';
+  const EPISODE_CONTRACT        = 'docs/current/v7-world-model-contract.md';
+  const ACTION_EXECUTION_CONTRACT = 'docs/current/action-execution-contract.md';
+
+  const trMap = new Map();
+  const ssMap = new Map();
+  const epMap = new Map();
+  const axMap = new Map();
+
+  for (const r of results) {
+    if (!r.fm || r.fm.$kind !== 'instance') continue;
+    const obj = r.fm;
+    const id  = obj.id;
+    if (!id) continue;
+    if (obj.$conforms_to === TRANSITION_CONTRACT) {
+      trMap.set(id, { file: r.file, obj, findingsRef: r.findings });
+    } else if (obj.$conforms_to === STATE_SNAPSHOT_CONTRACT) {
+      ssMap.set(id, { file: r.file, obj, findingsRef: r.findings });
+    } else if (obj.$conforms_to === EPISODE_CONTRACT) {
+      epMap.set(id, { file: r.file, obj, findingsRef: r.findings });
+    } else if (obj.$conforms_to === ACTION_EXECUTION_CONTRACT) {
+      axMap.set(id, { file: r.file, obj, findingsRef: r.findings });
+    }
+  }
+
+  for (const { file, obj, findingsRef } of trMap.values()) {
+    // TR-1：episodeId 必须在 Episode 索引中存在
+    if (!obj.episodeId || !epMap.has(obj.episodeId)) {
+      findingsRef.push({ file, line: 1, code: 'bad-transition-episode-ref', level: 'error',
+        msg: `Transition.episodeId 无法在 Episode 索引中解析：${obj.episodeId}` });
+    }
+
+    // TR-2：fromSnapshotId / toSnapshotId 必须都能 resolve，且不得相同
+    const fromOk = obj.fromSnapshotId && ssMap.has(obj.fromSnapshotId);
+    const toOk   = obj.toSnapshotId   && ssMap.has(obj.toSnapshotId);
+    if (!fromOk || !toOk) {
+      findingsRef.push({ file, line: 1, code: 'bad-transition-snapshot-ref', level: 'error',
+        msg: `Transition.fromSnapshotId 或 toSnapshotId 无法在 StateSnapshot 索引中解析：${obj.fromSnapshotId} / ${obj.toSnapshotId}` });
+    }
+    if (obj.fromSnapshotId && obj.fromSnapshotId === obj.toSnapshotId) {
+      findingsRef.push({ file, line: 1, code: 'same-transition-endpoints', level: 'error',
+        msg: `Transition.fromSnapshotId === toSnapshotId：${obj.fromSnapshotId}` });
+    }
+
+    // TR-3：causedByActionId 若存在，必须在 ActionExecution 索引中存在
+    if (obj.causedByActionId && !axMap.has(obj.causedByActionId)) {
+      findingsRef.push({ file, line: 1, code: 'bad-transition-action-ref', level: 'error',
+        msg: `Transition.causedByActionId 无法在 ActionExecution 索引中解析：${obj.causedByActionId}` });
+    }
+  }
+}
+
+/** §19 MechanismClass binding pass：五条结构合法性与最小关联真值检查（在 checkTransitionBindings 之后调用）。
+ *
+ * 索引：
+ *   mcMap ← conforms_to 含 'mechanism-class-contract'
+ *   mpMap ← conforms_to 含 'mechanism-program-contract'
+ */
+async function checkMechanismClassBindings(results) {
+  const MECHANISM_CLASS_CONTRACT   = 'docs/current/mechanism-class-contract.md';
+  const MECHANISM_PROGRAM_CONTRACT = 'docs/current/mechanism-program-contract.md';
+
+  const mcMap = new Map(); // MechanismClass: id → { file, obj, findingsRef }
+  const mpMap = new Map(); // MechanismProgram: id → { file, obj, findingsRef }
+
+  for (const r of results) {
+    if (!r.fm || r.fm.$kind !== 'instance') continue;
+    const obj = r.fm;
+    const id  = obj.id;
+    if (!id) continue;
+    if (obj.$conforms_to === MECHANISM_CLASS_CONTRACT) {
+      mcMap.set(id, { file: r.file, obj, findingsRef: r.findings });
+    } else if (obj.$conforms_to === MECHANISM_PROGRAM_CONTRACT) {
+      mpMap.set(id, { file: r.file, obj, findingsRef: r.findings });
+    }
+  }
+
+  for (const { file, obj, findingsRef } of mcMap.values()) {
+    // MC-1：id 格式必须符合 MC_<slug>_<hex4>
+    if (!obj.id || !/^MC_[a-z0-9_]{1,32}_[0-9a-f]{4}$/.test(obj.id)) {
+      findingsRef.push({ file, line: 1, code: 'bad-mechanism-class-id', level: 'error',
+        msg: `MechanismClass.id 不符合 MC_<slug>_<hex4> 格式：${obj.id}` });
+    }
+
+    // MC-2：compilation_status=compiled 时 supporting_episode_ids.length >= 2
+    if (obj.compilation_status === 'compiled') {
+      const eps = Array.isArray(obj.supporting_episode_ids) ? obj.supporting_episode_ids : [];
+      if (eps.length < 2) {
+        findingsRef.push({ file, line: 1, code: 'compiled-mechanism-without-support', level: 'error',
+          msg: `MechanismClass.compilation_status=compiled 但 supporting_episode_ids 数量不足（当前 ${eps.length}，需要 >= 2）` });
+      }
+    }
+
+    // MC-3：observable_signatures 必须覆盖所有 phases[*].expected_observations
+    if (Array.isArray(obj.phases) && Array.isArray(obj.observable_signatures)) {
+      const sigSet = new Set(obj.observable_signatures);
+      for (const phase of obj.phases) {
+        const obs = Array.isArray(phase.expected_observations) ? phase.expected_observations : [];
+        for (const o of obs) {
+          if (!sigSet.has(o)) {
+            findingsRef.push({ file, line: 1, code: 'mechanism-observation-signature-gap', level: 'error',
+              msg: `MechanismClass.observable_signatures 缺少来自 phase "${phase.name}" 的观测特征 "${o}"` });
+          }
+        }
+      }
+    }
+
+    // MC-4：intervention_points 中的每个名称必须存在于 phases[*].name
+    if (Array.isArray(obj.phases) && Array.isArray(obj.intervention_points)) {
+      const phaseNames = new Set(obj.phases.map(p => p.name));
+      for (const point of obj.intervention_points) {
+        if (!phaseNames.has(point)) {
+          findingsRef.push({ file, line: 1, code: 'mechanism-intervention-point-missing', level: 'error',
+            msg: `MechanismClass.intervention_points 中的 "${point}" 不对应任何 phase.name` });
+        }
+      }
+    }
+
+    // MC-5：mechanismProgramIds 中的每个 id 必须能 resolve 到 MechanismProgram
+    if (Array.isArray(obj.mechanismProgramIds)) {
+      for (const mpId of obj.mechanismProgramIds) {
+        if (!mpMap.has(mpId)) {
+          findingsRef.push({ file, line: 1, code: 'bad-mechanism-program-ref', level: 'error',
+            msg: `MechanismClass.mechanismProgramIds 引用不存在：${mpId}` });
+        }
+      }
+    }
+  }
+}
+
+/** §20 ProgramRevisionProposal binding pass：四条跨文件绑定真值检查（在 checkMechanismClassBindings 之后调用）。
+ *
+ * 索引：
+ *   prpMap ← conforms_to = 'docs/current/program-revision-proposal-contract.md'
+ *   peMap  ← conforms_to = 'docs/current/prediction-error-contract.md'
+ *   mpMap  ← conforms_to = 'docs/current/mechanism-program-contract.md'
+ *   omMap  ← conforms_to = 'docs/current/observation-model-contract.md'
+ */
+async function checkProgramRevisionProposalBindings(results) {
+  const PRP_CONTRACT = 'docs/current/program-revision-proposal-contract.md';
+  const PE_CONTRACT  = 'docs/current/prediction-error-contract.md';
+  const MP_CONTRACT  = 'docs/current/mechanism-program-contract.md';
+  const OM_CONTRACT  = 'docs/current/observation-model-contract.md';
+
+  const VALID_STATUSES = new Set(['proposed', 'accepted', 'rejected', 'superseded']);
+
+  const prpMap = new Map();
+  const peMap  = new Map();
+  const mpMap  = new Map();
+  const omMap  = new Map();
+
+  for (const r of results) {
+    if (!r.fm || r.fm.$kind !== 'instance') continue;
+    const obj = r.fm;
+    const id  = obj.id;
+    if (!id) continue;
+    if      (obj.$conforms_to === PRP_CONTRACT) prpMap.set(id, { file: r.file, obj, findingsRef: r.findings });
+    else if (obj.$conforms_to === PE_CONTRACT)  peMap.set(id,  { file: r.file, obj, findingsRef: r.findings });
+    else if (obj.$conforms_to === MP_CONTRACT)  mpMap.set(id,  { file: r.file, obj, findingsRef: r.findings });
+    else if (obj.$conforms_to === OM_CONTRACT)  omMap.set(id,  { file: r.file, obj, findingsRef: r.findings });
+  }
+
+  for (const { file, obj, findingsRef } of prpMap.values()) {
+    // PRP-1：basedOnPredictionErrorIds 全部可解析
+    if (!Array.isArray(obj.basedOnPredictionErrorIds) || obj.basedOnPredictionErrorIds.length < 1) {
+      findingsRef.push({ file, line: 1, code: 'bad-prp-prediction-error-ref', level: 'error',
+        msg: `ProgramRevisionProposal.basedOnPredictionErrorIds 缺失或为空` });
+    } else {
+      for (const peId of obj.basedOnPredictionErrorIds) {
+        if (!peMap.has(peId)) {
+          findingsRef.push({ file, line: 1, code: 'bad-prp-prediction-error-ref', level: 'error',
+            msg: `ProgramRevisionProposal.basedOnPredictionErrorIds 引用不存在：${peId}` });
+        }
+      }
+    }
+
+    // PRP-2：targetRef 能按 targetKind resolve 到真实对象
+    if (!obj.targetRef || String(obj.targetRef).trim() === '') {
+      findingsRef.push({ file, line: 1, code: 'bad-prp-target-ref', level: 'error',
+        msg: `ProgramRevisionProposal.targetRef 缺失` });
+    } else if (obj.targetKind === 'mechanism_program' && !mpMap.has(obj.targetRef)) {
+      findingsRef.push({ file, line: 1, code: 'bad-prp-target-ref', level: 'error',
+        msg: `ProgramRevisionProposal.targetRef 指向 mechanism_program 但不存在：${obj.targetRef}` });
+    } else if (obj.targetKind === 'observation_model' && !omMap.has(obj.targetRef)) {
+      findingsRef.push({ file, line: 1, code: 'bad-prp-target-ref', level: 'error',
+        msg: `ProgramRevisionProposal.targetRef 指向 observation_model 但不存在：${obj.targetRef}` });
+    }
+
+    // PRP-3：status 必须是合法值
+    if (!obj.status || !VALID_STATUSES.has(obj.status)) {
+      findingsRef.push({ file, line: 1, code: 'bad-prp-status', level: 'error',
+        msg: `ProgramRevisionProposal.status 非法：${obj.status ?? '<missing>'}` });
+    }
+
+    // PRP-4：rationale 非空
+    if (!obj.rationale || String(obj.rationale).trim() === '') {
+      findingsRef.push({ file, line: 1, code: 'empty-prp-rationale', level: 'error',
+        msg: `ProgramRevisionProposal.rationale 为空` });
+    }
+  }
+}
+
 async function main() {
   const targets = await collectTargets();
   const results = [];
@@ -845,6 +1412,15 @@ async function main() {
   checkDuplicateTruth(results);
   await checkV7Bindings(results);
   await checkObservationModelBindings(results);
+  await checkCounterfactualBindings(results);
+  await checkExperimentDesignBindings(results);
+  await checkActionExecutionBindings(results);
+  await checkOutcomeRecordBindings(results);
+  await checkPredictionErrorBindings(results);
+  await checkStateSnapshotBindings(results);
+  await checkTransitionBindings(results);
+  await checkMechanismClassBindings(results);
+  await checkProgramRevisionProposalBindings(results);
 
   // kind 分布
   const kindDist = { contract: 0, instance: 0, record: 0, code: 0, index: 0, legacy_I: 0, legacy_II: 0, missing: 0 };
@@ -874,6 +1450,49 @@ async function main() {
     bad_observation_model_ref: [],
     supportlink_observation_chain_broken: [],
     orphan_current_observation_model: [],
+    // Counterfactual binding pass（§12）
+    bad_counterfactual_episode_ref: [],
+    bad_counterfactual_reconstruction_ref: [],
+    bad_counterfactual_program_ref: [],
+    empty_counterfactual_assumptions: [],
+    // ExperimentDesign binding pass（§13）
+    bad_experiment_design_episode_ref: [],
+    bad_experiment_design_counterfactual_ref: [],
+    recommended_action_outside_candidates: [],
+    // ActionExecution binding pass（§14）
+    bad_action_execution_design_ref: [],
+    bad_action_execution_source_episode_ref: [],
+    bad_action_execution_target_episode_ref: [],
+    action_execution_ref_mismatch: [],
+    // OutcomeRecord binding pass（§15）
+    bad_outcome_record_episode_ref: [],
+    bad_outcome_record_action_ref: [],
+    bad_outcome_record_status: [],
+    empty_outcome_record_summary: [],
+    // PredictionError binding pass（§16）
+    bad_prediction_error_action_ref: [],
+    bad_prediction_error_outcome_ref: [],
+    bad_prediction_error_counterfactual_ref: [],
+    empty_prediction_error_summary: [],
+    // StateSnapshot binding pass（§17）
+    bad_state_snapshot_episode_ref: [],
+    empty_state_snapshot_values: [],
+    // Transition binding pass（§18）
+    bad_transition_episode_ref: [],
+    bad_transition_snapshot_ref: [],
+    same_transition_endpoints: [],
+    bad_transition_action_ref: [],
+    // MechanismClass binding pass（§19）
+    bad_mechanism_class_id: [],
+    compiled_mechanism_without_support: [],
+    mechanism_observation_signature_gap: [],
+    mechanism_intervention_point_missing: [],
+    bad_mechanism_program_ref: [],
+    // ProgramRevisionProposal binding pass（§20）
+    bad_prp_prediction_error_ref: [],
+    bad_prp_target_ref: [],
+    bad_prp_status: [],
+    empty_prp_rationale: [],
   };
   const codeToBucket = {
     'missing-conforms-to': 'missing_conforms_to',
@@ -901,6 +1520,49 @@ async function main() {
     'bad-observation-model-ref':                'bad_observation_model_ref',
     'supportlink-observation-chain-broken':     'supportlink_observation_chain_broken',
     'orphan-current-observation-model':         'orphan_current_observation_model',
+    // Counterfactual binding pass（§12）
+    'bad-counterfactual-episode-ref':           'bad_counterfactual_episode_ref',
+    'bad-counterfactual-reconstruction-ref':    'bad_counterfactual_reconstruction_ref',
+    'bad-counterfactual-program-ref':           'bad_counterfactual_program_ref',
+    'empty-counterfactual-assumptions':         'empty_counterfactual_assumptions',
+    // ExperimentDesign binding pass（§13）
+    'bad-experiment-design-episode-ref':        'bad_experiment_design_episode_ref',
+    'bad-experiment-design-counterfactual-ref': 'bad_experiment_design_counterfactual_ref',
+    'recommended-action-outside-candidates':    'recommended_action_outside_candidates',
+    // ActionExecution binding pass（§14）
+    'bad-action-execution-design-ref':          'bad_action_execution_design_ref',
+    'bad-action-execution-source-episode-ref':  'bad_action_execution_source_episode_ref',
+    'bad-action-execution-target-episode-ref':  'bad_action_execution_target_episode_ref',
+    'action-execution-ref-mismatch':            'action_execution_ref_mismatch',
+    // OutcomeRecord binding pass（§15）
+    'bad-outcome-record-episode-ref':   'bad_outcome_record_episode_ref',
+    'bad-outcome-record-action-ref':    'bad_outcome_record_action_ref',
+    'bad-outcome-record-status':        'bad_outcome_record_status',
+    'empty-outcome-record-summary':     'empty_outcome_record_summary',
+    // PredictionError binding pass（§16）
+    'bad-prediction-error-action-ref':          'bad_prediction_error_action_ref',
+    'bad-prediction-error-outcome-ref':         'bad_prediction_error_outcome_ref',
+    'bad-prediction-error-counterfactual-ref':  'bad_prediction_error_counterfactual_ref',
+    'empty-prediction-error-summary':           'empty_prediction_error_summary',
+    // StateSnapshot binding pass（§17）
+    'bad-state-snapshot-episode-ref':           'bad_state_snapshot_episode_ref',
+    'empty-state-snapshot-values':              'empty_state_snapshot_values',
+    // Transition binding pass（§18）
+    'bad-transition-episode-ref':               'bad_transition_episode_ref',
+    'bad-transition-snapshot-ref':              'bad_transition_snapshot_ref',
+    'same-transition-endpoints':                'same_transition_endpoints',
+    'bad-transition-action-ref':                'bad_transition_action_ref',
+    // MechanismClass binding pass（§19）
+    'bad-mechanism-class-id':                   'bad_mechanism_class_id',
+    'compiled-mechanism-without-support':       'compiled_mechanism_without_support',
+    'mechanism-observation-signature-gap':      'mechanism_observation_signature_gap',
+    'mechanism-intervention-point-missing':     'mechanism_intervention_point_missing',
+    'bad-mechanism-program-ref':                'bad_mechanism_program_ref',
+    // ProgramRevisionProposal binding pass（§20）
+    'bad-prp-prediction-error-ref':  'bad_prp_prediction_error_ref',
+    'bad-prp-target-ref':            'bad_prp_target_ref',
+    'bad-prp-status':                'bad_prp_status',
+    'empty-prp-rationale':           'empty_prp_rationale',
   };
   for (const r of results) {
     for (const f of r.findings) {
@@ -979,7 +1641,7 @@ async function main() {
   process.exit(errors.length > 0 ? 1 : 0);
 }
 
-export { checkV7Bindings, checkObservationModelBindings };
+export { checkV7Bindings, checkObservationModelBindings, checkCounterfactualBindings, checkExperimentDesignBindings, checkActionExecutionBindings, checkOutcomeRecordBindings, checkPredictionErrorBindings, checkStateSnapshotBindings, checkTransitionBindings, checkMechanismClassBindings, checkProgramRevisionProposalBindings };
 
 const _IS_MAIN = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename);
 if (_IS_MAIN) {

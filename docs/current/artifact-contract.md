@@ -87,9 +87,9 @@ artifacts/<run_id>/
 
 ---
 
-## 5. v7 对象导出目录
+## 5. v7/v8 对象导出目录
 
-v7 对象实例文件通过 `scripts/export-v7-artifacts.mjs` 产出，落盘到独立的 `run_id` 目录，与 eval/bench 产物分离。
+v7/v8 对象实例文件通过 `scripts/export-v7-artifacts.mjs` 产出，落盘到独立的 `run_id` 目录，与 eval/bench 产物分离。
 
 ### 5.1 目录结构
 
@@ -99,7 +99,17 @@ artifacts/<v7e_run_id>/                   # v7 export run（YYYYMMDD-v7e-XXXX）
 ├── ontology_deltas/<id>.json             # conforms_to: ontology-delta-contract.md
 ├── derivation_chains/<id>.json           # conforms_to: derivation-chain-contract.md
 ├── mechanism_instances/<id>.json         # conforms_to: mechanism-instance-contract.md
-└── episodes/<id>.json                    # conforms_to: v7-world-model-contract.md
+├── action_executions/<id>.json           # conforms_to: action-execution-contract.md
+├── mechanism_programs/<id>.json          # conforms_to: mechanism-program-contract.md
+├── episodes/<id>.json                    # conforms_to: v7-world-model-contract.md
+├── counterfactual_scenarios/<id>.json    # conforms_to: counterfactual-scenario-contract.md
+├── experiment_designs/<id>.json          # conforms_to: experiment-design-contract.md
+├── outcome_records/<id>.json             # conforms_to: outcome-record-contract.md
+├── prediction_errors/<id>.json           # conforms_to: prediction-error-contract.md
+├── state_snapshots/<id>.json             # conforms_to: state-snapshot-contract.md
+├── transitions/<id>.json                 # conforms_to: transition-contract.md
+├── mechanism_classes/<id>.json           # conforms_to: mechanism-class-contract.md
+└── program_revision_proposals/<id>.json  # conforms_to: program-revision-proposal-contract.md
 ```
 
 `v7e_run_id` 格式：`YYYYMMDD-v7e-XXXX`（XXXX 为时间戳 base36 后 4 位）。
@@ -122,6 +132,35 @@ artifacts/<v7e_run_id>/                   # v7 export run（YYYYMMDD-v7e-XXXX）
 | 产物类型 | run_id 格式 | 主要消费者 |
 |---------|------------|-----------|
 | eval/bench 运行 | `YYYYMMDD-NNN` | CI metrics 对比、人工 review |
-| v7 对象导出 | `YYYYMMDD-v7e-XXXX` | `contract-audit` §10 binding pass |
+| v7/v8 对象导出 | `YYYYMMDD-v7e-XXXX` | `contract-audit` §10–§18 binding pass |
 
-两类产物均纳入 `contract-audit` 扫描范围（`artifacts/**/*.json`），但 binding pass 只对 `kind=instance` 且 `format=json` 的 v7 文件生效。
+两类产物均纳入 `contract-audit` 扫描范围（`artifacts/**/*.json`），但 binding pass 只对 `kind=instance` 且 `format=json` 的 v7 文件生效（§10–§19）。
+
+---
+
+## 6. MechanismClass de-proxy 当前状态
+
+截至 2026-04-14，`export-v7-artifacts.mjs` 新导出的主链实例：
+
+- `mechanism_instances/*.json`
+- `reconstructions/*.json`
+- `mechanism_programs/*.json`
+
+已经默认改用真实 `MechanismClass.id = MC_*`，不再为新 run 生成新的 `proxy:*`。
+
+### 6.1 历史产物说明
+
+历史 `artifacts/<old_run>/` 目录中仍可能存在旧的 `proxy:*` 引用。这些是**已发布历史产物**，不应被回写或清理，本合同只约束：
+
+- 新导出 run 不再新增 `proxy:*`
+- 主链身份以真实 `MC_*` 为准
+
+### 6.2 尚未宣称完成的部分
+
+这并不等同于：
+
+- `MechanismClass` 已完成多 Episode 归并
+- `MechanismClass` 已完成 promotion gate
+- `MechanismClass` 已完成 full replay 语义
+
+当前只收口了**主链身份治理**，没有扩展到更高层本体演化语义。

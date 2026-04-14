@@ -14,6 +14,7 @@
  *   ontology_deltas/<id>.json        ← ontology-delta-contract.md
  *   derivation_chains/<id>.json      ← derivation-chain-contract.md
  *   mechanism_instances/<id>.json    ← mechanism-instance-contract.md
+ *   action_executions/<id>.json      ← action-execution-contract.md
  *   episodes/<id>.json               ← v7-world-model-contract.md
  *
  * 用法（从项目根）：
@@ -91,6 +92,16 @@ async function main() {
     observation_models:  path.join(runDir, 'observation_models'),
     observation_records: path.join(runDir, 'observation_records'),
     support_links:       path.join(runDir, 'support_links'),
+    mechanism_programs:          path.join(runDir, 'mechanism_programs'),
+    counterfactual_scenarios:    path.join(runDir, 'counterfactual_scenarios'),
+    experiment_designs:          path.join(runDir, 'experiment_designs'),
+    action_executions:           path.join(runDir, 'action_executions'),
+    outcome_records:             path.join(runDir, 'outcome_records'),
+    prediction_errors:             path.join(runDir, 'prediction_errors'),
+    state_snapshots:               path.join(runDir, 'state_snapshots'),
+    transitions:                   path.join(runDir, 'transitions'),
+    mechanism_classes:             path.join(runDir, 'mechanism_classes'),
+    program_revision_proposals:    path.join(runDir, 'program_revision_proposals'),
   };
   for (const d of Object.values(dirs)) await mkdir(d, { recursive: true });
 
@@ -101,12 +112,24 @@ async function main() {
   const { createMechanismInstance, acceptInstance } = await fromDist('mechanism-instance.js');
   const { createAcceptedReconstruction } = await fromDist('reconstruction.js');
   const { createDerivationTrace }        = await fromDist('derivation-trace.js');
+  const { createCounterfactualScenario } = await fromDist('counterfactual-scenario.js');
+  const { createExperimentDesign }       = await fromDist('experiment-design.js');
+  const { DEFAULT_MECHANISM_PROGRAM_ID } = await fromDist('mechanism-program.js');
+  const { DEFAULT_MECHANISM_CLASS_ID, createDefaultMechanismClass } = await fromDist('mechanism-class.js');
 
   const pipeline = new CausalPipeline({ seedDefaults: false });
   const stats = {
     reconstructions: 0, ontology_deltas: 0, derivation_chains: 0,
     mechanism_instances: 0, episodes: 0, episode_events: 0,
     observation_models: 0, observation_records: 0, support_links: 0,
+    mechanism_programs: 0, counterfactual_scenarios: 0, experiment_designs: 0,
+    action_executions: 0,
+    outcome_records: 0,
+    prediction_errors: 0,
+    state_snapshots: 0,
+    transitions: 0,
+    mechanism_classes: 0,
+    program_revision_proposals: 0,
   };
 
   // ──────────────────────────────────────────────────────────────────────
@@ -222,6 +245,109 @@ async function main() {
     }
   }
 
+  // ──────────────────────────────────────────────────────────────────────
+  // MechanismProgram 导出（CF-3 验证：mechanismProgramRefs 必须可解析）
+  // ──────────────────────────────────────────────────────────────────────
+  for (const mp of pipeline.mechanismPrograms.listAll()) {
+    await writeArtifact(dirs.mechanism_programs, `${mp.id}.json`, mp, 'docs/current/mechanism-program-contract.md');
+    stats.mechanism_programs++;
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
+  // MechanismClass 导出（MC-1~MC-5 验证：class 级结构合法性与程序引用）
+  // ──────────────────────────────────────────────────────────────────────
+  {
+    const defaultMC = {
+      ...createDefaultMechanismClass(),
+      mechanismProgramIds: [DEFAULT_MECHANISM_PROGRAM_ID],
+    };
+    await writeArtifact(dirs.mechanism_classes, `${defaultMC.id}.json`, defaultMC, 'docs/current/mechanism-class-contract.md');
+    stats.mechanism_classes++;
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
+  // CounterfactualScenario + ExperimentDesign 导出
+  // cfA 和 edA 在同一块内，确保 edA 能引用 cfA.id
+  // ──────────────────────────────────────────────────────────────────────
+  {
+    const cfA = createCounterfactualScenario({
+      baseEpisodeId:        fixA.episode.id,
+      baseReconstructionId: fixA.reconstruction.id,
+      modifiedAssumptions: [
+        {
+          targetRef:    'retry_interval_ms',
+          modification: 'set',
+          fromValue:    100,
+          toValue:      500,
+          rationale:    '增加重试间隔，模拟熔断器保护场景',
+        },
+      ],
+      mechanismProgramRefs: [DEFAULT_MECHANISM_PROGRAM_ID],
+      predictedTrajectory: [
+        { step: 0, kind: 'initial_condition', content: 'retry_interval_ms=500',   source: 'program_simulated' },
+        { step: 1, kind: 'latent_phase',      content: '超时频率下降',              source: 'program_simulated' },
+        { step: 2, kind: 'outcome',           content: '服务恢复，错误率降至 <2%', source: 'program_simulated' },
+      ],
+      predictedObservationSignals: ['error_rate', 'latency_p99'],
+      predictedOutcome:  '服务恢复稳定，超时率显著下降',
+      divergencePoints:  ['step 1：重试间隔增大后超时频率与原轨迹分叉'],
+      createdBy:         GENERATED_BY,
+      status:            'draft',
+    });
+    await writeArtifact(dirs.counterfactual_scenarios, `${cfA.id}.json`, cfA, 'docs/current/counterfactual-scenario-contract.md');
+    stats.counterfactual_scenarios++;
+
+    const edA = createExperimentDesign({
+      baseEpisodeId:            fixA.episode.id,
+      basedOnCounterfactualIds: [cfA.id],
+      targetUncertaintyRefs:    ['mechanism.retry_backoff', 'outcome.service_stability'],
+      candidateMeasurements:    ['measure_latency_p99', 'measure_error_rate'],
+      candidateInterventions:   ['set_retry_interval_500ms', 'enable_circuit_breaker'],
+      expectedInformationGain:  0.75,
+      discriminatingPower:      { [DEFAULT_MECHANISM_PROGRAM_ID]: 0.82 },
+      safetyConstraints:        ['error_rate < 0.05', 'latency_p99 < 2000ms'],
+      recommendedAction:        'set_retry_interval_500ms',
+      createdBy:                GENERATED_BY,
+      status:                   'draft',
+    });
+    await writeArtifact(dirs.experiment_designs, `${edA.id}.json`, edA, 'docs/current/experiment-design-contract.md');
+    stats.experiment_designs++;
+
+    pipeline.experimentDesigns.save(edA);
+    const axA = pipeline.executeExperimentDesign(edA.id, {
+      operator: GENERATED_BY,
+      outcomeSummary: 'export-v7-artifacts action execution demo',
+    });
+    await writeArtifact(dirs.action_executions, `${axA.execution.id}.json`, axA.execution, 'docs/current/action-execution-contract.md');
+    stats.action_executions++;
+    await writeArtifact(dirs.episodes, `${axA.targetEpisode.id}.json`, axA.targetEpisode, 'docs/current/v7-world-model-contract.md');
+    stats.episodes++;
+    await writeArtifact(dirs.outcome_records, `${axA.outcomeRecord.id}.json`, axA.outcomeRecord, 'docs/current/outcome-record-contract.md');
+    stats.outcome_records++;
+    await writeArtifact(dirs.prediction_errors, `${axA.predictionError.id}.json`, axA.predictionError, 'docs/current/prediction-error-contract.md');
+    stats.prediction_errors++;
+
+    // ProgramRevisionProposal（PRP-1~PRP-4 验证：proposal 指向真实 PE + MechanismProgram/ObservationModel）
+    if (axA.programRevisionProposal) {
+      await writeArtifact(dirs.program_revision_proposals, `${axA.programRevisionProposal.id}.json`, axA.programRevisionProposal, 'docs/current/program-revision-proposal-contract.md');
+      stats.program_revision_proposals++;
+    }
+
+    // StateSnapshot: source initial snapshot + post-action target snapshot
+    if (axA.sourceSnapshot) {
+      await writeArtifact(dirs.state_snapshots, `${axA.sourceSnapshot.id}.json`, axA.sourceSnapshot, 'docs/current/state-snapshot-contract.md');
+      stats.state_snapshots++;
+    }
+    await writeArtifact(dirs.state_snapshots, `${axA.targetSnapshot.id}.json`, axA.targetSnapshot, 'docs/current/state-snapshot-contract.md');
+    stats.state_snapshots++;
+
+    // Transition: initial → post-action
+    if (axA.transition) {
+      await writeArtifact(dirs.transitions, `${axA.transition.id}.json`, axA.transition, 'docs/current/transition-contract.md');
+      stats.transitions++;
+    }
+  }
+
   pipeline.close();
 
   // ──────────────────────────────────────────────────────────────────────
@@ -235,7 +361,7 @@ async function main() {
   const miC = acceptInstance(
     createMechanismInstance({
       episode_id: epIdC,
-      mechanism_class_ref: `proxy:demo_${epIdC}`,
+      mechanism_class_ref: DEFAULT_MECHANISM_CLASS_ID,
       bindings: { slot_0: atomIdC },
       claim_ids: [hypIdC],
     }),

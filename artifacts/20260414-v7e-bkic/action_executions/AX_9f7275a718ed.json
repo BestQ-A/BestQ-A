@@ -1,0 +1,19 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/action-execution-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T10:57:06.875Z",
+  "id": "AX_9f7275a718ed",
+  "basedOnExperimentDesignId": "ED_2e556c85703e",
+  "sourceEpisodeId": "story_fa778fc1",
+  "targetEpisodeId": "story_ac45db8c",
+  "actionRef": "set_retry_interval_500ms",
+  "actionKind": "intervention",
+  "parameters": {},
+  "executionStatus": "completed",
+  "observedOutcomeSummary": "export-v7-artifacts action execution demo",
+  "predictionError": null,
+  "startedAt": "2026-04-14T10:57:06.873Z",
+  "completedAt": "2026-04-14T10:57:06.873Z",
+  "createdBy": "scripts/export-v7-artifacts.mjs"
+}
