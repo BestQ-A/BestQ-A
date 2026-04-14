@@ -12,7 +12,7 @@ describes: "五层世界动力学引擎"
 > v7 的立场不是推翻 v6，而是明确：**v6 是关系法律内核，v7 是整体系统骨架。**
 > 上游设计：[`../design_history/v7_world_model_dynamics.md`](../design_history/v7_world_model_dynamics.md)
 > 被取代的目标态合同：[`v6-world-model-contract.md`](v6-world-model-contract.md)
-> 相关依赖：[`metamodel.md`](metamodel.md)、[`pipeline-contract.md`](pipeline-contract.md)、[`hypothesis-contract.md`](hypothesis-contract.md)、[`compile-promotion-contract.md`](compile-promotion-contract.md)、[`ref-algebra-contract.md`](ref-algebra-contract.md)
+> 相关依赖：[`metamodel.md`](metamodel.md)、[`pipeline-contract.md`](pipeline-contract.md)、[`hypothesis-contract.md`](hypothesis-contract.md)、[`compile-promotion-contract.md`](compile-promotion-contract.md)、[`ref-algebra-contract.md`](ref-algebra-contract.md)、[`support-link-contract.md`](support-link-contract.md)
 
 ---
 
@@ -272,7 +272,7 @@ interface Claim {
 
 interface MechanismInstance {
   id: string;
-  mechanismClassId: string;
+  mechanismClassRef: string;
   episodeId: string;
   bindings: Record<string, string>;
   status: 'candidate' | 'accepted' | 'rejected' | 'superseded';
@@ -345,8 +345,8 @@ interface OntologyDelta {
 | `Transition` | 无显式对象 | 未实现 | 新增 |
 | `OutcomeRecord` | `Story.outcome` | 部分实现 | 从单字段升级为一等对象 |
 | `Claim` | `Hypothesis` | 基本对齐 | 扩展 accepted/rejected/superseded 全语义 |
-| `MechanismInstance` | `PatternInstance` + reconstruction 中的 path proxy | 未显式实现 | 新增桥对象，承接 PatternTemplate 与 Reconstruction |
-| `SupportLink` | Evidence IDs 间接关联 | 未显式实现 | 从附属 ID 升级为显式边 |
+| `MechanismInstance` | `PatternInstance` + reconstruction 中的 path proxy | 部分实现 | 显式桥对象已出现，后续需脱离 path-only 过渡语义 |
+| `SupportLink` | Evidence IDs 间接关联 | 部分实现 | 已有最小类型与专项合同，但仍缺显式持久化/查询层 |
 | `DerivationTrace` | `proof` + `Hypothesis.derivation` | 部分实现 | 聚合为可落盘对象 |
 | `AcceptedReconstruction` | 无显式对象 | 未实现 | 新增 |
 | `Conclusion` | `suggestions` / search result text | 部分实现 | 统一输出合同 |

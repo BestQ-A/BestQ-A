@@ -11,7 +11,7 @@ describes: "机制实例绑定规范"
 > 定义 `MechanismInstance` 的 schema、状态机、不变量，以及它与 `Episode` / `MechanismClass` / `AcceptedReconstruction` 的绑定关系。
 > 它的存在是为了填补当前 v7 结构中的缺口：
 > `MechanismClass` 是抽象模板，`Episode` 是具体经历，但两者之间还缺少“这次经历里，这个机制是如何被具体绑定和裁决”的显式对象。
-> 上游依赖：[v7-world-model-contract.md](v7-world-model-contract.md)、[reconstruction-contract.md](reconstruction-contract.md)、[template-invariant-contract.md](template-invariant-contract.md)
+> 上游依赖：[v7-world-model-contract.md](v7-world-model-contract.md)、[reconstruction-contract.md](reconstruction-contract.md)、[template-invariant-contract.md](template-invariant-contract.md)、[support-link-contract.md](support-link-contract.md)
 
 ---
 
@@ -50,7 +50,7 @@ MechanismInstance:
   id: string                       # 格式: "MI_<episode_id>_<seq>"
 
   # 绑定
-  mechanism_class_id: string       # 指向 MechanismClass
+  mechanism_class_ref: string      # 指向 MechanismClass；draft 阶段允许 `proxy:*`
   episode_id: string               # 指向 Episode
 
   # 绑定细节
@@ -77,12 +77,12 @@ MechanismInstance:
 | 字段 | 约束 |
 |------|------|
 | `id` | 全局唯一 |
-| `mechanism_class_id` | 必须指向已存在的 MechanismClass |
+| `mechanism_class_ref` | draft 阶段允许 `proxy:*` 过渡引用；转 current 前必须指向已存在的 MechanismClass |
 | `episode_id` | 必须指向已存在的 Episode |
 | `bindings` | 非空对象；值必须是本 Episode 内可解析对象的 ID |
 | `source_kind` | 枚举：`pattern_instance` / `path_projection` / `manual` |
 | `claim_ids` | 可为空数组，但不可为 null |
-| `support_link_refs` | 可为空数组，但不可为 null |
+| `support_link_refs` | 可为空数组，但不可为 null；元素未来必须是显式 SupportLink id，不得混入 compiled Ref id |
 | `status` | 枚举：`candidate` / `accepted` / `rejected` / `superseded` |
 | `superseded_by` | `status = superseded` 时必填；否则为 null |
 
@@ -186,7 +186,7 @@ AcceptedReconstruction ──N:1──> MechanismInstance
 | `MechanismInstance` | `PatternInstance` + `AcceptedReconstruction.selectedMechanismIds` | 部分存在但未统一成显式对象 | 新增 `core/mechanism-instance.ts` |
 | `bindings` | `PatternInstance.bindings` | 基本对齐 | 可复用 |
 | `source_kind` | 无 | 未实现 | 新增 |
-| `status` | 无 | 未实现 | 新增 candidate/accepted/rejected 裁决 |
+| `status` | 无 | 已出现最小状态机 | 后续接入持久化与 audit 第二轮 |
 
 ---
 
