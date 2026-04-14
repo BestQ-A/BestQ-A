@@ -57,6 +57,9 @@ export interface MechanismClass {
   created_by: string;
 }
 
+/** 固定默认 MechanismClass（第一轮去 proxy 过渡用） */
+export const DEFAULT_MECHANISM_CLASS_ID = 'MC_default_path_projection_0000';
+
 // ============================================================
 // 内部工具函数
 // ============================================================
@@ -84,6 +87,7 @@ function hex4(): string {
 // ============================================================
 
 interface CreateMechanismClassInput {
+  id?: string;
   name: string;
   description: string;
   input_slots?: Record<string, string>;
@@ -105,7 +109,7 @@ interface CreateMechanismClassInput {
  * - compilation_status 默认 'candidate'
  */
 export function createMechanismClass(input: CreateMechanismClassInput): MechanismClass {
-  const id = `MC_${toSlug(input.name)}_${hex4()}`;
+  const id = input.id ?? `MC_${toSlug(input.name)}_${hex4()}`;
 
   return {
     id,
@@ -123,6 +127,36 @@ export function createMechanismClass(input: CreateMechanismClassInput): Mechanis
     created_at: input.created_at ?? nowIso(),
     created_by: input.created_by ?? 'system',
   };
+}
+
+/**
+ * 默认观测驱动路径投影机制类（第一轮最小去 proxy）。
+ * 语义仍然保守：它只是让主链第一次具备真实 MC_* 身份。
+ */
+export function createDefaultMechanismClass(): MechanismClass {
+  return createMechanismClass({
+    id: DEFAULT_MECHANISM_CLASS_ID,
+    name: 'default_path_projection',
+    description: '通过 AtomGraph 路径投影形成的默认机制类（第一轮去 proxy 过渡模型）。',
+    input_slots: {
+      slot_0: 'ObservationAtom',
+    },
+    phases: [
+      {
+        name: 'observation_phase',
+        expected_state_changes: [],
+        expected_observations: ['atomId', 'factIndex'],
+      },
+    ],
+    preconditions: [],
+    observable_signatures: ['atomId', 'factIndex'],
+    intervention_points: ['observation_phase'],
+    outcomes: ['mechanism_confirmed', 'mechanism_rejected'],
+    supporting_episode_ids: [],
+    compilation_status: 'candidate',
+    mechanismProgramIds: [],
+    created_by: 'pipeline_system',
+  });
 }
 
 // ============================================================
@@ -149,6 +183,7 @@ export type PromoteResult = PromoteSuccess | PromoteNoPromotion;
  * 门槛（本函数可检验的静态条件）：
  * 1. phases 非空
  * 2. supporting_episode_ids.length >= 2
+ * 3. mechanismProgramIds.length >= 1（至少绑定一个 MechanismProgram）
  *
  * 返回新对象，不修改原对象。
  */
@@ -164,8 +199,47 @@ export function promoteMechanismClass(mc: MechanismClass): PromoteResult {
     };
   }
 
+  if (mc.mechanismProgramIds.length < 1) {
+    return {
+      promoted: false,
+      reason: 'mechanismProgramIds 为空，晋升为 compiled 需至少绑定一个 MechanismProgram',
+    };
+  }
+
   const promoted: MechanismClass = { ...mc, compilation_status: 'compiled' };
   return { promoted: true, mechanism: promoted };
+}
+
+/** 废弃结果 */
+export interface DeprecateSuccess {
+  deprecated: true;
+  mechanism: MechanismClass;
+}
+
+export interface DeprecateNoOp {
+  deprecated: false;
+  reason: string;
+}
+
+export type DeprecateResult = DeprecateSuccess | DeprecateNoOp;
+
+/**
+ * 将 MechanismClass 从 compiled 标记为 deprecated。
+ *
+ * 只有 `compilation_status='compiled'` 的对象可以被废弃。
+ * candidate 直接丢弃，不走 deprecated 路径。
+ *
+ * 返回新对象，不修改原对象。
+ */
+export function deprecateMechanismClass(mc: MechanismClass): DeprecateResult {
+  if (mc.compilation_status !== 'compiled') {
+    return {
+      deprecated: false,
+      reason: `只有 compiled 状态可废弃，当前为 '${mc.compilation_status}'`,
+    };
+  }
+  const deprecated: MechanismClass = { ...mc, compilation_status: 'deprecated' };
+  return { deprecated: true, mechanism: deprecated };
 }
 
 // ============================================================
@@ -184,6 +258,7 @@ export interface ValidationResult {
  * 3. intervention_points 中的每个名称必须对应某个 phase.name
  * 4. compilationStatus = 'compiled' 时 supporting_episode_ids.length >= 2
  * 5. ID 格式符合 MC_<slug>_<hex4>
+ * 6. compilationStatus = 'compiled' 时 mechanismProgramIds.length >= 1
  */
 export function validateMechanismClass(mc: MechanismClass): ValidationResult {
   const errors: string[] = [];
@@ -225,6 +300,13 @@ export function validateMechanismClass(mc: MechanismClass): ValidationResult {
   // 不变量 5：ID 格式 MC_<slug>_<hex4>
   if (!/^MC_[a-z0-9_]{1,32}_[0-9a-f]{4}$/.test(mc.id)) {
     errors.push(`不变量 5 违反：ID "${mc.id}" 不符合格式 MC_<slug>_<hex4>`);
+  }
+
+  // 不变量 6：compiled 状态要求 mechanismProgramIds.length >= 1
+  if (mc.compilation_status === 'compiled' && mc.mechanismProgramIds.length < 1) {
+    errors.push(
+      '不变量 6 违反：compilation_status=\'compiled\' 时 mechanismProgramIds 必须非空（需至少绑定一个 MechanismProgram）'
+    );
   }
 
   return { valid: errors.length === 0, errors };

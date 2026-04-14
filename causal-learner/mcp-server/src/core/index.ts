@@ -424,6 +424,9 @@ export type {
   PromoteSuccess,
   PromoteNoPromotion,
   PromoteResult,
+  DeprecateSuccess,
+  DeprecateNoOp,
+  DeprecateResult,
 } from './mechanism-class.js';
 
 export {
@@ -431,6 +434,7 @@ export {
   createDefaultMechanismClass,
   DEFAULT_MECHANISM_CLASS_ID,
   promoteMechanismClass,
+  deprecateMechanismClass,
   validateMechanismClass,
 } from './mechanism-class.js';
 
