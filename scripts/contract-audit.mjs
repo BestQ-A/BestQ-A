@@ -1398,6 +1398,76 @@ async function checkProgramRevisionProposalBindings(results) {
   }
 }
 
+/**
+ * §21 SupportLink deep binding pass
+ *
+ * 索引：
+ *   slMap ← conforms_to 含 'support-link-contract'          （standalone SL 文件）
+ *   miMap ← conforms_to 含 'mechanism-instance-contract'
+ *   dtMap ← conforms_to 含 'derivation-chain-contract'
+ */
+async function checkSupportLinkDeepBindings(results) {
+  const VALID_POLARITY = new Set(['supports', 'contradicts']);
+
+  const slMap = new Map();
+  const miMap = new Map();
+  const dtMap = new Map();
+
+  for (const r of results) {
+    if (!r.fm || r.fm.$kind !== 'instance') continue;
+    const obj = r.fm;
+    const id  = obj.id;
+    if (!id) continue;
+    const ct = String(obj.$conforms_to ?? '');
+    if      (ct.includes('support-link-contract'))       slMap.set(id, { file: r.file, obj, findingsRef: r.findings });
+    else if (ct.includes('mechanism-instance-contract')) miMap.set(id, { file: r.file, obj, findingsRef: r.findings });
+    else if (ct.includes('derivation-chain-contract'))   dtMap.set(id, { file: r.file, obj, findingsRef: r.findings });
+  }
+
+  // SL-1：polarity 合法性
+  // SL-2：weight [0,1] 合法性
+  for (const { file, obj, findingsRef } of slMap.values()) {
+    if (!obj.polarity || !VALID_POLARITY.has(obj.polarity)) {
+      findingsRef.push({ file, line: 1, code: 'bad-support-link-polarity', level: 'error',
+        msg: `SupportLink.polarity 非法：${obj.polarity ?? '<missing>'}` });
+    }
+    const w = obj.weight;
+    if (w === null || w === undefined || typeof w !== 'number' || w < 0 || w > 1) {
+      findingsRef.push({ file, line: 1, code: 'bad-support-link-weight', level: 'error',
+        msg: `SupportLink.weight 非法：${w ?? '<missing>'}（必须为 [0,1] 区间数值）` });
+    }
+  }
+
+  // SL-3：MechanismInstance.support_link_refs 全部可解析
+  for (const { file, obj, findingsRef } of miMap.values()) {
+    const refs = obj.support_link_refs;
+    if (!Array.isArray(refs)) continue;
+    for (const ref of refs) {
+      if (!slMap.has(ref)) {
+        findingsRef.push({ file, line: 1, code: 'bad-mechanism-instance-support-link-ref', level: 'error',
+          msg: `MechanismInstance.support_link_refs 引用不存在：${ref}` });
+      }
+    }
+  }
+
+  // SL-4：DerivationTrace.supportLinks 内嵌对象 id 必须在 slMap
+  for (const { file, obj, findingsRef } of dtMap.values()) {
+    const links = obj.supportLinks;
+    if (!Array.isArray(links)) continue;
+    for (const link of links) {
+      if (!link || typeof link !== 'object') {
+        findingsRef.push({ file, line: 1, code: 'bad-derivation-trace-support-link', level: 'error',
+          msg: `DerivationTrace.supportLinks 包含非对象元素` });
+        continue;
+      }
+      if (!link.id || !slMap.has(link.id)) {
+        findingsRef.push({ file, line: 1, code: 'bad-derivation-trace-support-link', level: 'error',
+          msg: `DerivationTrace.supportLinks 内嵌元素 id 不在 SupportLink 索引：${link.id ?? '<missing>'}` });
+      }
+    }
+  }
+}
+
 async function main() {
   const targets = await collectTargets();
   const results = [];
@@ -1421,6 +1491,7 @@ async function main() {
   await checkTransitionBindings(results);
   await checkMechanismClassBindings(results);
   await checkProgramRevisionProposalBindings(results);
+  await checkSupportLinkDeepBindings(results);
 
   // kind 分布
   const kindDist = { contract: 0, instance: 0, record: 0, code: 0, index: 0, legacy_I: 0, legacy_II: 0, missing: 0 };
@@ -1493,6 +1564,11 @@ async function main() {
     bad_prp_target_ref: [],
     bad_prp_status: [],
     empty_prp_rationale: [],
+    // SupportLink deep binding pass（§21）
+    bad_support_link_polarity: [],
+    bad_support_link_weight: [],
+    bad_mechanism_instance_support_link_ref: [],
+    bad_derivation_trace_support_link: [],
   };
   const codeToBucket = {
     'missing-conforms-to': 'missing_conforms_to',
@@ -1563,6 +1639,11 @@ async function main() {
     'bad-prp-target-ref':            'bad_prp_target_ref',
     'bad-prp-status':                'bad_prp_status',
     'empty-prp-rationale':           'empty_prp_rationale',
+    // SupportLink deep binding pass（§21）
+    'bad-support-link-polarity':                  'bad_support_link_polarity',
+    'bad-support-link-weight':                    'bad_support_link_weight',
+    'bad-mechanism-instance-support-link-ref':    'bad_mechanism_instance_support_link_ref',
+    'bad-derivation-trace-support-link':          'bad_derivation_trace_support_link',
   };
   for (const r of results) {
     for (const f of r.findings) {
@@ -1641,7 +1722,7 @@ async function main() {
   process.exit(errors.length > 0 ? 1 : 0);
 }
 
-export { checkV7Bindings, checkObservationModelBindings, checkCounterfactualBindings, checkExperimentDesignBindings, checkActionExecutionBindings, checkOutcomeRecordBindings, checkPredictionErrorBindings, checkStateSnapshotBindings, checkTransitionBindings, checkMechanismClassBindings, checkProgramRevisionProposalBindings };
+export { checkV7Bindings, checkObservationModelBindings, checkCounterfactualBindings, checkExperimentDesignBindings, checkActionExecutionBindings, checkOutcomeRecordBindings, checkPredictionErrorBindings, checkStateSnapshotBindings, checkTransitionBindings, checkMechanismClassBindings, checkProgramRevisionProposalBindings, checkSupportLinkDeepBindings };
 
 const _IS_MAIN = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename);
 if (_IS_MAIN) {
