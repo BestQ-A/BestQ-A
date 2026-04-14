@@ -143,6 +143,7 @@ job 始终上传 `artifacts/contract-audit-latest.json` 作为 workflow artifact
 |------|------|------|
 | 1.0 | 2026-04-13 | 初稿：7 条规则 + 4 种 status + CI job + 豁免机制 |
 | 1.1 | 2026-04-13 | 新增第 8 节「文件正交规矩」：R1/R2/R3/R4 四条规则 + kind 二分 + describes 约束 + 密度门禁 + 跨文件真相去重 |
+| 1.2 | 2026-04-14 | 新增 §10「v7 绑定 pass」：五条跨文件绑定真值规则 R16–R20（V7-1 ~ V7-5），新增 5 个错误码 |
 
 ---
 
@@ -329,3 +330,56 @@ density    = link_bytes / total
 ### 9.6 豁免机制
 
 R5–R15 的 warning 均可通过 `<!-- audit-ignore: <code> -->` 豁免（仅在 markdown 文件中解析注释）。R6–R9 的 error（绑定缺失 / 目标非法）**不可豁免**——绑定是 instance / record 的命脉，没有例外。
+
+---
+
+## 10. v7 绑定 pass（R16–R20）
+
+本节增加第二阶段"跨文件绑定审计"，在 `main()` 聚合所有 `auditFile()` 结果后执行（对应实现函数 `checkV7Bindings(results)`，在 `checkDuplicateTruth(results)` 之后调用）。
+
+只对 `kind=instance` 且 `format=json` 的条目生效，检查 v7 五类核心对象之间的引用完整性。此轮只验证**存在性与绑定性**，不做语义合理性检查。
+
+### 10.1 五条绑定规则
+
+| # | 规则 | 错误码 | 级别 | 说明 |
+|---|------|--------|------|------|
+| R16 (V7-1) | AcceptedReconstruction.mechanism_instance_ids 全部 resolvable | `bad-mechanism-instance-ref` | error | ids 数组中每个 id 必须在 mechanism instance 索引中存在 |
+| R17 (V7-2) | Episode.ontologyDeltaId resolvable | `bad-ontology-delta-ref` | error | ontologyDeltaId 必须能在 ontology delta 索引中找到 |
+| R18 (V7-3) | reconstruction.traceId ↔ trace.reconstructionId 双向一致 | `trace-reconstruction-mismatch` | error | reconstruction.traceId 指向的 trace 必须存在，且 trace.reconstructionId 必须等于 reconstruction.id |
+| R19 (V7-4) | OntologyDelta.kind=none 时 no_update_reason 完整 | `missing-no-update-reason` | error | no_update_reason.reason_kind 与 .explanation 均不能缺失或为空 |
+| R20 (V7-5) | MechanismInstance.status=accepted 时有支撑证据 | `accepted-instance-without-support` | error | claim_ids.length > 0 或 support_link_refs.length > 0 至少一个成立 |
+
+### 10.2 对象索引方式
+
+按 `$conforms_to` 字段的路径片段分组，索引 key 为对象根字段 `id`：
+
+| 对象类型 | `conforms_to` 包含片段 |
+|---------|----------------------|
+| AcceptedReconstruction | `reconstruction-contract` |
+| OntologyDelta | `ontology-delta-contract` |
+| DerivationTrace | `derivation-chain-contract` |
+| MechanismInstance | `mechanism-instance-contract` |
+| Episode | `v7-world-model-contract` |
+
+### 10.3 findings 回写策略
+
+- 所有 binding error 挂到**被检查对象自身的文件**上，不写到全局汇总
+- R18（V7-3）不一致时 reconstruction 和 trace 两侧都写错误
+
+### 10.4 新增错误码
+
+| 错误码 | 级别 | 触发条件 |
+|--------|------|----------|
+| `bad-mechanism-instance-ref` | error | AcceptedReconstruction.mechanism_instance_ids 中的 id 在 MI 索引中不存在 |
+| `bad-ontology-delta-ref` | error | Episode.ontologyDeltaId 在 delta 索引中不存在 |
+| `trace-reconstruction-mismatch` | error | trace↔reconstruction 双向引用不一致，或 traceId 指向的 trace 不存在 |
+| `missing-no-update-reason` | error | OntologyDelta.kind=none 但 no_update_reason 字段缺失或 reason_kind/explanation 为空 |
+| `accepted-instance-without-support` | error | MechanismInstance.status=accepted 但 claim_ids 和 support_link_refs 均为空 |
+
+### 10.5 限制与非目标（第一轮）
+
+- 不检查 fidelity 合理性
+- 不检查 replay 正确性
+- 不检查 `selectedMechanismIds` 是否仍为 proxy 引用
+- 不检查 `MechanismClass` 是否真实存在
+- 不解析 `support_link_refs` 指向的 SupportLink 对象

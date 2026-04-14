@@ -651,6 +651,101 @@ async function collectTargets() {
   return targets;
 }
 
+/** §10 v7 绑定 pass：五条跨文件绑定真值检查（在 main 聚合结果后调用）。 */
+async function checkV7Bindings(results) {
+  // 只看 kind=instance 且 format=json 的条目
+  const instanceResults = results.filter(r => r.kind === 'instance' && r.format === 'json');
+
+  // 从磁盘读取完整 JSON（支持 _parsedObj 注入，用于单元测试跳过磁盘读取）
+  const getObj = async (r) => {
+    if (r._parsedObj) return r._parsedObj;
+    try {
+      const text = await readFile(path.resolve(ROOT, r.file), 'utf8');
+      return JSON.parse(stripBom(text));
+    } catch { return null; }
+  };
+
+  // 按 conforms_to 分组，建立五个索引 Map<id, {file, obj, findingsRef}>
+  const reconMap  = new Map();  // reconstruction-contract
+  const deltaMap  = new Map();  // ontology-delta-contract
+  const traceMap  = new Map();  // derivation-chain-contract
+  const miMap     = new Map();  // mechanism-instance-contract
+  const epMap     = new Map();  // v7-world-model-contract
+
+  for (const r of instanceResults) {
+    const ct  = String(r.fm.conforms_to || '');
+    const obj = await getObj(r);
+    if (!obj || typeof obj !== 'object') continue;
+    const id = obj.id;
+    if (!id) continue;
+    const entry = { file: r.file, obj, findingsRef: r.findings };
+    if      (ct.includes('reconstruction-contract'))     reconMap.set(id, entry);
+    else if (ct.includes('ontology-delta-contract'))     deltaMap.set(id, entry);
+    else if (ct.includes('derivation-chain-contract'))   traceMap.set(id, entry);
+    else if (ct.includes('mechanism-instance-contract')) miMap.set(id, entry);
+    else if (ct.includes('v7-world-model-contract'))     epMap.set(id, entry);
+  }
+
+  // V7-1：AcceptedReconstruction.mechanism_instance_ids 全部 resolvable
+  for (const { file, obj, findingsRef } of reconMap.values()) {
+    const ids = obj.mechanism_instance_ids;
+    if (!Array.isArray(ids) || ids.length === 0) continue;
+    for (const miId of ids) {
+      if (!miMap.has(miId)) {
+        findingsRef.push({ file, line: 1, code: 'bad-mechanism-instance-ref', level: 'error',
+          msg: `mechanism_instance_ids 引用不存在：${miId}` });
+      }
+    }
+  }
+
+  // V7-2：Episode.ontologyDeltaId resolvable
+  for (const { file, obj, findingsRef } of epMap.values()) {
+    const deltaId = obj.ontologyDeltaId;
+    if (!deltaId) continue;
+    if (!deltaMap.has(deltaId)) {
+      findingsRef.push({ file, line: 1, code: 'bad-ontology-delta-ref', level: 'error',
+        msg: `ontologyDeltaId 引用不存在：${deltaId}` });
+    }
+  }
+
+  // V7-3：reconstruction.traceId ↔ trace.reconstructionId 双向一致
+  for (const { file, obj, findingsRef } of reconMap.values()) {
+    const traceId = obj.traceId;
+    if (!traceId) continue;
+    const te = traceMap.get(traceId);
+    if (!te) {
+      findingsRef.push({ file, line: 1, code: 'trace-reconstruction-mismatch', level: 'error',
+        msg: `traceId 引用不存在：${traceId}` });
+    } else if (te.obj.reconstructionId !== obj.id) {
+      findingsRef.push({ file, line: 1, code: 'trace-reconstruction-mismatch', level: 'error',
+        msg: `traceId=${traceId} 的 trace.reconstructionId(${te.obj.reconstructionId}) ≠ reconstruction.id(${obj.id})` });
+      te.findingsRef.push({ file: te.file, line: 1, code: 'trace-reconstruction-mismatch', level: 'error',
+        msg: `reconstructionId(${te.obj.reconstructionId}) 与 reconstruction 文件(${file})不一致` });
+    }
+  }
+
+  // V7-4：OntologyDelta.kind=none 时 no_update_reason 必须完整
+  for (const { file, obj, findingsRef } of deltaMap.values()) {
+    if (obj.kind !== 'none') continue;
+    const nur = obj.no_update_reason;
+    if (!nur || !nur.reason_kind || !nur.explanation) {
+      findingsRef.push({ file, line: 1, code: 'missing-no-update-reason', level: 'error',
+        msg: `kind=none 时 no_update_reason.reason_kind/explanation 缺失或为空` });
+    }
+  }
+
+  // V7-5：MechanismInstance.status=accepted 时 claim_ids || support_link_refs 非空
+  for (const { file, obj, findingsRef } of miMap.values()) {
+    if (obj.status !== 'accepted') continue;
+    const hasClaims  = Array.isArray(obj.claim_ids)         && obj.claim_ids.length > 0;
+    const hasSupport = Array.isArray(obj.support_link_refs) && obj.support_link_refs.length > 0;
+    if (!hasClaims && !hasSupport) {
+      findingsRef.push({ file, line: 1, code: 'accepted-instance-without-support', level: 'error',
+        msg: `status=accepted 但 claim_ids 与 support_link_refs 均为空` });
+    }
+  }
+}
+
 async function main() {
   const targets = await collectTargets();
   const results = [];
@@ -663,6 +758,7 @@ async function main() {
   }
 
   checkDuplicateTruth(results);
+  await checkV7Bindings(results);
 
   // kind 分布
   const kindDist = { contract: 0, instance: 0, record: 0, code: 0, index: 0, legacy_I: 0, legacy_II: 0, missing: 0 };
@@ -682,6 +778,12 @@ async function main() {
     missing_immutable: [], record_mutated: [],
     missing_implements: [], bad_implements_target: [], implements_wrong_kind: [],
     missing_schema_version: [],
+    // v7 binding pass（§10）
+    bad_mechanism_instance_ref: [],
+    bad_ontology_delta_ref: [],
+    trace_reconstruction_mismatch: [],
+    missing_no_update_reason: [],
+    accepted_instance_without_support: [],
   };
   const codeToBucket = {
     'missing-conforms-to': 'missing_conforms_to',
@@ -699,6 +801,12 @@ async function main() {
     'bad-implements-target': 'bad_implements_target',
     'implements-wrong-kind': 'implements_wrong_kind',
     'missing-schema-version': 'missing_schema_version',
+    // v7 binding pass（§10）
+    'bad-mechanism-instance-ref':       'bad_mechanism_instance_ref',
+    'bad-ontology-delta-ref':           'bad_ontology_delta_ref',
+    'trace-reconstruction-mismatch':    'trace_reconstruction_mismatch',
+    'missing-no-update-reason':         'missing_no_update_reason',
+    'accepted-instance-without-support': 'accepted_instance_without_support',
   };
   for (const r of results) {
     for (const f of r.findings) {
@@ -777,7 +885,12 @@ async function main() {
   process.exit(errors.length > 0 ? 1 : 0);
 }
 
-main().catch(err => {
-  console.error('[contract-audit] 未捕获异常：', err);
-  process.exit(2);
-});
+export { checkV7Bindings };
+
+const _IS_MAIN = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename);
+if (_IS_MAIN) {
+  main().catch(err => {
+    console.error('[contract-audit] 未捕获异常：', err);
+    process.exit(2);
+  });
+}

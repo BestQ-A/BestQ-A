@@ -1,18 +1,18 @@
 {
-  "timestamp": "2026-04-13T15:52:37.799Z",
-  "files_scanned": 59,
+  "timestamp": "2026-04-14T02:23:00.404Z",
+  "files_scanned": 80,
   "errors": [],
   "warnings": [],
   "summary": {
-    "ok": 59,
+    "ok": 80,
     "warn": 0,
     "err": 0
   },
   "kind_distribution": {
-    "contract": 28,
-    "instance": 18,
+    "contract": 30,
+    "instance": 36,
     "record": 2,
-    "code": 10,
+    "code": 11,
     "index": 1,
     "legacy_I": 0,
     "legacy_II": 0,
@@ -33,7 +33,12 @@
     "missing_implements": [],
     "bad_implements_target": [],
     "implements_wrong_kind": [],
-    "missing_schema_version": []
+    "missing_schema_version": [],
+    "bad_mechanism_instance_ref": [],
+    "bad_ontology_delta_ref": [],
+    "trace_reconstruction_mismatch": [],
+    "missing_no_update_reason": [],
+    "accepted_instance_without_support": []
   },
   "density_distribution": [
     {
@@ -54,7 +59,7 @@
     {
       "file": "docs/current/contract-audit-contract.md",
       "kind": "contract",
-      "density": 0.0434
+      "density": 0.0345
     },
     {
       "file": "docs/current/contract-vs-impl-audit.md",
@@ -97,6 +102,16 @@
       "density": 0.1053
     },
     {
+      "file": "docs/current/mechanism-class-contract.md",
+      "kind": "contract",
+      "density": 0
+    },
+    {
+      "file": "docs/current/mechanism-instance-contract.md",
+      "kind": "contract",
+      "density": 0.0414
+    },
+    {
       "file": "docs/current/memory-layer-contract.md",
       "kind": "index",
       "density": 0.7714
@@ -124,7 +139,7 @@
     {
       "file": "docs/current/ontology-delta-contract.md",
       "kind": "contract",
-      "density": 0.0467
+      "density": 0.0431
     },
     {
       "file": "docs/current/pipeline-contract.md",
@@ -139,7 +154,7 @@
     {
       "file": "docs/current/reconstruction-contract.md",
       "kind": "contract",
-      "density": 0.0619
+      "density": 0.0634
     },
     {
       "file": "docs/current/ref-algebra-contract.md",
@@ -179,7 +194,7 @@
     {
       "file": "docs/current/v7-world-model-contract.md",
       "kind": "contract",
-      "density": 0.0654
+      "density": 0.0616
     },
     {
       "file": "docs/bestqa-roadmap.md",
@@ -203,6 +218,11 @@
     },
     {
       "file": "artifacts/20260413-003/summary.md",
+      "kind": "instance",
+      "density": 0
+    },
+    {
+      "file": "artifacts/20260414-001/summary.md",
       "kind": "instance",
       "density": 0
     },
@@ -417,6 +437,204 @@
       "warnings": 0
     },
     {
+      "file": "artifacts/20260414-001/metrics.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260414-001/stats_after.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260414-001/stats_before.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260414-001/summary.md",
+      "format": "md",
+      "status": "draft",
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": 0,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260414-001/verification_report.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260414-v7e-y2w6/derivation_chains/DT_ep_demo_35301b_1a4659.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260414-v7e-y2w6/derivation_chains/DT_story_260c2fea_666bc782.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260414-v7e-y2w6/derivation_chains/DT_story_93531a80_18ed0199.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260414-v7e-y2w6/episodes/story_260c2fea.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260414-v7e-y2w6/episodes/story_93531a80.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260414-v7e-y2w6/mechanism_instances/MI_epdemo_d1e086d0.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260414-v7e-y2w6/mechanism_instances/MI_story26_764d90b7.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260414-v7e-y2w6/mechanism_instances/MI_story93_61a7d5ff.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260414-v7e-y2w6/ontology_deltas/OD_story_260c2fea_351592.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260414-v7e-y2w6/ontology_deltas/OD_story_93531a80_074055.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260414-v7e-y2w6/reconstructions/RC_ep_demo_35301b_1.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260414-v7e-y2w6/reconstructions/RC_story_260c2fea_1.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "artifacts/20260414-v7e-y2w6/reconstructions/RC_story_93531a80_1.json",
+      "format": "json",
+      "status": null,
+      "kind": "instance",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
       "file": "causal-learner/mcp-server/scripts/analyze-open.mjs",
       "format": "js",
       "status": null,
@@ -544,7 +762,7 @@
       "kind": "contract",
       "legacy_kind": null,
       "describes": "契约审计规则规格",
-      "density": 0.0434,
+      "density": 0.0345,
       "errors": 0,
       "warnings": 0
     },
@@ -637,6 +855,28 @@
       "warnings": 0
     },
     {
+      "file": "docs/current/mechanism-class-contract.md",
+      "format": "md",
+      "status": "draft",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "MechanismClass 动力学模板",
+      "density": 0,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/mechanism-instance-contract.md",
+      "format": "md",
+      "status": "draft",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "机制实例绑定规范",
+      "density": 0.0414,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
       "file": "docs/current/memory-layer-contract.md",
       "format": "md",
       "status": "current",
@@ -698,7 +938,7 @@
       "kind": "contract",
       "legacy_kind": null,
       "describes": "本体增量对象规范",
-      "density": 0.0467,
+      "density": 0.0431,
       "errors": 0,
       "warnings": 0
     },
@@ -731,7 +971,7 @@
       "kind": "contract",
       "legacy_kind": null,
       "describes": "过程重建对象规范",
-      "density": 0.0619,
+      "density": 0.0634,
       "errors": 0,
       "warnings": 0
     },
@@ -819,7 +1059,7 @@
       "kind": "contract",
       "legacy_kind": null,
       "describes": "五层世界动力学引擎",
-      "density": 0.0654,
+      "density": 0.0616,
       "errors": 0,
       "warnings": 0
     },
@@ -858,6 +1098,17 @@
     },
     {
       "file": "scripts/eval.mjs",
+      "format": "js",
+      "status": null,
+      "kind": "code",
+      "legacy_kind": null,
+      "describes": null,
+      "density": null,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "scripts/export-v7-artifacts.mjs",
       "format": "js",
       "status": null,
       "kind": "code",
