@@ -120,6 +120,8 @@ export interface Episode extends Story {
   transitionIds: string[];
   /** OutcomeRecord ID（一等结果对象，非裸 outcome 字段） */
   outcomeRecordId?: string;
+  /** EpisodeEvent IDs（按 seq 顺序，构成轻量 timeline） */
+  episodeEventIds: string[];
 }
 
 /** Story -> Episode 兼容转换 */
@@ -131,10 +133,11 @@ export function toEpisode(story: Story): Episode {
       observationAtomIds: [...story.observationAtomIds],
       context: { ...story.context },
     },
-    // ObservationRecord 和 Transition 由管道层在运行时填充；
+    // ObservationRecord / Transition / EpisodeEvent 由管道层在运行时填充；
     // 默认空数组表示"壳已就位，内容待写入"
     observationRecordIds: [],
     transitionIds: [],
+    episodeEventIds: [],
   };
 }
 

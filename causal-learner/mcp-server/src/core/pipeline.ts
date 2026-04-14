@@ -45,6 +45,8 @@ import type { MechanismInstanceStoreStats } from './mechanism-instance-store.js'
 import { DerivationTraceStore } from './derivation-trace-store.js';
 import type { DerivationTraceStoreStats } from './derivation-trace-store.js';
 import { createDerivationTrace } from './derivation-trace.js';
+import { EpisodeEventStore, createEpisodeEvent } from './episode-event-store.js';
+import type { EpisodeEventStoreStats, EpisodeEventKind } from './episode-event-store.js';
 import crypto from 'crypto';
 
 // =============================================================================
@@ -73,6 +75,8 @@ export interface PipelineConfig {
   mechanismInstanceDbPath: string;
   /** DerivationTrace 持久化数据库路径 */
   derivationTraceDbPath: string;
+  /** EpisodeEvent 持久化数据库路径 */
+  episodeEventDbPath: string;
 }
 
 /** 提交观测的输入 */
@@ -159,6 +163,7 @@ export interface PipelineStats {
   hypotheses: { total: number; open: number; validated: number; readyForCompile: number };
   mechanismInstances: MechanismInstanceStoreStats;
   derivationTraces: DerivationTraceStoreStats;
+  episodeEvents: EpisodeEventStoreStats;
 }
 
 // =============================================================================
@@ -182,6 +187,8 @@ export class CausalPipeline {
   readonly mechanismInstances: MechanismInstanceStore;
   /** DerivationTrace 持久化存储 */
   readonly derivationTraces: DerivationTraceStore;
+  /** EpisodeEvent 轻量 timeline 存储 */
+  readonly episodeEvents: EpisodeEventStore;
 
   private rvBuilder: RegulationViewBuilder;
   private config: PipelineConfig;
@@ -198,6 +205,7 @@ export class CausalPipeline {
       seedDefaults:            config.seedDefaults            ?? true,
       mechanismInstanceDbPath: config.mechanismInstanceDbPath ?? ':memory:',
       derivationTraceDbPath:   config.derivationTraceDbPath   ?? ':memory:',
+      episodeEventDbPath:      config.episodeEventDbPath      ?? ':memory:',
     };
     this.config = resolved;
 
@@ -213,6 +221,7 @@ export class CausalPipeline {
     this.rvBuilder            = new RegulationViewBuilder(this.graph.db);
     this.mechanismInstances   = new MechanismInstanceStore(resolved.mechanismInstanceDbPath);
     this.derivationTraces     = new DerivationTraceStore(resolved.derivationTraceDbPath);
+    this.episodeEvents        = new EpisodeEventStore(resolved.episodeEventDbPath);
 
     if (resolved.seedDefaults) {
       this.problemClasses.seedDefaults();
@@ -265,6 +274,15 @@ export class CausalPipeline {
       observationAtomIds: atoms.map(a => a.id),
       operator:           input.operator ?? 'system',
     });
+
+    // Step 3b: 写入 observation_recorded 事件
+    this.episodeEvents.append(createEpisodeEvent({
+      episode_id: story.id,
+      seq: this.episodeEvents.nextSeq(story.id),
+      kind: 'observation_recorded',
+      ref_id: story.id,
+      payload: { atomCount: atoms.length },
+    }));
 
     // Step 4: 探索（在图中找候选因果路径）
     let explore: ExploreResult | undefined;
@@ -385,6 +403,20 @@ export class CausalPipeline {
       updatedAt: fallbackTime,
     };
 
+    // ─── EpisodeEvent 辅助 ────────────────────────────────────────────────
+    const episodeEventIds: string[] = [];
+    const appendEv = (kind: EpisodeEventKind, refId?: string, payload: Record<string, unknown> = {}): string => {
+      const ev = createEpisodeEvent({
+        episode_id: input.storyId,
+        seq: this.episodeEvents.nextSeq(input.storyId),
+        kind,
+        ref_id: refId,
+        payload,
+      });
+      this.episodeEvents.append(ev);
+      return ev.id;
+    };
+
     // Step 1: 创建修复 Atom（ACTION 类型）
     const fixAtom = this.graph.addAtom(input.fixDescription, AtomKind.ACTION);
 
@@ -412,9 +444,11 @@ export class CausalPipeline {
         sourceDescription: input.fixDescription,
       });
       hypothesisId = hypothesis.id;
+      episodeEventIds.push(appendEv('hypothesis_created', hypothesis.id, { claim: hypothesis.claim }));
 
       // Step 2b: Validate hypothesis（提供 outcome；此时尚无 compiled evidence，传空列表）
       this.hypotheses.validate(hypothesis.id, [], outcome);
+      episodeEventIds.push(appendEv('hypothesis_validated', hypothesis.id, { outcome }));
 
       // Step 2c: 检查 canPromote
       const promoteCheck = this.hypotheses.canPromote(hypothesis.id);
@@ -432,9 +466,14 @@ export class CausalPipeline {
             recordSupport(this.evidence, refId, 'fix', input.storyId, 0.85, input.context);
             evidenceCount++;
           }
+          episodeEventIds.push(appendEv('compile_applied', `compile:${input.storyId}`, { compiledRefs: compile.compiledRefs }));
+        } else {
+          episodeEventIds.push(appendEv('compile_blocked', undefined, { reason: 'compiledRefs=0' }));
         }
+      } else {
+        // canPromote 未通过 → compile 保持 undefined，story 将标记 partial
+        episodeEventIds.push(appendEv('compile_blocked', undefined, { reason: 'canPromote_failed' }));
       }
-      // canPromote 未通过 → compile 保持 undefined，story 将标记 partial
     }
 
     // Step 3: 创建并裁决 MechanismInstance（D2：先于 Reconstruction 创建）
@@ -457,6 +496,7 @@ export class CausalPipeline {
       claim_ids: hypothesisId ? [hypothesisId] : [],
       created_by: 'pipeline_s4',
     });
+    episodeEventIds.push(appendEv('mechanism_instance_created', rawMechanismInstance.id, { mechanism_class_ref: mechanismClassRef }));
 
     const mechanismInstance: MechanismInstance = compile && compile.compiledRefs > 0
       ? acceptInstance(rawMechanismInstance, {
@@ -466,6 +506,11 @@ export class CausalPipeline {
       : rejectInstance(rawMechanismInstance, compile
           ? '路径 compile 成功但 compiledRefs=0'
           : (hypothesisId ? 'canPromote 门控未通过' : '无有效路径'));
+    episodeEventIds.push(appendEv(
+      mechanismInstance.status === 'accepted' ? 'mechanism_instance_accepted' : 'mechanism_instance_rejected',
+      mechanismInstance.id,
+      { status: mechanismInstance.status }
+    ));
 
     // 落盘 MechanismInstance
     this.mechanismInstances.save(mechanismInstance);
@@ -496,6 +541,7 @@ export class CausalPipeline {
       createdBy: 'pipeline_recordfix_shell',
     });
     this.derivationTraces.save(trace);
+    episodeEventIds.push(appendEv('reconstruction_written', reconstruction.id, { traceId: preTraceId, fidelityScore: reconstruction.fidelity.score }));
 
     // Step 5: 生成 OntologyDelta（D1：所有路径均返回 OntologyDelta，不再用独立 NoUpdateReason）
     let ontologyUpdate: OntologyDelta;
@@ -533,6 +579,8 @@ export class CausalPipeline {
       );
     }
 
+    episodeEventIds.push(appendEv('ontology_delta_written', ontologyUpdate.id, { kind: ontologyUpdate.kind }));
+
     // Step 6: 根据 compile 结果决定 Story 状态
     let story: Story;
     if (compile && compile.compiledRefs > 0) {
@@ -557,12 +605,17 @@ export class CausalPipeline {
                 ?? storySnapshot) as Story;
     }
 
+    episodeEventIds.push(appendEv('outcome_recorded', story.id, { outcome: story.outcome, status: story.status }));
+
     // Step 7: 生成 Regulation 视图 + Episode
     const regulationViews = this.rvBuilder.buildAll({ minWeight: 0.3 });
+    // 全量查询：含 submitObservation 阶段写入的 observation_recorded
+    const allEpisodeEventIds = this.episodeEvents.getByEpisode(input.storyId).map(e => e.id);
     const episode: Episode = {
       ...toEpisode(story),
       acceptedReconstructionId: reconstruction.id,
       ontologyDeltaId: ontologyUpdate.id,  // D1：所有路径均有 id
+      episodeEventIds: allEpisodeEventIds,
     };
 
     // Step 8: 生成 Conclusion（v7 §10 条件 5）
@@ -685,6 +738,7 @@ export class CausalPipeline {
       },
       mechanismInstances: this.mechanismInstances.getStats(),
       derivationTraces:   this.derivationTraces.getStats(),
+      episodeEvents:      this.episodeEvents.getStats(),
     };
   }
 
@@ -704,6 +758,7 @@ export class CausalPipeline {
     this.hypotheses.close();
     this.mechanismInstances.close();
     this.derivationTraces.close();
+    this.episodeEvents.close();
     // rvBuilder 不拥有独立 DB 连接，无需单独关闭
   }
 }

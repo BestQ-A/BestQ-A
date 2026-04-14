@@ -461,3 +461,15 @@ export type {
 export {
   DerivationTraceStore,
 } from './derivation-trace-store.js';
+
+// EpisodeEventStore (Episode 轻量 timeline 持久化层)
+export type {
+  EpisodeEventKind,
+  EpisodeEvent,
+  EpisodeEventStoreStats,
+} from './episode-event-store.js';
+
+export {
+  createEpisodeEvent,
+  EpisodeEventStore,
+} from './episode-event-store.js';
