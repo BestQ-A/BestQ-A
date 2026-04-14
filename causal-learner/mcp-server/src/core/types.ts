@@ -703,6 +703,8 @@ export interface ObservationRecord {
   id: string;
   /** 所属 Episode ID（必填，不允许游离记录） */
   episodeId: string;
+  /** 观测投影模型 ID（必须指向已存在的 ObservationModel） */
+  observationModelId: string;
   /** 相对时间戳（数值步数或 ISO 字符串） */
   t: number | string;
   /** 观测来源标识（如 "submitObservation" / "external_sensor"） */

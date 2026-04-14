@@ -51,6 +51,12 @@ import { SupportLinkStore } from './support-link-store.js';
 import type { SupportLinkStoreStats } from './support-link-store.js';
 import { ObservationRecordStore } from './observation-record-store.js';
 import type { ObservationRecordStoreStats } from './observation-record-store.js';
+import { ObservationModelStore } from './observation-model-store.js';
+import type { ObservationModelStoreStats } from './observation-model-store.js';
+import {
+  createDefaultObservationModel,
+  DEFAULT_OBSERVATION_MODEL_ID,
+} from './observation-model.js';
 import crypto from 'crypto';
 
 // =============================================================================
@@ -85,6 +91,8 @@ export interface PipelineConfig {
   supportLinksDbPath: string;
   /** ObservationRecord 持久化数据库路径 */
   observationRecordsDbPath: string;
+  /** ObservationModel 持久化数据库路径 */
+  observationModelsDbPath: string;
 }
 
 /** 提交观测的输入 */
@@ -174,6 +182,7 @@ export interface PipelineStats {
   episodeEvents: EpisodeEventStoreStats;
   supportLinks: SupportLinkStoreStats;
   observationRecords: ObservationRecordStoreStats;
+  observationModels: ObservationModelStoreStats;
 }
 
 // =============================================================================
@@ -203,6 +212,8 @@ export class CausalPipeline {
   readonly supportLinks: SupportLinkStore;
   /** ObservationRecord 持久化存储 */
   readonly observationRecords: ObservationRecordStore;
+  /** ObservationModel 持久化存储 */
+  readonly observationModels: ObservationModelStore;
 
   private rvBuilder: RegulationViewBuilder;
   private config: PipelineConfig;
@@ -222,6 +233,7 @@ export class CausalPipeline {
       episodeEventDbPath:      config.episodeEventDbPath      ?? ':memory:',
       supportLinksDbPath:      config.supportLinksDbPath      ?? ':memory:',
       observationRecordsDbPath: config.observationRecordsDbPath ?? ':memory:',
+      observationModelsDbPath:  config.observationModelsDbPath  ?? ':memory:',
     };
     this.config = resolved;
 
@@ -240,6 +252,11 @@ export class CausalPipeline {
     this.episodeEvents        = new EpisodeEventStore(resolved.episodeEventDbPath);
     this.supportLinks         = new SupportLinkStore(resolved.supportLinksDbPath);
     this.observationRecords   = new ObservationRecordStore(resolved.observationRecordsDbPath);
+    this.observationModels    = new ObservationModelStore(resolved.observationModelsDbPath);
+    // 幂等写入默认 ObservationModel（第一轮过渡模型，所有 submitObservation 路径共享）
+    if (!this.observationModels.get(DEFAULT_OBSERVATION_MODEL_ID)) {
+      this.observationModels.save(createDefaultObservationModel());
+    }
 
     if (resolved.seedDefaults) {
       this.problemClasses.seedDefaults();
@@ -295,11 +312,13 @@ export class CausalPipeline {
 
     // Step 3b: 为每个 observation atom 生成真实 ObservationRecord 并落盘
     // D1: observationRecordId 必须是真实 ObservationRecord.id，不得借用 Atom id
+    // D2: observationModelId 锚定到默认 ObservationModel（第一轮过渡策略）
     const observationRecordIds: string[] = [];
     atoms.forEach((atom, idx) => {
       const rec: ObservationRecord = {
         id: `OR_${story.id}_${idx}`,
         episodeId: story.id,
+        observationModelId: DEFAULT_OBSERVATION_MODEL_ID,
         t: idx,
         source: 'submitObservation',
         payload: {
@@ -807,6 +826,7 @@ export class CausalPipeline {
       episodeEvents:      this.episodeEvents.getStats(),
       supportLinks:       this.supportLinks.getStats(),
       observationRecords: this.observationRecords.getStats(),
+      observationModels:  this.observationModels.getStats(),
     };
   }
 
@@ -829,6 +849,7 @@ export class CausalPipeline {
     this.episodeEvents.close();
     this.supportLinks.close();
     this.observationRecords.close();
+    this.observationModels.close();
     // rvBuilder 不拥有独立 DB 连接，无需单独关闭
   }
 }

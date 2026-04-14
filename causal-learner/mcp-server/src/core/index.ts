@@ -491,3 +491,24 @@ export type {
 export {
   ObservationRecordStore,
 } from './observation-record-store.js';
+
+// ObservationModel + ObservationModelStore (v8 观测投影模型 — ObservationRecord 上游来源)
+export type {
+  ObservationSignalSpec,
+  ObservationModel,
+  CreateObservationModelInput,
+} from './observation-model.js';
+
+export {
+  createObservationModel,
+  createDefaultObservationModel,
+  DEFAULT_OBSERVATION_MODEL_ID,
+} from './observation-model.js';
+
+export type {
+  ObservationModelStoreStats,
+} from './observation-model-store.js';
+
+export {
+  ObservationModelStore,
+} from './observation-model-store.js';
