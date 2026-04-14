@@ -9,6 +9,7 @@ export type OntologyDeltaKind =
   | 'MergeClass'         // 合并两个相似的机制类
   | 'DeprecateRelation'  // 废弃/移除一个因果关系
   | 'RegisterPattern'    // 注册新的结构模式或关系
+  | 'AppliedRevision'    // P06 review lane：审查通过的 PRP 所驱动的本体变更
   | 'none';              // Episode 已处理但本体无需更新
 
 export type OntologyChangeAction =
@@ -162,6 +163,88 @@ export function createOntologyDeltaNone(
     fidelity_regression_check: createRegressionCheck(reconstruction.fidelity),
     created_at: nowIso(),
     created_by: 'pipeline_s7',
+    applied_at: null,
+  };
+}
+
+// =============================================================================
+// P06 review lane 工厂（不依赖 AcceptedReconstruction，使用虚拟 episode/reconstruction id）
+// =============================================================================
+
+/**
+ * 从"接受提案"动作生成 OntologyDelta(kind=AppliedRevision)
+ * episode_id / reconstruction_id 使用 review: 前缀虚拟 id，与真实 episode pipeline 解耦
+ */
+export function createOntologyDeltaFromReviewAccept(
+  proposalId: string,
+  targetKind: string,
+  targetRef: string,
+  changeKind: string,
+): OntologyDelta {
+  const virtualEpisodeId = `review:${proposalId}`;
+  const change: OntologyChange = {
+    action: 'accept_claim',
+    target_space: 'ontology',
+    target_kind: targetKind,
+    target_id: targetRef,
+    details: { proposalId, changeKind },
+    evidence_episode_id: virtualEpisodeId,
+  };
+  return {
+    id: `OD_rv_${proposalId}_${crypto.randomBytes(3).toString('hex')}`,
+    episode_id: virtualEpisodeId,
+    reconstruction_id: `rec:review:${proposalId}`,
+    claim_ids: [proposalId],
+    kind: 'AppliedRevision',
+    changes: [change],
+    fidelity_regression_check: {
+      episodes_checked: 0,
+      episodes_skipped: 0,
+      skipped_ids: [],
+      min_fidelity_before: 1.0,
+      min_fidelity_after: 1.0,
+      regression_detected: false,
+      regressed_episodes: null,
+      isMonotonic: true,
+    },
+    created_at: nowIso(),
+    created_by: 'review_lane',
+    applied_at: null,
+  };
+}
+
+/**
+ * 从"拒绝提案"动作生成 OntologyDelta(kind=none, reason_kind=human_override)
+ */
+export function createOntologyDeltaFromReviewReject(
+  proposalId: string,
+  explanation: string,
+): OntologyDelta {
+  const virtualEpisodeId = `review:${proposalId}`;
+  return {
+    id: `OD_rv_${proposalId}_${crypto.randomBytes(3).toString('hex')}`,
+    episode_id: virtualEpisodeId,
+    reconstruction_id: `rec:review:${proposalId}`,
+    claim_ids: [proposalId],
+    kind: 'none',
+    changes: [],
+    no_update_reason: {
+      reason_kind: 'human_override',
+      explanation,
+      follow_up: null,
+    },
+    fidelity_regression_check: {
+      episodes_checked: 0,
+      episodes_skipped: 0,
+      skipped_ids: [],
+      min_fidelity_before: 1.0,
+      min_fidelity_after: 1.0,
+      regression_detected: false,
+      regressed_episodes: null,
+      isMonotonic: true,
+    },
+    created_at: nowIso(),
+    created_by: 'review_lane',
     applied_at: null,
   };
 }

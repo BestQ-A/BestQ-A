@@ -104,6 +104,8 @@ import {
   createDefaultValidityEnvelope,
   DEFAULT_VALIDITY_ENVELOPE_ID,
 } from './validity-envelope.js';
+import { ReviewDecisionStore } from './review-decision-store.js';
+import type { ReviewDecisionStoreStats } from './review-decision-store.js';
 import crypto from 'crypto';
 
 // =============================================================================
@@ -162,6 +164,8 @@ export interface PipelineConfig {
   programRevisionProposalsDbPath: string;
   /** ValidityEnvelope 持久化数据库路径 */
   validityEnvelopesDbPath: string;
+  /** ReviewDecision 持久化数据库路径 */
+  reviewDecisionsDbPath: string;
 }
 
 /** 提交观测的输入 */
@@ -262,6 +266,7 @@ export interface PipelineStats {
   transitions: TransitionStoreStats;
   programRevisionProposals: ProgramRevisionProposalStoreStats;
   validityEnvelopes: ValidityEnvelopeStoreStats;
+  reviewDecisions: ReviewDecisionStoreStats;
 }
 
 export interface ActionExecutionResult {
@@ -336,6 +341,8 @@ export class CausalPipeline {
   readonly programRevisionProposals: ProgramRevisionProposalStore;
   /** ValidityEnvelope 持久化存储 */
   readonly validityEnvelopes: ValidityEnvelopeStore;
+  /** ReviewDecision 持久化存储（P06 review lane） */
+  readonly reviewDecisions: ReviewDecisionStore;
 
   private rvBuilder: RegulationViewBuilder;
   private config: PipelineConfig;
@@ -367,6 +374,7 @@ export class CausalPipeline {
       transitionDbPath:              config.transitionDbPath              ?? ':memory:',
       programRevisionProposalsDbPath: config.programRevisionProposalsDbPath ?? ':memory:',
       validityEnvelopesDbPath:        config.validityEnvelopesDbPath        ?? ':memory:',
+      reviewDecisionsDbPath:          config.reviewDecisionsDbPath          ?? ':memory:',
     };
     this.config = resolved;
 
@@ -419,6 +427,7 @@ export class CausalPipeline {
     if (!this.validityEnvelopes.get(DEFAULT_VALIDITY_ENVELOPE_ID)) {
       this.validityEnvelopes.save(createDefaultValidityEnvelope(DEFAULT_MECHANISM_PROGRAM_ID));
     }
+    this.reviewDecisions = new ReviewDecisionStore(resolved.reviewDecisionsDbPath);
 
     if (resolved.seedDefaults) {
       this.problemClasses.seedDefaults();
@@ -1197,6 +1206,7 @@ export class CausalPipeline {
       transitions:             this.transitions.getStats(),
       programRevisionProposals: this.programRevisionProposals.getStats(),
       validityEnvelopes:        this.validityEnvelopes.getStats(),
+      reviewDecisions:          this.reviewDecisions.getStats(),
     };
   }
 
@@ -1231,6 +1241,7 @@ export class CausalPipeline {
     this.transitions.close();
     this.programRevisionProposals.close();
     this.validityEnvelopes.close();
+    this.reviewDecisions.close();
     // rvBuilder 不拥有独立 DB 连接，无需单独关闭
   }
 

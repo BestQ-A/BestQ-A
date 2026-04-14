@@ -309,6 +309,8 @@ export {
   createOntologyDelta,
   createOntologyDeltaNone,
   buildRelationChange,
+  createOntologyDeltaFromReviewAccept,
+  createOntologyDeltaFromReviewReject,
 } from './ontology-delta.js';
 
 // Evidence (一等证据系统 - append-only)
@@ -714,3 +716,29 @@ export type {
 export {
   ValidityEnvelopeStore,
 } from './validity-envelope-store.js';
+
+// ReviewDecision + ReviewDecisionStore (P06 PRP review lane 裁决对象)
+export type {
+  ReviewDecisionKind,
+  ReviewDecision,
+  CreateReviewDecisionInput,
+  AcceptResult,
+  RejectResult,
+  SupersedeResult,
+} from './review-decision.js';
+
+export {
+  createReviewDecision,
+  assertValidReviewDecision,
+  acceptProposal,
+  rejectProposal,
+  supersedeProposal,
+} from './review-decision.js';
+
+export type {
+  ReviewDecisionStoreStats,
+} from './review-decision-store.js';
+
+export {
+  ReviewDecisionStore,
+} from './review-decision-store.js';

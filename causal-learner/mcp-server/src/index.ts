@@ -821,6 +821,7 @@ export function buildPipelineConfig(baseDbPath: string): PipelineConfig {
     transitionDbPath:               withSuffix('transition'),
     programRevisionProposalsDbPath: withSuffix('program-revision-proposal'),
     validityEnvelopesDbPath:        withSuffix('validity-envelope'),
+    reviewDecisionsDbPath:          withSuffix('review-decision'),
   };
 }
 
