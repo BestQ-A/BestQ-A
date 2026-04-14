@@ -697,6 +697,7 @@ export interface DerivationTrace {
 /**
  * 一次观测记录，与 episodeId 显式绑定（v7 §10 条件 2）。
  * Story.observationAtomIds 中的每个 Atom 对应一条 ObservationRecord。
+ * implements: docs/current/support-link-contract.md §3.1（SupportLink 的合法起点）
  */
 export interface ObservationRecord {
   id: string;
@@ -704,8 +705,10 @@ export interface ObservationRecord {
   episodeId: string;
   /** 相对时间戳（数值步数或 ISO 字符串） */
   t: number | string;
-  /** 观测内容（自然语言或结构化 JSON） */
-  content: string;
+  /** 观测来源标识（如 "submitObservation" / "external_sensor"） */
+  source: string;
+  /** 观测内容（结构化载荷；至少包含 atomId 和事实索引） */
+  payload: Record<string, unknown>;
 }
 
 /** 状态快照：Episode 某时刻的系统状态切片 */

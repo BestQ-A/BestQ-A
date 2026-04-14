@@ -24,7 +24,7 @@ import { HypothesisStore } from './hypothesis.js';
 import type { InterventionOutcome } from './hypothesis.js';
 import { toEpisode, type Episode } from './story.js';
 import type { AcceptedReconstruction } from './reconstruction.js';
-import type { Conclusion, SupportLink } from './types.js';
+import type { Conclusion, SupportLink, ObservationRecord } from './types.js';
 import {
   createAcceptedReconstruction,
 } from './reconstruction.js';
@@ -49,6 +49,8 @@ import { EpisodeEventStore, createEpisodeEvent } from './episode-event-store.js'
 import type { EpisodeEventStoreStats, EpisodeEventKind } from './episode-event-store.js';
 import { SupportLinkStore } from './support-link-store.js';
 import type { SupportLinkStoreStats } from './support-link-store.js';
+import { ObservationRecordStore } from './observation-record-store.js';
+import type { ObservationRecordStoreStats } from './observation-record-store.js';
 import crypto from 'crypto';
 
 // =============================================================================
@@ -81,6 +83,8 @@ export interface PipelineConfig {
   episodeEventDbPath: string;
   /** SupportLink 持久化数据库路径 */
   supportLinksDbPath: string;
+  /** ObservationRecord 持久化数据库路径 */
+  observationRecordsDbPath: string;
 }
 
 /** 提交观测的输入 */
@@ -169,6 +173,7 @@ export interface PipelineStats {
   derivationTraces: DerivationTraceStoreStats;
   episodeEvents: EpisodeEventStoreStats;
   supportLinks: SupportLinkStoreStats;
+  observationRecords: ObservationRecordStoreStats;
 }
 
 // =============================================================================
@@ -196,6 +201,8 @@ export class CausalPipeline {
   readonly episodeEvents: EpisodeEventStore;
   /** SupportLink 持久化存储 */
   readonly supportLinks: SupportLinkStore;
+  /** ObservationRecord 持久化存储 */
+  readonly observationRecords: ObservationRecordStore;
 
   private rvBuilder: RegulationViewBuilder;
   private config: PipelineConfig;
@@ -214,6 +221,7 @@ export class CausalPipeline {
       derivationTraceDbPath:   config.derivationTraceDbPath   ?? ':memory:',
       episodeEventDbPath:      config.episodeEventDbPath      ?? ':memory:',
       supportLinksDbPath:      config.supportLinksDbPath      ?? ':memory:',
+      observationRecordsDbPath: config.observationRecordsDbPath ?? ':memory:',
     };
     this.config = resolved;
 
@@ -231,6 +239,7 @@ export class CausalPipeline {
     this.derivationTraces     = new DerivationTraceStore(resolved.derivationTraceDbPath);
     this.episodeEvents        = new EpisodeEventStore(resolved.episodeEventDbPath);
     this.supportLinks         = new SupportLinkStore(resolved.supportLinksDbPath);
+    this.observationRecords   = new ObservationRecordStore(resolved.observationRecordsDbPath);
 
     if (resolved.seedDefaults) {
       this.problemClasses.seedDefaults();
@@ -284,13 +293,32 @@ export class CausalPipeline {
       operator:           input.operator ?? 'system',
     });
 
-    // Step 3b: 写入 observation_recorded 事件
+    // Step 3b: 为每个 observation atom 生成真实 ObservationRecord 并落盘
+    // D1: observationRecordId 必须是真实 ObservationRecord.id，不得借用 Atom id
+    const observationRecordIds: string[] = [];
+    atoms.forEach((atom, idx) => {
+      const rec: ObservationRecord = {
+        id: `OR_${story.id}_${idx}`,
+        episodeId: story.id,
+        t: idx,
+        source: 'submitObservation',
+        payload: {
+          atomId: atom.id,
+          factIndex: idx,
+          rawInput: input.rawInput.slice(0, 120),
+        },
+      };
+      this.observationRecords.save(rec);
+      observationRecordIds.push(rec.id);
+    });
+
+    // Step 3c: 写入 observation_recorded 事件
     this.episodeEvents.append(createEpisodeEvent({
       episode_id: story.id,
       seq: this.episodeEvents.nextSeq(story.id),
       kind: 'observation_recorded',
       ref_id: story.id,
-      payload: { atomCount: atoms.length },
+      payload: { atomCount: atoms.length, observationRecordIds },
     }));
 
     // Step 4: 探索（在图中找候选因果路径）
@@ -507,23 +535,28 @@ export class CausalPipeline {
     });
     episodeEventIds.push(appendEv('mechanism_instance_created', rawMechanismInstance.id, { mechanism_class_ref: mechanismClassRef }));
 
-    // Step 3b: 如果 accepted 路径存在且有 hypothesisId + observation atoms，生成最小 SupportLink
-    // 语义：ObservationRecord → Claim（第一条观察 atom 支持 hypothesis）
+    // Step 3b: 如果 accepted 路径存在且有 hypothesisId，生成最小 SupportLink
+    // 语义：ObservationRecord → Claim（真实 ObservationRecord id，不借用 Atom id）
     const generatedSupportLinks: SupportLink[] = [];
-    if (compile && compile.compiledRefs > 0 && hypothesisId && storySnapshot.observationAtomIds.length > 0) {
-      const sl: SupportLink = {
-        id: `SL_${input.storyId}_${crypto.randomBytes(4).toString('hex')}`,
-        observationRecordId: storySnapshot.observationAtomIds[0],
-        claimId: hypothesisId,
-        polarity: 'supports',
-        weight: 0.7,
-        sourceKind: 'pipeline',
-        sourceRef: `compile:${input.storyId}`,
-        createdAt: new Date().toISOString(),
-        createdBy: 'pipeline_recordfix',
-      };
-      this.supportLinks.save(sl);
-      generatedSupportLinks.push(sl);
+    if (compile && compile.compiledRefs > 0 && hypothesisId) {
+      // 优先从 ObservationRecordStore 取已落盘的真实 record
+      const obsRecords = this.observationRecords.listByEpisode(input.storyId);
+      const firstObsRecord = obsRecords[0];
+      if (firstObsRecord) {
+        const sl: SupportLink = {
+          id: `SL_${input.storyId}_${crypto.randomBytes(4).toString('hex')}`,
+          observationRecordId: firstObsRecord.id,   // 真实 ObservationRecord.id
+          claimId: hypothesisId,
+          polarity: 'supports',
+          weight: 0.7,
+          sourceKind: 'pipeline',
+          sourceRef: `compile:${input.storyId}`,
+          createdAt: new Date().toISOString(),
+          createdBy: 'pipeline_recordfix',
+        };
+        this.supportLinks.save(sl);
+        generatedSupportLinks.push(sl);
+      }
     }
 
     const mechanismInstance: MechanismInstance = compile && compile.compiledRefs > 0
@@ -641,11 +674,14 @@ export class CausalPipeline {
     const regulationViews = this.rvBuilder.buildAll({ minWeight: 0.3 });
     // 全量查询：含 submitObservation 阶段写入的 observation_recorded
     const allEpisodeEventIds = this.episodeEvents.getByEpisode(input.storyId).map(e => e.id);
+    // 从 ObservationRecordStore 查真实落盘 ID（submitObservation 阶段已写入）
+    const episodeObsRecordIds = this.observationRecords.listByEpisode(input.storyId).map(r => r.id);
     const episode: Episode = {
       ...toEpisode(story),
       acceptedReconstructionId: reconstruction.id,
       ontologyDeltaId: ontologyUpdate.id,  // D1：所有路径均有 id
       episodeEventIds: allEpisodeEventIds,
+      observationRecordIds: episodeObsRecordIds,
     };
 
     // Step 8: 生成 Conclusion（v7 §10 条件 5）
@@ -770,6 +806,7 @@ export class CausalPipeline {
       derivationTraces:   this.derivationTraces.getStats(),
       episodeEvents:      this.episodeEvents.getStats(),
       supportLinks:       this.supportLinks.getStats(),
+      observationRecords: this.observationRecords.getStats(),
     };
   }
 
@@ -791,6 +828,7 @@ export class CausalPipeline {
     this.derivationTraces.close();
     this.episodeEvents.close();
     this.supportLinks.close();
+    this.observationRecords.close();
     // rvBuilder 不拥有独立 DB 连接，无需单独关闭
   }
 }

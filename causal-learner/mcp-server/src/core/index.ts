@@ -482,3 +482,12 @@ export type {
 export {
   SupportLinkStore,
 } from './support-link-store.js';
+
+// ObservationRecordStore (v7 观测记录持久化层 — SupportLink 起点锚定)
+export type {
+  ObservationRecordStoreStats,
+} from './observation-record-store.js';
+
+export {
+  ObservationRecordStore,
+} from './observation-record-store.js';
