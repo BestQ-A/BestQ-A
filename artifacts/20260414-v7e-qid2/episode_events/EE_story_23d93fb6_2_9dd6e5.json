@@ -1,0 +1,15 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/episode-event-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T02:44:50.715Z",
+  "id": "EE_story_23d93fb6_2_9dd6e5",
+  "episode_id": "story_23d93fb6",
+  "seq": 2,
+  "kind": "mechanism_instance_created",
+  "ref_id": "MI_story23_f6f9fcb7",
+  "payload": {
+    "mechanism_class_ref": "proxy:episode_story_23d93fb6"
+  },
+  "created_at": "2026-04-14T02:44:50.709Z"
+}

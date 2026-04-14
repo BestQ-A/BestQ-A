@@ -1,0 +1,23 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/derivation-chain-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T02:44:50.719Z",
+  "id": "DT_story_004a73fb_e8b6a3c4",
+  "contextKind": "reconstruction",
+  "episodeId": "story_004a73fb",
+  "reconstructionId": "RC_story_004a73fb_1",
+  "premiseClaimIds": [
+    "hyp_qgc50sz1"
+  ],
+  "proof": [],
+  "supportLinks": [],
+  "rejectedClaimIds": [
+    "MI_story00_dd8422a3"
+  ],
+  "totalSteps": 0,
+  "replayableSteps": 0,
+  "chainIntegrity": "complete",
+  "createdAt": "2026-04-14T02:44:50.710Z",
+  "createdBy": "pipeline_recordfix_shell"
+}

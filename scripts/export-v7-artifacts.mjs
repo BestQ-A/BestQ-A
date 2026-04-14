@@ -87,6 +87,7 @@ async function main() {
     derivation_chains:  path.join(runDir, 'derivation_chains'),
     mechanism_instances: path.join(runDir, 'mechanism_instances'),
     episodes:           path.join(runDir, 'episodes'),
+    episode_events:     path.join(runDir, 'episode_events'),
   };
   for (const d of Object.values(dirs)) await mkdir(d, { recursive: true });
 
@@ -99,7 +100,7 @@ async function main() {
   const { createDerivationTrace }        = await fromDist('derivation-trace.js');
 
   const pipeline = new CausalPipeline({ seedDefaults: false });
-  const stats = { reconstructions: 0, ontology_deltas: 0, derivation_chains: 0, mechanism_instances: 0, episodes: 0 };
+  const stats = { reconstructions: 0, ontology_deltas: 0, derivation_chains: 0, mechanism_instances: 0, episodes: 0, episode_events: 0 };
 
   // ──────────────────────────────────────────────────────────────────────
   // Case A: 无路径 → MI=rejected, OntologyDelta.kind=none
@@ -147,6 +148,12 @@ async function main() {
 
     await writeArtifact(dirs.episodes, `${episode.id}.json`, episode, 'docs/current/v7-world-model-contract.md');
     stats.episodes++;
+
+    // Episode events（从 pipeline 内存 store 读取，必须在 pipeline.close() 前）
+    for (const ev of pipeline.episodeEvents.getByEpisode(episode.id)) {
+      await writeArtifact(dirs.episode_events, `${ev.id}.json`, ev, 'docs/current/episode-event-contract.md');
+      stats.episode_events++;
+    }
   }
 
   pipeline.close();
