@@ -746,6 +746,91 @@ async function checkV7Bindings(results) {
   }
 }
 
+/** §11 ObservationModel binding pass：三条跨文件绑定真值检查（在 checkV7Bindings 之后调用）。
+ *
+ * 索引按 $conforms_to + 字段结构区分：
+ *   omMap  ← conforms_to 含 'observation-model-contract'  且 obj.outputSignals 是数组
+ *   orMap  ← conforms_to 含 'observation-model-contract'  且 obj.observationModelId 是字符串
+ *   slMap  ← conforms_to 含 'support-link-contract'       且 obj.observationRecordId 存在
+ */
+async function checkObservationModelBindings(results) {
+  const instanceResults = results.filter(r => r.kind === 'instance' && r.format === 'json');
+
+  const getObj = async (r) => {
+    if (r._parsedObj) return r._parsedObj;
+    try {
+      const text = await readFile(path.resolve(ROOT, r.file), 'utf8');
+      return JSON.parse(stripBom(text));
+    } catch { return null; }
+  };
+
+  const omMap = new Map(); // ObservationModel:  id → {file, obj, findingsRef}
+  const orMap = new Map(); // ObservationRecord: id → {file, obj, findingsRef}
+  const slMap = new Map(); // SupportLink:       id → {file, obj, findingsRef}
+
+  for (const r of instanceResults) {
+    const ct  = String(r.fm.conforms_to || '');
+    const obj = await getObj(r);
+    if (!obj || typeof obj !== 'object') continue;
+    const id = obj.id;
+    if (!id) continue;
+    const entry = { file: r.file, obj, findingsRef: r.findings };
+
+    if (ct.includes('observation-model-contract')) {
+      if (Array.isArray(obj.outputSignals)) {
+        omMap.set(id, entry);                       // ObservationModel
+      } else if (typeof obj.observationModelId === 'string') {
+        orMap.set(id, entry);                       // ObservationRecord
+      }
+    } else if (ct.includes('support-link-contract')) {
+      if (obj.observationRecordId !== undefined) slMap.set(id, entry);
+    }
+  }
+
+  // OM-1：ObservationRecord.observationModelId 必须能 resolve 到 ObservationModel
+  for (const { file, obj, findingsRef } of orMap.values()) {
+    const omId = obj.observationModelId;
+    if (!omId) {
+      findingsRef.push({ file, line: 1, code: 'bad-observation-model-ref', level: 'error',
+        msg: `ObservationRecord.observationModelId 缺失` });
+    } else if (!omMap.has(omId)) {
+      findingsRef.push({ file, line: 1, code: 'bad-observation-model-ref', level: 'error',
+        msg: `ObservationRecord.observationModelId 引用不存在：${omId}` });
+    }
+  }
+
+  // OM-2：SupportLink → ObservationRecord → ObservationModel 链不断
+  for (const { file, obj, findingsRef } of slMap.values()) {
+    const orId = obj.observationRecordId;
+    if (!orId) {
+      findingsRef.push({ file, line: 1, code: 'supportlink-observation-chain-broken', level: 'error',
+        msg: `SupportLink.observationRecordId 缺失` });
+      continue;
+    }
+    const orEntry = orMap.get(orId);
+    if (!orEntry) {
+      findingsRef.push({ file, line: 1, code: 'supportlink-observation-chain-broken', level: 'error',
+        msg: `SupportLink → ObservationRecord 链断：observationRecordId 不存在 ${orId}` });
+      continue;
+    }
+    const omId = orEntry.obj.observationModelId;
+    if (!omId || !omMap.has(omId)) {
+      findingsRef.push({ file, line: 1, code: 'supportlink-observation-chain-broken', level: 'error',
+        msg: `SupportLink → ObservationRecord → ObservationModel 链断：observationModelId ${omId || '(missing)'} 不存在` });
+    }
+  }
+
+  // OM-3：ObservationModel.status=current 时至少有一个 ObservationRecord 引用它
+  for (const { file, obj, findingsRef } of omMap.values()) {
+    if (obj.status !== 'current') continue;
+    const hasRef = [...orMap.values()].some(e => e.obj.observationModelId === obj.id);
+    if (!hasRef) {
+      findingsRef.push({ file, line: 1, code: 'orphan-current-observation-model', level: 'warning',
+        msg: `ObservationModel.status=current 但无 ObservationRecord 引用它（id=${obj.id}）` });
+    }
+  }
+}
+
 async function main() {
   const targets = await collectTargets();
   const results = [];
@@ -759,6 +844,7 @@ async function main() {
 
   checkDuplicateTruth(results);
   await checkV7Bindings(results);
+  await checkObservationModelBindings(results);
 
   // kind 分布
   const kindDist = { contract: 0, instance: 0, record: 0, code: 0, index: 0, legacy_I: 0, legacy_II: 0, missing: 0 };
@@ -784,6 +870,10 @@ async function main() {
     trace_reconstruction_mismatch: [],
     missing_no_update_reason: [],
     accepted_instance_without_support: [],
+    // ObservationModel binding pass（§11）
+    bad_observation_model_ref: [],
+    supportlink_observation_chain_broken: [],
+    orphan_current_observation_model: [],
   };
   const codeToBucket = {
     'missing-conforms-to': 'missing_conforms_to',
@@ -807,6 +897,10 @@ async function main() {
     'trace-reconstruction-mismatch':    'trace_reconstruction_mismatch',
     'missing-no-update-reason':         'missing_no_update_reason',
     'accepted-instance-without-support': 'accepted_instance_without_support',
+    // ObservationModel binding pass（§11）
+    'bad-observation-model-ref':                'bad_observation_model_ref',
+    'supportlink-observation-chain-broken':     'supportlink_observation_chain_broken',
+    'orphan-current-observation-model':         'orphan_current_observation_model',
   };
   for (const r of results) {
     for (const f of r.findings) {
@@ -885,7 +979,7 @@ async function main() {
   process.exit(errors.length > 0 ? 1 : 0);
 }
 
-export { checkV7Bindings };
+export { checkV7Bindings, checkObservationModelBindings };
 
 const _IS_MAIN = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename);
 if (_IS_MAIN) {

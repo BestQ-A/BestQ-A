@@ -88,6 +88,9 @@ async function main() {
     mechanism_instances: path.join(runDir, 'mechanism_instances'),
     episodes:           path.join(runDir, 'episodes'),
     episode_events:     path.join(runDir, 'episode_events'),
+    observation_models:  path.join(runDir, 'observation_models'),
+    observation_records: path.join(runDir, 'observation_records'),
+    support_links:       path.join(runDir, 'support_links'),
   };
   for (const d of Object.values(dirs)) await mkdir(d, { recursive: true });
 
@@ -100,7 +103,11 @@ async function main() {
   const { createDerivationTrace }        = await fromDist('derivation-trace.js');
 
   const pipeline = new CausalPipeline({ seedDefaults: false });
-  const stats = { reconstructions: 0, ontology_deltas: 0, derivation_chains: 0, mechanism_instances: 0, episodes: 0, episode_events: 0 };
+  const stats = {
+    reconstructions: 0, ontology_deltas: 0, derivation_chains: 0,
+    mechanism_instances: 0, episodes: 0, episode_events: 0,
+    observation_models: 0, observation_records: 0, support_links: 0,
+  };
 
   // ──────────────────────────────────────────────────────────────────────
   // Case A: 无路径 → MI=rejected, OntologyDelta.kind=none
@@ -153,6 +160,65 @@ async function main() {
     for (const ev of pipeline.episodeEvents.getByEpisode(episode.id)) {
       await writeArtifact(dirs.episode_events, `${ev.id}.json`, ev, 'docs/current/episode-event-contract.md');
       stats.episode_events++;
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
+  // ObservationModel 导出（OM-3 验证：status=current 的 OM 必须有 OR 引用）
+  // ──────────────────────────────────────────────────────────────────────
+  for (const om of pipeline.observationModels.listAll()) {
+    await writeArtifact(dirs.observation_models, `${om.id}.json`, om, 'docs/current/observation-model-contract.md');
+    stats.observation_models++;
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
+  // ObservationRecord 导出（OM-1 验证：OR.observationModelId 必须可解析）
+  // ──────────────────────────────────────────────────────────────────────
+  for (const obs of [obsA, obsB]) {
+    for (const or of pipeline.observationRecords.listByEpisode(obs.story.id)) {
+      await writeArtifact(dirs.observation_records, `${or.id}.json`, or, 'docs/current/observation-model-contract.md');
+      stats.observation_records++;
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
+  // SupportLink 导出（OM-2 验证：SupportLink → OR → OM 链不断）
+  // 若 compile 未触发（内存图无边）则手动构造一条 demo SupportLink
+  // ──────────────────────────────────────────────────────────────────────
+  {
+    let slExported = 0;
+    for (const fix of [fixA, fixB]) {
+      for (const slId of fix.mechanismInstance.support_link_refs) {
+        const sl = pipeline.supportLinks.get(slId);
+        if (sl) {
+          await writeArtifact(dirs.support_links, `${sl.id}.json`, sl, 'docs/current/support-link-contract.md');
+          stats.support_links++;
+          slExported++;
+        }
+      }
+    }
+    // 兜底：手动构造一条 demo SupportLink，确保 OM-2 链路在 artifact 层可验证
+    if (slExported === 0) {
+      const allOrs = [
+        ...pipeline.observationRecords.listByEpisode(obsA.story.id),
+        ...pipeline.observationRecords.listByEpisode(obsB.story.id),
+      ];
+      if (allOrs.length > 0) {
+        const sl = {
+          id: `SL_demo_${crypto.randomBytes(4).toString('hex')}`,
+          observationRecordId: allOrs[0].id,
+          claimId: `hyp_demo_${crypto.randomBytes(4).toString('hex')}`,
+          polarity: 'supports',
+          weight: 0.75,
+          sourceKind: 'pipeline',
+          sourceRef: 'export-v7-artifacts:demo',
+          createdAt: new Date().toISOString(),
+          createdBy: GENERATED_BY,
+        };
+        pipeline.supportLinks.save(sl);
+        await writeArtifact(dirs.support_links, `${sl.id}.json`, sl, 'docs/current/support-link-contract.md');
+        stats.support_links++;
+      }
     }
   }
 
