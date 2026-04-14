@@ -473,3 +473,12 @@ export {
   createEpisodeEvent,
   EpisodeEventStore,
 } from './episode-event-store.js';
+
+// SupportLinkStore (v7 证据边持久化层 — ObservationRecord → Claim)
+export type {
+  SupportLinkStoreStats,
+} from './support-link-store.js';
+
+export {
+  SupportLinkStore,
+} from './support-link-store.js';

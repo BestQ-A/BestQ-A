@@ -598,12 +598,20 @@ export interface Claim {
 /**
  * Directed evidence edge from an observation to a claim.
  * v7 §3.3 SupportLink — explicit edge, not an ID list.
+ * implements: docs/current/support-link-contract.md
  */
 export interface SupportLink {
+  /** 格式: "SL_<episode_id>_<seq>" */
+  id: string;
   observationRecordId: string;
   claimId: string;
   polarity: 'supports' | 'contradicts';
+  /** [0.0, 1.0] 闭区间 */
   weight: number;
+  sourceKind: 'pipeline' | 'llm_binder' | 'human_review';
+  sourceRef: string | null;
+  createdAt: string;
+  createdBy: string;
 }
 
 // =============================================================================

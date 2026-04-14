@@ -24,7 +24,7 @@ import { HypothesisStore } from './hypothesis.js';
 import type { InterventionOutcome } from './hypothesis.js';
 import { toEpisode, type Episode } from './story.js';
 import type { AcceptedReconstruction } from './reconstruction.js';
-import type { Conclusion } from './types.js';
+import type { Conclusion, SupportLink } from './types.js';
 import {
   createAcceptedReconstruction,
 } from './reconstruction.js';
@@ -47,6 +47,8 @@ import type { DerivationTraceStoreStats } from './derivation-trace-store.js';
 import { createDerivationTrace } from './derivation-trace.js';
 import { EpisodeEventStore, createEpisodeEvent } from './episode-event-store.js';
 import type { EpisodeEventStoreStats, EpisodeEventKind } from './episode-event-store.js';
+import { SupportLinkStore } from './support-link-store.js';
+import type { SupportLinkStoreStats } from './support-link-store.js';
 import crypto from 'crypto';
 
 // =============================================================================
@@ -77,6 +79,8 @@ export interface PipelineConfig {
   derivationTraceDbPath: string;
   /** EpisodeEvent 持久化数据库路径 */
   episodeEventDbPath: string;
+  /** SupportLink 持久化数据库路径 */
+  supportLinksDbPath: string;
 }
 
 /** 提交观测的输入 */
@@ -164,6 +168,7 @@ export interface PipelineStats {
   mechanismInstances: MechanismInstanceStoreStats;
   derivationTraces: DerivationTraceStoreStats;
   episodeEvents: EpisodeEventStoreStats;
+  supportLinks: SupportLinkStoreStats;
 }
 
 // =============================================================================
@@ -189,6 +194,8 @@ export class CausalPipeline {
   readonly derivationTraces: DerivationTraceStore;
   /** EpisodeEvent 轻量 timeline 存储 */
   readonly episodeEvents: EpisodeEventStore;
+  /** SupportLink 持久化存储 */
+  readonly supportLinks: SupportLinkStore;
 
   private rvBuilder: RegulationViewBuilder;
   private config: PipelineConfig;
@@ -206,6 +213,7 @@ export class CausalPipeline {
       mechanismInstanceDbPath: config.mechanismInstanceDbPath ?? ':memory:',
       derivationTraceDbPath:   config.derivationTraceDbPath   ?? ':memory:',
       episodeEventDbPath:      config.episodeEventDbPath      ?? ':memory:',
+      supportLinksDbPath:      config.supportLinksDbPath      ?? ':memory:',
     };
     this.config = resolved;
 
@@ -222,6 +230,7 @@ export class CausalPipeline {
     this.mechanismInstances   = new MechanismInstanceStore(resolved.mechanismInstanceDbPath);
     this.derivationTraces     = new DerivationTraceStore(resolved.derivationTraceDbPath);
     this.episodeEvents        = new EpisodeEventStore(resolved.episodeEventDbPath);
+    this.supportLinks         = new SupportLinkStore(resolved.supportLinksDbPath);
 
     if (resolved.seedDefaults) {
       this.problemClasses.seedDefaults();
@@ -498,10 +507,30 @@ export class CausalPipeline {
     });
     episodeEventIds.push(appendEv('mechanism_instance_created', rawMechanismInstance.id, { mechanism_class_ref: mechanismClassRef }));
 
+    // Step 3b: 如果 accepted 路径存在且有 hypothesisId + observation atoms，生成最小 SupportLink
+    // 语义：ObservationRecord → Claim（第一条观察 atom 支持 hypothesis）
+    const generatedSupportLinks: SupportLink[] = [];
+    if (compile && compile.compiledRefs > 0 && hypothesisId && storySnapshot.observationAtomIds.length > 0) {
+      const sl: SupportLink = {
+        id: `SL_${input.storyId}_${crypto.randomBytes(4).toString('hex')}`,
+        observationRecordId: storySnapshot.observationAtomIds[0],
+        claimId: hypothesisId,
+        polarity: 'supports',
+        weight: 0.7,
+        sourceKind: 'pipeline',
+        sourceRef: `compile:${input.storyId}`,
+        createdAt: new Date().toISOString(),
+        createdBy: 'pipeline_recordfix',
+      };
+      this.supportLinks.save(sl);
+      generatedSupportLinks.push(sl);
+    }
+
     const mechanismInstance: MechanismInstance = compile && compile.compiledRefs > 0
       ? acceptInstance(rawMechanismInstance, {
           claim_ids: hypothesisId ? [hypothesisId] : [],
-          // support_link_refs 语义是 SupportLink/RefuteLink，不是 Ref；compiledRefIds 不填此处
+          // support_link_refs 必须引用真实 SupportLink.id，不得混入 compiledRefIds
+          support_link_refs: generatedSupportLinks.map(sl => sl.id),
         })
       : rejectInstance(rawMechanismInstance, compile
           ? '路径 compile 成功但 compiledRefs=0'
@@ -539,6 +568,7 @@ export class CausalPipeline {
       premiseClaimIds: hypothesisId ? [hypothesisId] : [],
       rejectedClaimIds: mechanismInstance.status === 'rejected' ? [mechanismInstance.id] : [],
       createdBy: 'pipeline_recordfix_shell',
+      supportLinks: generatedSupportLinks,
     });
     this.derivationTraces.save(trace);
     episodeEventIds.push(appendEv('reconstruction_written', reconstruction.id, { traceId: preTraceId, fidelityScore: reconstruction.fidelity.score }));
@@ -739,6 +769,7 @@ export class CausalPipeline {
       mechanismInstances: this.mechanismInstances.getStats(),
       derivationTraces:   this.derivationTraces.getStats(),
       episodeEvents:      this.episodeEvents.getStats(),
+      supportLinks:       this.supportLinks.getStats(),
     };
   }
 
@@ -759,6 +790,7 @@ export class CausalPipeline {
     this.mechanismInstances.close();
     this.derivationTraces.close();
     this.episodeEvents.close();
+    this.supportLinks.close();
     // rvBuilder 不拥有独立 DB 连接，无需单独关闭
   }
 }
