@@ -691,3 +691,26 @@ export type {
 export {
   ProgramRevisionProposalStore,
 } from './program-revision-proposal-store.js';
+
+// ValidityEnvelope + ValidityEnvelopeStore (P05 MechanismProgram 有效域对象)
+export type {
+  ValidityConfidenceBand,
+  ValidityEnvelopeStatus,
+  ValidityEnvelope,
+  CreateValidityEnvelopeInput,
+} from './validity-envelope.js';
+
+export {
+  createValidityEnvelope,
+  assertValidValidityEnvelope,
+  DEFAULT_VALIDITY_ENVELOPE_ID,
+  createDefaultValidityEnvelope,
+} from './validity-envelope.js';
+
+export type {
+  ValidityEnvelopeStoreStats,
+} from './validity-envelope-store.js';
+
+export {
+  ValidityEnvelopeStore,
+} from './validity-envelope-store.js';

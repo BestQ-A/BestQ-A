@@ -820,6 +820,7 @@ export function buildPipelineConfig(baseDbPath: string): PipelineConfig {
     stateSnapshotDbPath:            withSuffix('state-snapshot'),
     transitionDbPath:               withSuffix('transition'),
     programRevisionProposalsDbPath: withSuffix('program-revision-proposal'),
+    validityEnvelopesDbPath:        withSuffix('validity-envelope'),
   };
 }
 

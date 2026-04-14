@@ -98,6 +98,12 @@ import { ProgramRevisionProposalStore } from './program-revision-proposal-store.
 import type { ProgramRevisionProposalStoreStats } from './program-revision-proposal-store.js';
 import type { ProgramRevisionProposal } from './program-revision-proposal.js';
 import { createProgramRevisionProposal } from './program-revision-proposal.js';
+import { ValidityEnvelopeStore } from './validity-envelope-store.js';
+import type { ValidityEnvelopeStoreStats } from './validity-envelope-store.js';
+import {
+  createDefaultValidityEnvelope,
+  DEFAULT_VALIDITY_ENVELOPE_ID,
+} from './validity-envelope.js';
 import crypto from 'crypto';
 
 // =============================================================================
@@ -154,6 +160,8 @@ export interface PipelineConfig {
   transitionDbPath: string;
   /** ProgramRevisionProposal 持久化数据库路径 */
   programRevisionProposalsDbPath: string;
+  /** ValidityEnvelope 持久化数据库路径 */
+  validityEnvelopesDbPath: string;
 }
 
 /** 提交观测的输入 */
@@ -253,6 +261,7 @@ export interface PipelineStats {
   stateSnapshots: StateSnapshotStoreStats;
   transitions: TransitionStoreStats;
   programRevisionProposals: ProgramRevisionProposalStoreStats;
+  validityEnvelopes: ValidityEnvelopeStoreStats;
 }
 
 export interface ActionExecutionResult {
@@ -325,6 +334,8 @@ export class CausalPipeline {
   readonly transitions: TransitionStore;
   /** ProgramRevisionProposal 持久化存储 */
   readonly programRevisionProposals: ProgramRevisionProposalStore;
+  /** ValidityEnvelope 持久化存储 */
+  readonly validityEnvelopes: ValidityEnvelopeStore;
 
   private rvBuilder: RegulationViewBuilder;
   private config: PipelineConfig;
@@ -355,6 +366,7 @@ export class CausalPipeline {
       stateSnapshotDbPath:           config.stateSnapshotDbPath           ?? ':memory:',
       transitionDbPath:              config.transitionDbPath              ?? ':memory:',
       programRevisionProposalsDbPath: config.programRevisionProposalsDbPath ?? ':memory:',
+      validityEnvelopesDbPath:        config.validityEnvelopesDbPath        ?? ':memory:',
     };
     this.config = resolved;
 
@@ -402,6 +414,11 @@ export class CausalPipeline {
     this.stateSnapshots       = new StateSnapshotStore(resolved.stateSnapshotDbPath);
     this.transitions          = new TransitionStore(resolved.transitionDbPath);
     this.programRevisionProposals = new ProgramRevisionProposalStore(resolved.programRevisionProposalsDbPath);
+    this.validityEnvelopes = new ValidityEnvelopeStore(resolved.validityEnvelopesDbPath);
+    // 幂等写入默认 ValidityEnvelope（与 DEFAULT_MECHANISM_PROGRAM_ID 绑定的 demo 级 VE）
+    if (!this.validityEnvelopes.get(DEFAULT_VALIDITY_ENVELOPE_ID)) {
+      this.validityEnvelopes.save(createDefaultValidityEnvelope(DEFAULT_MECHANISM_PROGRAM_ID));
+    }
 
     if (resolved.seedDefaults) {
       this.problemClasses.seedDefaults();
@@ -1179,6 +1196,7 @@ export class CausalPipeline {
       stateSnapshots:          this.stateSnapshots.getStats(),
       transitions:             this.transitions.getStats(),
       programRevisionProposals: this.programRevisionProposals.getStats(),
+      validityEnvelopes:        this.validityEnvelopes.getStats(),
     };
   }
 
@@ -1212,6 +1230,7 @@ export class CausalPipeline {
     this.stateSnapshots.close();
     this.transitions.close();
     this.programRevisionProposals.close();
+    this.validityEnvelopes.close();
     // rvBuilder 不拥有独立 DB 连接，无需单独关闭
   }
 

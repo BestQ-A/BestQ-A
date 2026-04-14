@@ -7,6 +7,7 @@
  */
 
 import crypto from 'crypto';
+import { DEFAULT_MECHANISM_CLASS_ID } from './mechanism-class.js';
 
 // =============================================================================
 // 类型定义
@@ -26,7 +27,7 @@ export interface MechanismProgramPhase {
 /** 机制程序 */
 export interface MechanismProgram {
   id: string;
-  /** 指向 MechanismClass（允许 proxy:* 前缀表示过渡态） */
+  /** 指向真实 MechanismClass */
   mechanismClassRef: string;
   name: string;
   description: string;
@@ -48,8 +49,10 @@ export interface MechanismProgram {
 
   /** 可干预点（对应 phase 名 / 点 id）  */
   interventionPoints: string[];
-  /** 适用上下文 / 有效域 */
+  /** 适用上下文 / 有效域（自由文本描述，向后兼容） */
   validityEnvelope: string[];
+  /** 指向显式 ValidityEnvelope 对象的 ID 列表（P05 引入） */
+  validityEnvelopeRefs: string[];
   /** 失效条件（可为空数组，但不可为 null，不变量 I5） */
   failsWhen: string[];
 
@@ -75,6 +78,7 @@ export interface CreateMechanismProgramInput {
   outcomes?: string[];
   interventionPoints?: string[];
   validityEnvelope?: string[];
+  validityEnvelopeRefs?: string[];
   failsWhen?: string[];
   createdBy?: string;
   status?: MechanismProgram['status'];
@@ -108,6 +112,7 @@ export function createMechanismProgram(input: CreateMechanismProgramInput): Mech
     outcomes:                input.outcomes            ?? [],
     interventionPoints:      input.interventionPoints  ?? [],
     validityEnvelope:        input.validityEnvelope    ?? [],
+    validityEnvelopeRefs:    input.validityEnvelopeRefs ?? [],
     failsWhen:               input.failsWhen           ?? [],
     createdAt:               new Date().toISOString(),
     createdBy:               input.createdBy           ?? 'system',
@@ -129,7 +134,7 @@ export const DEFAULT_MECHANISM_PROGRAM_ID = 'MP_default_path_projection';
 export function createDefaultMechanismProgram(): MechanismProgram {
   return createMechanismProgram({
     id:               DEFAULT_MECHANISM_PROGRAM_ID,
-    mechanismClassRef: 'proxy:default_path_projection',
+    mechanismClassRef: DEFAULT_MECHANISM_CLASS_ID,
     name:             'default_path_projection',
     description:      '通过 AtomGraph 路径投影触发的默认机制程序（第一轮过渡模型）。不携带真实 phase 语义，占位用。',
     phases: [
