@@ -443,3 +443,21 @@ export {
   rejectInstance,
   supersedeInstance,
 } from './mechanism-instance.js';
+
+// MechanismInstanceStore (SQLite 持久化层)
+export type {
+  MechanismInstanceStoreStats,
+} from './mechanism-instance-store.js';
+
+export {
+  MechanismInstanceStore,
+} from './mechanism-instance-store.js';
+
+// DerivationTraceStore (SQLite 持久化层)
+export type {
+  DerivationTraceStoreStats,
+} from './derivation-trace-store.js';
+
+export {
+  DerivationTraceStore,
+} from './derivation-trace-store.js';

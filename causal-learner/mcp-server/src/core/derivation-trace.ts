@@ -13,6 +13,8 @@ import type {
 // =============================================================================
 
 interface DerivationTraceInput {
+  /** 可选显式 ID，供 pipeline 预生成后跨对象互链（默认自动生成） */
+  id?: string;
   episodeId?: string;
   reconstructionId?: string;
   contextKind?: 'reconstruction' | 'inference';
@@ -80,7 +82,7 @@ export function createDerivationTrace(input: DerivationTraceInput): DerivationTr
   const chainIntegrity = computeChainIntegrity(proof);
 
   return {
-    id: newTraceId(input.episodeId),
+    id: input.id ?? newTraceId(input.episodeId),
     contextKind: input.contextKind ?? 'reconstruction',
     episodeId: input.episodeId,
     reconstructionId: input.reconstructionId,

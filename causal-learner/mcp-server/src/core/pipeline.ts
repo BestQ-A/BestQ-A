@@ -40,6 +40,12 @@ import {
   createOntologyDelta,
   createOntologyDeltaNone,
 } from './ontology-delta.js';
+import { MechanismInstanceStore } from './mechanism-instance-store.js';
+import type { MechanismInstanceStoreStats } from './mechanism-instance-store.js';
+import { DerivationTraceStore } from './derivation-trace-store.js';
+import type { DerivationTraceStoreStats } from './derivation-trace-store.js';
+import { createDerivationTrace } from './derivation-trace.js';
+import crypto from 'crypto';
 
 // =============================================================================
 // 配置与接口
@@ -63,6 +69,10 @@ export interface PipelineConfig {
   autoExplore: boolean;
   /** 自动注入种子数据，默认 true */
   seedDefaults: boolean;
+  /** MechanismInstance 持久化数据库路径 */
+  mechanismInstanceDbPath: string;
+  /** DerivationTrace 持久化数据库路径 */
+  derivationTraceDbPath: string;
 }
 
 /** 提交观测的输入 */
@@ -147,6 +157,8 @@ export interface PipelineStats {
   templates: number;
   regulations: number;
   hypotheses: { total: number; open: number; validated: number; readyForCompile: number };
+  mechanismInstances: MechanismInstanceStoreStats;
+  derivationTraces: DerivationTraceStoreStats;
 }
 
 // =============================================================================
@@ -166,20 +178,26 @@ export class CausalPipeline {
   readonly patterns: PatternEngine;
   /** 假设存储（Hypothesis gate） */
   readonly hypotheses: HypothesisStore;
+  /** MechanismInstance 持久化存储 */
+  readonly mechanismInstances: MechanismInstanceStore;
+  /** DerivationTrace 持久化存储 */
+  readonly derivationTraces: DerivationTraceStore;
 
   private rvBuilder: RegulationViewBuilder;
   private config: PipelineConfig;
 
   constructor(config: Partial<PipelineConfig> = {}) {
     const resolved: PipelineConfig = {
-      graphDbPath:       config.graphDbPath       ?? ':memory:',
-      storyDbPath:       config.storyDbPath       ?? ':memory:',
-      evidenceDbPath:    config.evidenceDbPath    ?? ':memory:',
-      problemClassDbPath: config.problemClassDbPath ?? ':memory:',
-      patternDbPath:     config.patternDbPath     ?? ':memory:',
-      autoClassify:      config.autoClassify      ?? true,
-      autoExplore:       config.autoExplore       ?? true,
-      seedDefaults:      config.seedDefaults      ?? true,
+      graphDbPath:             config.graphDbPath             ?? ':memory:',
+      storyDbPath:             config.storyDbPath             ?? ':memory:',
+      evidenceDbPath:          config.evidenceDbPath          ?? ':memory:',
+      problemClassDbPath:      config.problemClassDbPath      ?? ':memory:',
+      patternDbPath:           config.patternDbPath           ?? ':memory:',
+      autoClassify:            config.autoClassify            ?? true,
+      autoExplore:             config.autoExplore             ?? true,
+      seedDefaults:            config.seedDefaults            ?? true,
+      mechanismInstanceDbPath: config.mechanismInstanceDbPath ?? ':memory:',
+      derivationTraceDbPath:   config.derivationTraceDbPath   ?? ':memory:',
     };
     this.config = resolved;
 
@@ -192,7 +210,9 @@ export class CausalPipeline {
       : resolved.graphDbPath.replace('.db', '_hypotheses.db');
     this.hypotheses    = new HypothesisStore(hypothesisDbPath);
     // RegulationViewBuilder 直接读 AtomGraph 的 DB（只读视图，不建自己的表）
-    this.rvBuilder     = new RegulationViewBuilder(this.graph.db);
+    this.rvBuilder            = new RegulationViewBuilder(this.graph.db);
+    this.mechanismInstances   = new MechanismInstanceStore(resolved.mechanismInstanceDbPath);
+    this.derivationTraces     = new DerivationTraceStore(resolved.derivationTraceDbPath);
 
     if (resolved.seedDefaults) {
       this.problemClasses.seedDefaults();
@@ -447,19 +467,35 @@ export class CausalPipeline {
           ? '路径 compile 成功但 compiledRefs=0'
           : (hypothesisId ? 'canPromote 门控未通过' : '无有效路径'));
 
+    // 落盘 MechanismInstance
+    this.mechanismInstances.save(mechanismInstance);
+
     // Step 4: 创建 AcceptedReconstruction（D2：用 mechanismInstance.id 写入）
-    // selectedMechanismIds 直接用 mechanism_class_ref，不再绕回 path/atom ids
+    // 预生成 traceId，供 reconstruction 和 DerivationTrace 双向互链
+    const preTraceId = `DT_${input.storyId}_${crypto.randomBytes(4).toString('hex')}`;
     const reconstruction = createAcceptedReconstruction({
       episodeId: input.storyId,
       chosenPathAtomIds: pathWithFix ?? storySnapshot.observationAtomIds,
       observationAtomIds: storySnapshot.observationAtomIds,
       derivationChainId: hypothesisId ? `DC_${input.storyId}_${hypothesisId}` : undefined,
-      traceId: hypothesisId ? `TRACE_${hypothesisId}` : undefined,
+      traceId: preTraceId,
       selectedMechanismIds: [mechanismInstance.mechanism_class_ref],
       ontologySnapshotRef: 'ontology_current',
       // P1：只在 accepted 时写入，rejected 路径不得绑定被否决的 bridge 对象
       mechanismInstanceIds: mechanismInstance.status === 'accepted' ? [mechanismInstance.id] : [],
     });
+
+    // 创建并落盘 DerivationTrace（与 reconstruction 双向互链）
+    const trace = createDerivationTrace({
+      id: preTraceId,
+      episodeId: input.storyId,
+      reconstructionId: reconstruction.id,
+      contextKind: 'reconstruction',
+      premiseClaimIds: hypothesisId ? [hypothesisId] : [],
+      rejectedClaimIds: mechanismInstance.status === 'rejected' ? [mechanismInstance.id] : [],
+      createdBy: 'pipeline_recordfix_shell',
+    });
+    this.derivationTraces.save(trace);
 
     // Step 5: 生成 OntologyDelta（D1：所有路径均返回 OntologyDelta，不再用独立 NoUpdateReason）
     let ontologyUpdate: OntologyDelta;
@@ -647,6 +683,8 @@ export class CausalPipeline {
         validated:       hs.byStatus?.['validated'] ?? 0,
         readyForCompile: hs.readyForCompile,
       },
+      mechanismInstances: this.mechanismInstances.getStats(),
+      derivationTraces:   this.derivationTraces.getStats(),
     };
   }
 
@@ -664,6 +702,8 @@ export class CausalPipeline {
     this.problemClasses.close();
     this.patterns.close();
     this.hypotheses.close();
+    this.mechanismInstances.close();
+    this.derivationTraces.close();
     // rvBuilder 不拥有独立 DB 连接，无需单独关闭
   }
 }
