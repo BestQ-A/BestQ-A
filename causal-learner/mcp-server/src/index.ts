@@ -17,14 +17,20 @@ import {
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 // Core imports
 import {
   createStorage,
   createDualStorage,
+  CausalPipeline,
   type CausalStorage,
   type DualLayerStorage,
+  type ContextScope,
   type Observation,
+  type ObservationInput,
+  type FixInput,
+  type PipelineConfig,
   type Regulation,
   type Fact,
   processObservation,
@@ -105,6 +111,7 @@ const USE_DUAL_LAYER = !!LONGTERM_DB_PATH;
 // Using 'any' for flexibility - both CausalStorage and DualLayerStorage implement the same public API
 let storage: any;
 let dualStorage: DualLayerStorage | null = null;
+let pipeline: CausalPipeline | null = null;
 
 // Zod schemas for tool inputs
 const FactSchema = z.object({
@@ -687,6 +694,230 @@ function generateObservationId(): string {
   return 'obs_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
 }
 
+type ToolResponse = {
+  content: Array<{ type: 'text'; text: string }>;
+  isError?: boolean;
+};
+
+type SubmitObservationToolArgs = {
+  observation: Observation;
+  options?: Record<string, unknown>;
+};
+
+type RecordFixToolArgs = {
+  eventId: string;
+  fix: FixInfo;
+};
+
+type NormalizedSubmitObservationArgs = {
+  observation: Observation;
+  pipelineInput: ObservationInput;
+  options?: Record<string, unknown>;
+};
+
+type NormalizedRecordFixArgs = {
+  eventId: string;
+  fix: FixInfo;
+  pipelineInput: FixInput;
+};
+
+function createJsonResponse(payload: unknown): ToolResponse {
+  return { content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }] };
+}
+
+function ensurePipelineInstance(current: CausalPipeline | null): CausalPipeline {
+  if (!current) {
+    throw new Error('CausalPipeline not initialized');
+  }
+  return current;
+}
+
+function toContextScope(context: Record<string, unknown> | undefined, custom: Record<string, unknown> = {}): ContextScope | undefined {
+  const base = context ?? {};
+  const {
+    env,
+    stack,
+    version,
+    timeRange,
+    project,
+    custom: existingCustom,
+    ...rest
+  } = base;
+
+  const mergedCustom: Record<string, unknown> = {
+    ...(existingCustom && typeof existingCustom === 'object' && !Array.isArray(existingCustom)
+      ? existingCustom as Record<string, unknown>
+      : {}),
+    ...rest,
+    ...custom,
+  };
+
+  const scope: ContextScope = {};
+  if (typeof env === 'string') scope.env = env;
+  if (Array.isArray(stack) && stack.every((item) => typeof item === 'string')) scope.stack = stack;
+  if (typeof version === 'string') scope.version = version;
+  if (timeRange && typeof timeRange === 'object' && !Array.isArray(timeRange)) {
+    const range = timeRange as { from?: unknown; to?: unknown };
+    scope.timeRange = {};
+    if (typeof range.from === 'string') scope.timeRange.from = range.from;
+    if (typeof range.to === 'string') scope.timeRange.to = range.to;
+    if (!scope.timeRange.from && !scope.timeRange.to) delete scope.timeRange;
+  }
+  if (typeof project === 'string') scope.project = project;
+  if (Object.keys(mergedCustom).length > 0) scope.custom = mergedCustom;
+
+  return Object.keys(scope).length > 0 ? scope : undefined;
+}
+
+function buildRawInput(observation: Observation): string {
+  if (Array.isArray(observation.rawRefs) && observation.rawRefs.length > 0) {
+    const joinedRefs = observation.rawRefs.filter((ref): ref is string => typeof ref === 'string' && ref.length > 0).join('\n');
+    if (joinedRefs) {
+      return joinedRefs;
+    }
+  }
+
+  const metadataTitle = typeof observation.metadata?.title === 'string' ? observation.metadata.title : undefined;
+  const metadataDescription = typeof observation.metadata?.description === 'string' ? observation.metadata.description : undefined;
+  const metadataText = [metadataTitle, metadataDescription].filter((value): value is string => typeof value === 'string' && value.length > 0).join('\n');
+  if (metadataText) {
+    return metadataText;
+  }
+
+  return JSON.stringify({
+    facts: observation.facts,
+    context: observation.context,
+  });
+}
+
+export function buildPipelineConfig(baseDbPath: string): PipelineConfig {
+  const parsed = path.parse(baseDbPath);
+  const pipelineBaseName = `${parsed.name}.pipeline`;
+  const withSuffix = (suffix: string): string => path.join(parsed.dir, `${pipelineBaseName}.${suffix}${parsed.ext || '.db'}`);
+
+  return {
+    graphDbPath: withSuffix('graph'),
+    storyDbPath: withSuffix('story'),
+    evidenceDbPath: withSuffix('evidence'),
+    problemClassDbPath: withSuffix('problem-class'),
+    patternDbPath: withSuffix('pattern'),
+    autoClassify: true,
+    autoExplore: true,
+    seedDefaults: true,
+    mechanismInstanceDbPath: withSuffix('mechanism-instance'),
+    derivationTraceDbPath: withSuffix('derivation-trace'),
+    episodeEventDbPath: withSuffix('episode-event'),
+    supportLinksDbPath: withSuffix('support-link'),
+    observationRecordsDbPath: withSuffix('observation-record'),
+    observationModelsDbPath: withSuffix('observation-model'),
+    mechanismProgramsDbPath: withSuffix('mechanism-program'),
+    mechanismClassesDbPath: withSuffix('mechanism-class'),
+    counterfactualScenariosDbPath: withSuffix('counterfactual-scenario'),
+    experimentDesignsDbPath: withSuffix('experiment-design'),
+    actionExecutionDbPath: withSuffix('action-execution'),
+    outcomeRecordDbPath: withSuffix('outcome-record'),
+    predictionErrorDbPath: withSuffix('prediction-error'),
+    stateSnapshotDbPath:            withSuffix('state-snapshot'),
+    transitionDbPath:               withSuffix('transition'),
+    programRevisionProposalsDbPath: withSuffix('program-revision-proposal'),
+  };
+}
+
+export function normalizeSubmitObservationArgs(args: unknown): NormalizedSubmitObservationArgs {
+  const parsedArgs = (args ?? {}) as { observation?: unknown; options?: Record<string, unknown> };
+  const observation = ObservationInputSchema.parse(parsedArgs.observation ?? {});
+  const normalizedObservation: Observation = {
+    observationId: observation.observationId ?? generateObservationId(),
+    timestamp: observation.timestamp ?? new Date().toISOString(),
+    facts: observation.facts as Fact[],
+    context: observation.context,
+    focusFacts: observation.focusFacts as Fact[] | undefined,
+    rawRefs: observation.rawRefs,
+    metadata: observation.metadata,
+  };
+  const pipelineInput: ObservationInput = {
+    rawInput: buildRawInput(normalizedObservation),
+    facts: normalizedObservation.facts,
+    context: toContextScope(normalizedObservation.context, {
+      legacyObservationId: normalizedObservation.observationId,
+      legacyTimestamp: normalizedObservation.timestamp,
+      legacyFocusFacts: normalizedObservation.focusFacts,
+      legacyRawRefs: normalizedObservation.rawRefs,
+      legacyMetadata: normalizedObservation.metadata,
+    }),
+  };
+
+  return {
+    observation: normalizedObservation,
+    pipelineInput,
+    options: parsedArgs.options,
+  };
+}
+
+export function normalizeRecordFixArgs(args: unknown): NormalizedRecordFixArgs {
+  const parsedArgs = (args ?? {}) as { eventId?: unknown; fix?: unknown };
+  const eventId = z.string().parse(parsedArgs.eventId);
+  const fix = FixInfoSchema.parse(parsedArgs.fix ?? {});
+  const pipelineInput: FixInput = {
+    storyId: eventId,
+    fixDescription: fix.fixDescription,
+    context: toContextScope(undefined, {
+      legacyFixCommit: fix.fixCommit,
+      legacyFilesChanged: fix.filesChanged,
+      legacyLinesChanged: fix.linesChanged,
+      legacyTestsPassed: fix.testsPassed,
+    }),
+    interventionOutcome: fix.testsPassed === false ? 'no_effect' : undefined,
+  };
+
+  return {
+    eventId,
+    fix,
+    pipelineInput,
+  };
+}
+
+export function handleSubmitObservationTool(currentPipeline: CausalPipeline, args: unknown): ToolResponse {
+  const normalized = normalizeSubmitObservationArgs(args);
+  const pipelineResult = currentPipeline.submitObservation(normalized.pipelineInput);
+
+  return createJsonResponse({
+    eventCreated: {
+      eventId: pipelineResult.story.id,
+      status: pipelineResult.story.status,
+    },
+    pipelineResult,
+  });
+}
+
+export function handleRecordFixTool(currentPipeline: CausalPipeline, args: unknown): ToolResponse {
+  const normalized = normalizeRecordFixArgs(args);
+  const pipelineResult = currentPipeline.recordFix(normalized.pipelineInput);
+
+  return createJsonResponse({
+    eventUpdated: {
+      eventId: normalized.eventId,
+      status: pipelineResult.story.status,
+      outcome: pipelineResult.story.outcome,
+    },
+    pipelineResult,
+  });
+}
+
+export function handleCausalSearchTool(currentPipeline: CausalPipeline, args: unknown): ToolResponse {
+  const searchArgs = z.object({
+    query: z.string(),
+    maxDepth: z.number().optional(),
+    strategy: z.enum(['knowledge_first', 'regulation_first', 'event_first']).optional(),
+  }).parse(args ?? {});
+  const pipelineResult = currentPipeline.search(searchArgs.query);
+
+  return createJsonResponse({
+    query: searchArgs.query,
+    pipelineResult,
+  });
+}
+
 // Create the MCP server
 const server = new Server(
   {
@@ -713,18 +944,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     switch (name) {
       // Core observation tools
       case 'submit_observation': {
-        const obsInput = args?.observation as Record<string, unknown>;
-        const observation: Observation = {
-          observationId: (obsInput.observationId as string) || generateObservationId(),
-          timestamp: (obsInput.timestamp as string) || new Date().toISOString(),
-          facts: obsInput.facts as Fact[],
-          context: obsInput.context as Record<string, unknown>,
-          focusFacts: obsInput.focusFacts as Fact[],
-          rawRefs: obsInput.rawRefs as string[],
-          metadata: obsInput.metadata as Record<string, unknown>,
-        };
-        const result = submitObservationTool(storage, observation, args?.options as any);
-        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+        return handleSubmitObservationTool(ensurePipelineInstance(pipeline), args);
       }
 
       case 'batch_submit_observations': {
@@ -858,8 +1078,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'record_fix': {
-        const reg = recordFixTool(storage, args?.eventId as string, args?.fix as FixInfo);
-        return { content: [{ type: 'text', text: JSON.stringify(reg, null, 2) }] };
+        return handleRecordFixTool(ensurePipelineInstance(pipeline), args);
       }
 
       case 'suggest_causes': {
@@ -904,7 +1123,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       // 新搜索工具 (参考 Sirchmunk 改进)
       case 'causal_search':
-        return await causalSearchTool(storage, args as any);
+        return handleCausalSearchTool(ensurePipelineInstance(pipeline), args);
 
       case 'fuzzy_search_regulations':
         return await fuzzySearchRegulationsTool(storage, args as any);
@@ -1062,6 +1281,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 // Graceful shutdown handler
 function shutdown() {
   console.error('Shutting down Causal Learner MCP Server...');
+  if (pipeline) {
+    pipeline.close();
+  }
   if (storage) {
     storage.close();
   }
@@ -1088,13 +1310,21 @@ async function main() {
     console.error(`Causal Learner MCP Server initialized in SINGLE mode at: ${DB_PATH}`);
   }
 
+  pipeline = new CausalPipeline(buildPipelineConfig(DB_PATH));
+  console.error(`CausalPipeline initialized at sibling DB set derived from: ${DB_PATH}`);
+
   // Start the server
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('Causal Learner MCP Server running on stdio');
 }
 
-main().catch((error) => {
-  console.error('Failed to start server:', error);
-  process.exit(1);
-});
+const entryFilePath = process.argv[1] ? path.resolve(process.argv[1]) : null;
+const currentModulePath = fileURLToPath(import.meta.url);
+
+if (entryFilePath === currentModulePath) {
+  main().catch((error) => {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  });
+}

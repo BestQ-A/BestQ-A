@@ -63,6 +63,41 @@ import {
   createDefaultMechanismProgram,
   DEFAULT_MECHANISM_PROGRAM_ID,
 } from './mechanism-program.js';
+import { CounterfactualScenarioStore } from './counterfactual-scenario-store.js';
+import type { CounterfactualScenarioStoreStats } from './counterfactual-scenario-store.js';
+import { ExperimentDesignStore } from './experiment-design-store.js';
+import type { ExperimentDesignStoreStats } from './experiment-design-store.js';
+import type { ExperimentDesign } from './experiment-design.js';
+import { ActionExecutionStore } from './action-execution-store.js';
+import type { ActionExecutionStoreStats } from './action-execution-store.js';
+import type { ActionExecution } from './types.js';
+import { createActionExecutionFromExperimentDesign } from './action-execution.js';
+import { OutcomeRecordStore } from './outcome-record-store.js';
+import type { OutcomeRecordStoreStats } from './outcome-record-store.js';
+import type { OutcomeRecord } from './types.js';
+import { createOutcomeRecord } from './outcome-record.js';
+import { PredictionErrorStore } from './prediction-error-store.js';
+import type { PredictionErrorStoreStats } from './prediction-error-store.js';
+import type { PredictionError } from './types.js';
+import { createPredictionError } from './prediction-error.js';
+import { StateSnapshotStore } from './state-snapshot-store.js';
+import type { StateSnapshotStoreStats } from './state-snapshot-store.js';
+import type { StateSnapshot } from './types.js';
+import { createStateSnapshot } from './state-snapshot.js';
+import { TransitionStore } from './transition-store.js';
+import type { TransitionStoreStats } from './transition-store.js';
+import type { Transition } from './types.js';
+import { createTransition } from './transition.js';
+import { MechanismClassStore } from './mechanism-class-store.js';
+import {
+  createDefaultMechanismClass,
+  DEFAULT_MECHANISM_CLASS_ID,
+  type MechanismClass,
+} from './mechanism-class.js';
+import { ProgramRevisionProposalStore } from './program-revision-proposal-store.js';
+import type { ProgramRevisionProposalStoreStats } from './program-revision-proposal-store.js';
+import type { ProgramRevisionProposal } from './program-revision-proposal.js';
+import { createProgramRevisionProposal } from './program-revision-proposal.js';
 import crypto from 'crypto';
 
 // =============================================================================
@@ -101,6 +136,24 @@ export interface PipelineConfig {
   observationModelsDbPath: string;
   /** MechanismProgram 持久化数据库路径 */
   mechanismProgramsDbPath: string;
+  /** MechanismClass 持久化数据库路径 */
+  mechanismClassesDbPath: string;
+  /** CounterfactualScenario 持久化数据库路径 */
+  counterfactualScenariosDbPath: string;
+  /** ExperimentDesign 持久化数据库路径 */
+  experimentDesignsDbPath: string;
+  /** ActionExecution 持久化数据库路径 */
+  actionExecutionDbPath: string;
+  /** OutcomeRecord 持久化数据库路径 */
+  outcomeRecordDbPath: string;
+  /** PredictionError 持久化数据库路径 */
+  predictionErrorDbPath: string;
+  /** StateSnapshot 持久化数据库路径 */
+  stateSnapshotDbPath: string;
+  /** Transition 持久化数据库路径 */
+  transitionDbPath: string;
+  /** ProgramRevisionProposal 持久化数据库路径 */
+  programRevisionProposalsDbPath: string;
 }
 
 /** 提交观测的输入 */
@@ -192,6 +245,35 @@ export interface PipelineStats {
   observationRecords: ObservationRecordStoreStats;
   observationModels: ObservationModelStoreStats;
   mechanismPrograms: MechanismProgramStoreStats;
+  counterfactualScenarios: CounterfactualScenarioStoreStats;
+  experimentDesigns: ExperimentDesignStoreStats;
+  actionExecutions: ActionExecutionStoreStats;
+  outcomeRecords: OutcomeRecordStoreStats;
+  predictionErrors: PredictionErrorStoreStats;
+  stateSnapshots: StateSnapshotStoreStats;
+  transitions: TransitionStoreStats;
+  programRevisionProposals: ProgramRevisionProposalStoreStats;
+}
+
+export interface ActionExecutionResult {
+  design: ExperimentDesign;
+  execution: ActionExecution;
+  /** Compatibility alias for the test-facing target state name */
+  actionExecution: ActionExecution;
+  outcomeRecord: OutcomeRecord;
+  predictionError: PredictionError;
+  sourceEpisode: Episode;
+  targetEpisode: Episode;
+  /** Compatibility alias for the newly created episode */
+  episode: Episode;
+  /** source episode 最新快照（若 source 尚无 snapshot 则为 null） */
+  sourceSnapshot: StateSnapshot | null;
+  /** post-action target episode 状态快照 */
+  targetSnapshot: StateSnapshot;
+  /** 连接 sourceSnapshot → targetSnapshot 的转移边（sourceSnapshot 存在时才创建） */
+  transition: Transition | null;
+  /** 基于 PredictionError 生成的模型修正提名（目标可解析时存在） */
+  programRevisionProposal: ProgramRevisionProposal | null;
 }
 
 // =============================================================================
@@ -225,6 +307,24 @@ export class CausalPipeline {
   readonly observationModels: ObservationModelStore;
   /** MechanismProgram 持久化存储 */
   readonly mechanismPrograms: MechanismProgramStore;
+  /** MechanismClass 持久化存储 */
+  readonly mechanismClasses: MechanismClassStore;
+  /** CounterfactualScenario 持久化存储 */
+  readonly counterfactualScenarios: CounterfactualScenarioStore;
+  /** ExperimentDesign 持久化存储 */
+  readonly experimentDesigns: ExperimentDesignStore;
+  /** ActionExecution 持久化存储 */
+  readonly actionExecutions: ActionExecutionStore;
+  /** OutcomeRecord 持久化存储 */
+  readonly outcomeRecords: OutcomeRecordStore;
+  /** PredictionError 持久化存储 */
+  readonly predictionErrors: PredictionErrorStore;
+  /** StateSnapshot 持久化存储 */
+  readonly stateSnapshots: StateSnapshotStore;
+  /** Transition 持久化存储 */
+  readonly transitions: TransitionStore;
+  /** ProgramRevisionProposal 持久化存储 */
+  readonly programRevisionProposals: ProgramRevisionProposalStore;
 
   private rvBuilder: RegulationViewBuilder;
   private config: PipelineConfig;
@@ -246,6 +346,15 @@ export class CausalPipeline {
       observationRecordsDbPath: config.observationRecordsDbPath ?? ':memory:',
       observationModelsDbPath:  config.observationModelsDbPath  ?? ':memory:',
       mechanismProgramsDbPath:  config.mechanismProgramsDbPath  ?? ':memory:',
+      mechanismClassesDbPath:        config.mechanismClassesDbPath        ?? ':memory:',
+      counterfactualScenariosDbPath: config.counterfactualScenariosDbPath ?? ':memory:',
+      experimentDesignsDbPath:       config.experimentDesignsDbPath       ?? ':memory:',
+      actionExecutionDbPath:    config.actionExecutionDbPath    ?? ':memory:',
+      outcomeRecordDbPath:      config.outcomeRecordDbPath      ?? ':memory:',
+      predictionErrorDbPath:    config.predictionErrorDbPath    ?? ':memory:',
+      stateSnapshotDbPath:           config.stateSnapshotDbPath           ?? ':memory:',
+      transitionDbPath:              config.transitionDbPath              ?? ':memory:',
+      programRevisionProposalsDbPath: config.programRevisionProposalsDbPath ?? ':memory:',
     };
     this.config = resolved;
 
@@ -269,11 +378,30 @@ export class CausalPipeline {
     if (!this.observationModels.get(DEFAULT_OBSERVATION_MODEL_ID)) {
       this.observationModels.save(createDefaultObservationModel());
     }
+    this.mechanismClasses     = new MechanismClassStore(resolved.mechanismClassesDbPath);
+    if (!this.mechanismClasses.get(DEFAULT_MECHANISM_CLASS_ID)) {
+      this.mechanismClasses.save(createDefaultMechanismClass());
+    }
     this.mechanismPrograms    = new MechanismProgramStore(resolved.mechanismProgramsDbPath);
     // 幂等写入默认 MechanismProgram（第一轮过渡模型，所有 recordFix 路径共享）
     if (!this.mechanismPrograms.get(DEFAULT_MECHANISM_PROGRAM_ID)) {
       this.mechanismPrograms.save(createDefaultMechanismProgram());
     }
+    const defaultMechanismClass = this.mechanismClasses.get(DEFAULT_MECHANISM_CLASS_ID);
+    if (defaultMechanismClass && !defaultMechanismClass.mechanismProgramIds.includes(DEFAULT_MECHANISM_PROGRAM_ID)) {
+      this.mechanismClasses.save({
+        ...defaultMechanismClass,
+        mechanismProgramIds: [...defaultMechanismClass.mechanismProgramIds, DEFAULT_MECHANISM_PROGRAM_ID],
+      });
+    }
+    this.counterfactualScenarios = new CounterfactualScenarioStore(resolved.counterfactualScenariosDbPath);
+    this.experimentDesigns    = new ExperimentDesignStore(resolved.experimentDesignsDbPath);
+    this.actionExecutions     = new ActionExecutionStore(resolved.actionExecutionDbPath);
+    this.outcomeRecords       = new OutcomeRecordStore(resolved.outcomeRecordDbPath);
+    this.predictionErrors     = new PredictionErrorStore(resolved.predictionErrorDbPath);
+    this.stateSnapshots       = new StateSnapshotStore(resolved.stateSnapshotDbPath);
+    this.transitions          = new TransitionStore(resolved.transitionDbPath);
+    this.programRevisionProposals = new ProgramRevisionProposalStore(resolved.programRevisionProposalsDbPath);
 
     if (resolved.seedDefaults) {
       this.problemClasses.seedDefaults();
@@ -307,15 +435,13 @@ export class CausalPipeline {
     const atoms = this.graph.ingestFacts(input.facts, contextRecord);
 
     // Step 2: 自动分类
-    let classification: ClassifyResult | undefined;
-    if (this.config.autoClassify) {
-      const results = this.problemClasses.classify(input.rawInput);
-      if (results.length > 0) {
-        classification = results[0];
+    const classification = this.config.autoClassify
+      ? this.classifyBestEffort(input.rawInput, 'submitObservation')
+      : undefined;
+    if (classification) {
         suggestions.push(
           `问题分类: ${classification.problemClassId} (置信度 ${(classification.confidence * 100).toFixed(0)}%)`
         );
-      }
     }
 
     // Step 3: 创建 Story
@@ -435,6 +561,19 @@ export class CausalPipeline {
       suggestions.push('未找到已有解释路径，已创建 open Story 等待后续学习');
     }
 
+    // Step 3d: 为新 Episode 创建初始状态快照
+    const initialSnapshot = createStateSnapshot({
+      episodeId: story.id,
+      t: 0,
+      values: {
+        rawInput: input.rawInput.slice(0, 120),
+        factCount: atoms.length,
+        context: contextRecord,
+      },
+      createdBy: input.operator ?? 'pipeline_submit_observation',
+    });
+    this.stateSnapshots.save(initialSnapshot);
+
     return {
       atoms,
       classification,
@@ -463,6 +602,10 @@ export class CausalPipeline {
     const outcome: InterventionOutcome = input.interventionOutcome ?? 'mechanism_confirmed';
     const fallbackTime = new Date().toISOString();
     const existingStory = this.stories.get(input.storyId);
+    if (existingStory?.status === 'resolved') {
+      throw new Error(`Story 已 resolved，不能再次 recordFix: ${input.storyId}`);
+    }
+
     const storySnapshot: Story = existingStory ?? {
       id: input.storyId,
       rawInput: input.fixDescription,
@@ -536,8 +679,12 @@ export class CausalPipeline {
         // Step 2e: 只有 compile 真正写入了才记录 Evidence
         if (compile.compiledRefs > 0) {
           for (const refId of compile.compiledRefIds) {
-            recordSupport(this.evidence, refId, 'fix', input.storyId, 0.85, input.context);
-            evidenceCount++;
+            try {
+              recordSupport(this.evidence, refId, 'fix', input.storyId, 0.85, input.context);
+              evidenceCount++;
+            } catch (error) {
+              this.warnBestEffortFailure('recordFix.evidence', error, { refId, storyId: input.storyId });
+            }
           }
           episodeEventIds.push(appendEv('compile_applied', `compile:${input.storyId}`, { compiledRefs: compile.compiledRefs }));
         } else {
@@ -555,10 +702,7 @@ export class CausalPipeline {
     const pathForBindings = pathWithFix ?? storySnapshot.observationAtomIds;
     pathForBindings.forEach((atomId, i) => { miBindings[`slot_${i}`] = atomId; });
 
-    // D3: 使用 proxy:* 前缀，不伪造真实 MechanismClass ID
-    const mechanismClassRef = hypothesisId
-      ? `proxy:hyp_${hypothesisId}`
-      : `proxy:episode_${input.storyId}`;
+    const mechanismClassRef = this.ensurePathProjectionMechanismClass(input.storyId).id;
 
     const rawMechanismInstance = createMechanismInstance({
       episode_id: input.storyId,
@@ -689,15 +833,14 @@ export class CausalPipeline {
                 ?? this.stories.get(input.storyId)
                 ?? storySnapshot) as Story;
       this.stories.markCompiled(input.storyId);
-      this.graph.myelinate({ minUseCount: 3, minWeight: 0.6 });
+      try {
+        this.graph.myelinate({ minUseCount: 3, minWeight: 0.6 });
+      } catch (error) {
+        this.warnBestEffortFailure('recordFix.myelinate', error, { storyId: input.storyId });
+      }
     } else if (input.chosenPathAtomIds && input.chosenPathAtomIds.length >= 2) {
       // 提供了路径但 compile 被拒绝（canPromote 门控未通过或路径不合法）
-      const reason = compile
-        ? '路径不合法'
-        : (hypothesisId ? 'canPromote 门控未通过' : '编译未执行');
-      story = (this.stories.resolve(input.storyId, 'partial', `编译未通过：${reason}`)
-                ?? this.stories.get(input.storyId)
-                ?? storySnapshot) as Story;
+      story = (this.stories.get(input.storyId) ?? storySnapshot) as Story;
     } else {
       // 没有提供路径 → 仅记录修复描述，直接 resolve
       story = (this.stories.resolve(input.storyId, 'success', input.fixDescription)
@@ -762,8 +905,7 @@ export class CausalPipeline {
     const suggestions: string[] = [];
 
     // Step 1: 分类
-    const classified   = this.problemClasses.classify(query);
-    const classification = classified.length > 0 ? classified[0] : undefined;
+    const classification = this.classifyBestEffort(query, 'search');
 
     // Step 2: 在图中搜索相关 Atoms（fact + concept 类型）
     const atoms   = this.graph.findAtoms(query, undefined, 10);
@@ -796,6 +938,189 @@ export class CausalPipeline {
     }
 
     return { classification, paths, regulations, suggestions };
+  }
+
+  // ===========================================================================
+  // executeExperimentDesign
+  // ===========================================================================
+
+  /**
+   * 最小执行闭环：
+   * ExperimentDesign.recommendedAction
+   *   → ActionExecution
+   *   → new Episode
+   */
+  executeExperimentDesign(
+    input:
+      | string
+      | {
+          experimentDesign: ExperimentDesign;
+          createdBy?: string;
+          operator?: string;
+          outcomeSummary?: string;
+        },
+    opts: {
+      operator?: string;
+      outcomeSummary?: string;
+    } = {}
+  ): ActionExecutionResult {
+    const inlineDesign = typeof input === 'object' && input !== null ? input.experimentDesign : undefined;
+    const operator =
+      typeof input === 'object' && input !== null
+        ? input.operator ?? input.createdBy ?? opts.operator
+        : opts.operator;
+    const outcomeSummary =
+      typeof input === 'object' && input !== null
+        ? input.outcomeSummary ?? opts.outcomeSummary
+        : opts.outcomeSummary;
+
+    const design = inlineDesign ?? this.experimentDesigns.get(input as string);
+    if (!design) {
+      throw new Error(`ExperimentDesign 不存在：${typeof input === 'string' ? input : '<inline>'}`);
+    }
+
+    if (!inlineDesign) {
+      this.experimentDesigns.save(design);
+    } else if (!this.experimentDesigns.get(design.id)) {
+      this.experimentDesigns.save(design);
+    }
+
+    const sourceStory = this.stories.get(design.baseEpisodeId);
+    if (!sourceStory) {
+      throw new Error(`source Episode 不存在：${design.baseEpisodeId}`);
+    }
+
+    const targetStory = this.stories.create({
+      rawInput: `ActionExecution: ${design.recommendedAction}`,
+      context: sourceStory.context,
+      observationAtomIds: [],
+      operator: operator ?? 'pipeline_action_execution',
+    });
+
+    const execution = createActionExecutionFromExperimentDesign(design, {
+      targetEpisodeId: targetStory.id,
+      observedOutcomeSummary: outcomeSummary ?? `Executed ${design.recommendedAction}`,
+      createdBy: operator ?? 'pipeline_action_execution',
+    });
+    const outcomeRecord = createOutcomeRecord({
+      episodeId: targetStory.id,
+      causedByActionExecutionId: execution.id,
+      status: 'partial',
+      summary: execution.observedOutcomeSummary ?? `Executed ${design.recommendedAction}`,
+      observedSignals: [],
+      sideEffects: [],
+      evidenceRefs: [],
+      recordedBy: operator ?? 'pipeline_action_execution',
+    });
+
+    // 优先从真实 CounterfactualScenario.predictedOutcome 取 expectedSummary
+    const cfId = design.basedOnCounterfactualIds?.[0];
+    const cf = cfId ? this.counterfactualScenarios.get(cfId) : null;
+    const expectedSummary =
+      cf?.predictedOutcome && cf.predictedOutcome.trim() !== ''
+        ? cf.predictedOutcome
+        : 'missing counterfactual predictedOutcome';
+    const actualSummary = outcomeRecord.summary;
+    const predictionError = createPredictionError({
+      basedOnCounterfactualId: design.basedOnCounterfactualIds?.[0],
+      causedByActionExecutionId: execution.id,
+      outcomeRecordId: outcomeRecord.id,
+      errorKind: 'outcome',
+      expectedSummary,
+      actualSummary,
+      deltaSummary: `expected: ${expectedSummary}; actual: ${actualSummary}`,
+      severity: 'low',
+      score: null,
+      recordedBy: operator ?? 'pipeline_action_execution',
+    });
+
+    this.actionExecutions.save(execution);
+    this.outcomeRecords.save(outcomeRecord);
+    this.predictionErrors.save(predictionError);
+    this.stories.recordExecution(sourceStory.id, execution.id);
+    this.stories.resolve(targetStory.id, 'partial', execution.observedOutcomeSummary);
+
+    // Slice 4: post-action snapshot + transition
+    const sourceSnapshot = this.stateSnapshots.getLatestByEpisode(sourceStory.id);
+    const targetSnapshot = createStateSnapshot({
+      episodeId: targetStory.id,
+      t: 1,
+      values: {
+        actionRef: design.recommendedAction,
+        executionStatus: execution.executionStatus,
+        outcomeSummary: outcomeRecord.summary,
+      },
+      createdBy: operator ?? 'pipeline_action_execution',
+    });
+    this.stateSnapshots.save(targetSnapshot);
+
+    let transition: Transition | null = null;
+    if (sourceSnapshot) {
+      transition = createTransition({
+        episodeId: targetStory.id,
+        fromSnapshotId: sourceSnapshot.id,
+        toSnapshotId: targetSnapshot.id,
+        causedByActionId: execution.id,
+        candidateMechanismIds: [],
+        createdBy: operator ?? 'pipeline_action_execution',
+      });
+      this.transitions.save(transition);
+    }
+
+    const resolvedSourceEpisode = toEpisode(this.stories.get(sourceStory.id) ?? sourceStory);
+    const resolvedTargetEpisode = {
+      ...toEpisode(this.stories.get(targetStory.id) ?? targetStory),
+      outcomeRecordId: outcomeRecord.id,
+    };
+
+    // 最小规则：PredictionError → ProgramRevisionProposal
+    let programRevisionProposal: ProgramRevisionProposal | null = null;
+    {
+      const ek = predictionError.errorKind;
+      if (ek === 'observation') {
+        // 确认目标 ObservationModel 可 resolve
+        if (this.observationModels.get(DEFAULT_OBSERVATION_MODEL_ID)) {
+          programRevisionProposal = createProgramRevisionProposal({
+            basedOnPredictionErrorIds: [predictionError.id],
+            targetKind: 'observation_model',
+            targetRef: DEFAULT_OBSERVATION_MODEL_ID,
+            proposedChangeKind: 'observation_mapping_adjustment',
+            rationale: `observation 偏差（${predictionError.id}）提示观测映射需调整`,
+            createdBy: operator ?? 'pipeline_action_execution',
+          });
+          this.programRevisionProposals.save(programRevisionProposal);
+        }
+      } else if (ek === 'transition' || ek === 'outcome') {
+        // 确认目标 MechanismProgram 可 resolve
+        if (this.mechanismPrograms.get(DEFAULT_MECHANISM_PROGRAM_ID)) {
+          programRevisionProposal = createProgramRevisionProposal({
+            basedOnPredictionErrorIds: [predictionError.id],
+            targetKind: 'mechanism_program',
+            targetRef: DEFAULT_MECHANISM_PROGRAM_ID,
+            proposedChangeKind: 'validity_narrowing',
+            rationale: `${ek} 偏差（${predictionError.id}）提示机制程序有效域需收窄`,
+            createdBy: operator ?? 'pipeline_action_execution',
+          });
+          this.programRevisionProposals.save(programRevisionProposal);
+        }
+      }
+      // context / unknown → 不生成 proposal
+    }
+
+    return {
+      design,
+      execution,
+      actionExecution: execution,
+      outcomeRecord,
+      predictionError,
+      sourceEpisode: resolvedSourceEpisode,
+      targetEpisode: resolvedTargetEpisode,
+      episode: resolvedTargetEpisode,
+      sourceSnapshot,
+      targetSnapshot,
+      transition,
+      programRevisionProposal,
+    };
   }
 
   // ===========================================================================
@@ -845,7 +1170,15 @@ export class CausalPipeline {
       supportLinks:       this.supportLinks.getStats(),
       observationRecords: this.observationRecords.getStats(),
       observationModels:  this.observationModels.getStats(),
-      mechanismPrograms:  this.mechanismPrograms.getStats(),
+      mechanismPrograms:       this.mechanismPrograms.getStats(),
+      counterfactualScenarios: this.counterfactualScenarios.getStats(),
+      experimentDesigns:       this.experimentDesigns.getStats(),
+      actionExecutions:   this.actionExecutions.getStats(),
+      outcomeRecords:     this.outcomeRecords.getStats(),
+      predictionErrors:   this.predictionErrors.getStats(),
+      stateSnapshots:          this.stateSnapshots.getStats(),
+      transitions:             this.transitions.getStats(),
+      programRevisionProposals: this.programRevisionProposals.getStats(),
     };
   }
 
@@ -869,7 +1202,55 @@ export class CausalPipeline {
     this.supportLinks.close();
     this.observationRecords.close();
     this.observationModels.close();
+    this.mechanismClasses.close();
     this.mechanismPrograms.close();
+    this.counterfactualScenarios.close();
+    this.experimentDesigns.close();
+    this.actionExecutions.close();
+    this.outcomeRecords.close();
+    this.predictionErrors.close();
+    this.stateSnapshots.close();
+    this.transitions.close();
+    this.programRevisionProposals.close();
     // rvBuilder 不拥有独立 DB 连接，无需单独关闭
+  }
+
+  /**
+   * 第一轮最小去 proxy：统一锚到真实默认 MechanismClass。
+   * 只维护主链身份与最小 supporting_episode_ids，不扩展 promotion/merge 语义。
+   */
+  private ensurePathProjectionMechanismClass(episodeId: string): MechanismClass {
+    const base = this.mechanismClasses.get(DEFAULT_MECHANISM_CLASS_ID) ?? createDefaultMechanismClass();
+    const mechanismClass = base.supporting_episode_ids.includes(episodeId)
+      ? base
+      : {
+          ...base,
+          supporting_episode_ids: [...base.supporting_episode_ids, episodeId],
+        };
+
+    const withProgramRef = mechanismClass.mechanismProgramIds.includes(DEFAULT_MECHANISM_PROGRAM_ID)
+      ? mechanismClass
+      : {
+          ...mechanismClass,
+          mechanismProgramIds: [...mechanismClass.mechanismProgramIds, DEFAULT_MECHANISM_PROGRAM_ID],
+        };
+
+    this.mechanismClasses.save(withProgramRef);
+    return this.mechanismClasses.get(DEFAULT_MECHANISM_CLASS_ID) ?? withProgramRef;
+  }
+
+  private classifyBestEffort(input: string, phase: 'submitObservation' | 'search'): ClassifyResult | undefined {
+    try {
+      const results = this.problemClasses.classify(input);
+      return results.length > 0 ? results[0] : undefined;
+    } catch (error) {
+      this.warnBestEffortFailure(`${phase}.classify`, error, { input });
+      return undefined;
+    }
+  }
+
+  private warnBestEffortFailure(step: string, error: unknown, details: Record<string, unknown> = {}): void {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[CausalPipeline] ${step} best-effort 失败: ${message}`, details);
   }
 }

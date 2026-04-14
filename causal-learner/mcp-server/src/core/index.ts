@@ -26,6 +26,7 @@ export type {
   ActionExecution,
   Transition,
   OutcomeRecord,
+  PredictionError,
   // v7 Claim Space
   Claim,
   SupportLink,
@@ -393,6 +394,7 @@ export type {
   ObservationResult,
   FixInput,
   FixResult,
+  ActionExecutionResult,
   PipelineStats,
 } from './pipeline.js';
 
@@ -418,17 +420,27 @@ export type {
   MechanismCompilationStatus,
   MechanismPhase,
   MechanismClass,
+  ValidationResult as MechanismValidationResult,
   PromoteSuccess,
   PromoteNoPromotion,
   PromoteResult,
-  ValidationResult as MechanismValidationResult,
 } from './mechanism-class.js';
 
 export {
   createMechanismClass,
+  createDefaultMechanismClass,
+  DEFAULT_MECHANISM_CLASS_ID,
   promoteMechanismClass,
   validateMechanismClass,
 } from './mechanism-class.js';
+
+export type {
+  MechanismClassStoreStats,
+} from './mechanism-class-store.js';
+
+export {
+  MechanismClassStore,
+} from './mechanism-class-store.js';
 
 // MechanismInstance (v7 经历层绑定实例 — MechanismClass × Episode)
 export type {
@@ -533,3 +545,145 @@ export type {
 export {
   MechanismProgramStore,
 } from './mechanism-program-store.js';
+// CounterfactualScenario + CounterfactualScenarioStore (v8 反事实场景对象)
+export type {
+  CounterfactualAssumption,
+  PredictedStep,
+  CounterfactualScenario,
+  CreateCounterfactualScenarioInput,
+} from './counterfactual-scenario.js';
+
+export {
+  createCounterfactualScenario,
+} from './counterfactual-scenario.js';
+
+export type {
+  CounterfactualScenarioStoreStats,
+} from './counterfactual-scenario-store.js';
+
+export {
+  CounterfactualScenarioStore,
+} from './counterfactual-scenario-store.js';
+
+// ExperimentDesign + ExperimentDesignStore (v8 实验设计对象)
+export type {
+  ExperimentDesign,
+  CreateExperimentDesignInput,
+} from './experiment-design.js';
+
+export {
+  createExperimentDesign,
+} from './experiment-design.js';
+
+export type {
+  ExperimentDesignStoreStats,
+} from './experiment-design-store.js';
+
+export {
+  ExperimentDesignStore,
+} from './experiment-design-store.js';
+
+// ActionExecution + ActionExecutionStore (v8 最小执行桥)
+export type {
+  CreateActionExecutionInput,
+} from './action-execution.js';
+
+export {
+  createActionExecution,
+  createActionExecutionFromExperimentDesign,
+} from './action-execution.js';
+
+export type {
+  ActionExecutionStoreStats,
+} from './action-execution-store.js';
+
+export {
+  ActionExecutionStore,
+} from './action-execution-store.js';
+
+// OutcomeRecord + OutcomeRecordStore (v8 最小反馈对象)
+export type {
+  CreateOutcomeRecordInput,
+} from './outcome-record.js';
+
+export {
+  createOutcomeRecord,
+} from './outcome-record.js';
+
+export type {
+  OutcomeRecordStoreStats,
+} from './outcome-record-store.js';
+
+export {
+  OutcomeRecordStore,
+} from './outcome-record-store.js';
+
+// PredictionError + PredictionErrorStore (v8 最小偏差对象)
+export type {
+  CreatePredictionErrorInput,
+} from './prediction-error.js';
+
+export {
+  createPredictionError,
+} from './prediction-error.js';
+
+export type {
+  PredictionErrorStoreStats,
+} from './prediction-error-store.js';
+
+export {
+  PredictionErrorStore,
+} from './prediction-error-store.js';
+
+// StateSnapshot + StateSnapshotStore (v8 状态快照)
+export type {
+  CreateStateSnapshotInput,
+} from './state-snapshot.js';
+
+export {
+  createStateSnapshot,
+} from './state-snapshot.js';
+
+export type {
+  StateSnapshotStoreStats,
+} from './state-snapshot-store.js';
+
+export {
+  StateSnapshotStore,
+} from './state-snapshot-store.js';
+
+// Transition + TransitionStore (v8 状态转移边)
+export type {
+  CreateTransitionInput,
+} from './transition.js';
+
+export {
+  createTransition,
+} from './transition.js';
+
+export type {
+  TransitionStoreStats,
+} from './transition-store.js';
+
+export {
+  TransitionStore,
+} from './transition-store.js';
+
+// ProgramRevisionProposal + ProgramRevisionProposalStore (v8 偏差驱动模型修正提名)
+export type {
+  ProgramRevisionProposal,
+  CreateProgramRevisionProposalInput,
+} from './program-revision-proposal.js';
+
+export {
+  createProgramRevisionProposal,
+  assertValidProgramRevisionProposal,
+} from './program-revision-proposal.js';
+
+export type {
+  ProgramRevisionProposalStoreStats,
+} from './program-revision-proposal-store.js';
+
+export {
+  ProgramRevisionProposalStore,
+} from './program-revision-proposal-store.js';
