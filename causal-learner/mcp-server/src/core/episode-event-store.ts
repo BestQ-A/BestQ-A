@@ -29,7 +29,8 @@ export type EpisodeEventKind =
   | 'reconstruction_written'
   | 'ontology_delta_written'
   | 'outcome_recorded'
-  | 'failure_boundary_recorded';
+  | 'failure_boundary_recorded'
+  | 'lineage_compile_proposal_applied';
 
 export interface EpisodeEvent {
   id: string;

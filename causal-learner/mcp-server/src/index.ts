@@ -826,6 +826,8 @@ export function buildPipelineConfig(baseDbPath: string): PipelineConfig {
     reconstructionDbPath:           withSuffix('reconstruction'),
     branchPointDbPath:              withSuffix('branch-point'),
     presentSliceDbPath:             withSuffix('present-slice'),
+    historicalCompressionRecordDbPath: withSuffix('historical-compression-record'),
+    lineageCompileProposalDbPath:     withSuffix('lineage-compile-proposal'),
   };
 }
 
