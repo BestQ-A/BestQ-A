@@ -17,12 +17,16 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 import process from 'node:process';
 
 const execFileP = promisify(execFile);
 
-const ROOT = path.resolve(process.cwd());
+// 基于测试文件位置计算 BestQ-A 项目根，避免依赖运行时 cwd
+// （CI 在 causal-learner/mcp-server 下运行 .mjs 测试，cwd 不是项目根）
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(__dirname, '..', '..', '..');
 const EXPORT_SCRIPT = path.join(ROOT, 'scripts', 'export-v7-artifacts.mjs');
 const ARTIFACTS_ROOT = path.join(ROOT, 'artifacts');
 
