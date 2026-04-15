@@ -742,3 +742,161 @@ export type {
 export {
   ReviewDecisionStore,
 } from './review-decision-store.js';
+
+// =============================================================================
+// v8 运行时扩展（executePhasedProgram / inferCounterfactual）
+// =============================================================================
+
+export type {
+  ExecutionContext,
+  ProgramIntervention,
+  PhaseExecutionResult,
+  PhasedTrajectory,
+} from './mechanism-program.js';
+
+export {
+  executePhasedProgram,
+} from './mechanism-program.js';
+
+export {
+  inferCounterfactual,
+} from './counterfactual-scenario.js';
+
+// =============================================================================
+// v9 OntologyFederation
+// =============================================================================
+
+export type {
+  OntologyConcept,
+  OntologyModel,
+  CreateOntologyModelInput,
+} from './ontology-model.js';
+
+export {
+  createOntologyModel,
+} from './ontology-model.js';
+
+export type {
+  ConceptMapping,
+  TranslationResult,
+  TranslationFunctor,
+  CreateTranslationFunctorInput,
+} from './translation-functor.js';
+
+export {
+  createTranslationFunctor,
+  translateAtomRef,
+} from './translation-functor.js';
+
+export type {
+  ConflictKind,
+  ConflictEntry,
+  ConflictSet,
+  CreateConflictSetInput,
+} from './conflict-set.js';
+
+export {
+  createConflictSet,
+  appendConflictEntry,
+  resolveConflictEntry,
+} from './conflict-set.js';
+
+// =============================================================================
+// v10 ParticipativeWorld
+// =============================================================================
+
+export type {
+  InstrumentBias,
+  ObserverModel,
+  FilteredObservation,
+  CreateObserverModelInput,
+} from './observer-model.js';
+
+export {
+  createObserverModel,
+  filterObservations,
+  applyInstrumentBias,
+} from './observer-model.js';
+
+export type {
+  InstitutionRule,
+  RoleAssignment,
+  InstitutionModel,
+  PermissionCheckResult,
+  CreateInstitutionModelInput,
+} from './institution-model.js';
+
+export {
+  createInstitutionModel,
+  checkRolePermission,
+} from './institution-model.js';
+
+// =============================================================================
+// v11 CivilizationMemory
+// =============================================================================
+
+export type {
+  FailureCost,
+  BoundaryCondition,
+  FailureRecord,
+  FailureBoundaryArchive,
+  CreateFailureBoundaryArchiveInput,
+  AppendFailureRecordInput,
+} from './failure-boundary-archive.js';
+
+export {
+  createFailureBoundaryArchive,
+  appendFailureRecord,
+  queryRecordsByCostKind,
+  queryRecordsByVariable,
+  checkBoundaryViolation,
+} from './failure-boundary-archive.js';
+
+export type {
+  CounterexampleSeverity,
+  CounterexampleEntry,
+  CounterexampleCommons,
+  CreateCounterexampleCommonsInput,
+  AppendCounterexampleInput,
+} from './counterexample-commons.js';
+
+export {
+  createCounterexampleCommons,
+  appendCounterexample,
+  markCounterexampleAbsorbed,
+  searchActiveCounterexamples,
+  searchBySeverity,
+} from './counterexample-commons.js';
+
+// =============================================================================
+// v11 ReflexiveCivilizationEngine
+// =============================================================================
+
+export type {
+  LineageNode,
+  LineageCompleteness,
+  ProofLineage,
+  CreateProofLineageInput,
+} from './proof-lineage.js';
+
+export {
+  createProofLineage,
+  traceToLineageNode,
+  buildProofLineage,
+} from './proof-lineage.js';
+
+export type {
+  ConstraintKind,
+  ConstraintCheckResult,
+  ConstitutionalConstraint,
+  ConstitutionalLayer,
+  ConstitutionalAudit,
+  CreateConstitutionalLayerInput,
+} from './constitutional-layer.js';
+
+export {
+  createConstitutionalLayer,
+  createDefaultConstitutionalLayer,
+  STANDARD_CONSTRAINTS,
+  auditSubject,
+} from './constitutional-layer.js';
