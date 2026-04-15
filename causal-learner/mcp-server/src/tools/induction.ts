@@ -381,9 +381,20 @@ export function triggerInductionTool(
     };
   }
 
+  // 从聚类事件的实际 context 动态提取共同 keys，不再硬编码 SWE-bench 字段
+  const allContextKeys = new Set<string>();
+  for (const cluster of eventClusters) {
+    for (const evt of cluster) {
+      if (evt.context) {
+        for (const k of Object.keys(evt.context)) {
+          allContextKeys.add(k);
+        }
+      }
+    }
+  }
   const coreOptions = {
     minEvents: minClusterSize,
-    contextKeys: ['repo', 'error.type', 'test.framework', 'env.os'],
+    contextKeys: [...allContextKeys],
   };
 
   // Induce regulations from each cluster
