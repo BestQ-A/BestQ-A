@@ -114,6 +114,17 @@ import { PresentSliceStore } from './present-slice-store.js';
 import type { PresentSliceStoreStats } from './present-slice-store.js';
 import { buildPresentSliceFromPipeline } from './present-slice.js';
 import type { PipelineSnapshot } from './present-slice.js';
+import { HistoricalCompressionRecordStore } from './historical-compression-record-store.js';
+import type { HistoricalCompressionRecordStoreStats } from './historical-compression-record-store.js';
+import { createHistoricalCompressionRecord } from './historical-compression-record.js';
+import { LineageCompileProposalStore } from './lineage-compile-proposal-store.js';
+import type { LineageCompileProposalStoreStats } from './lineage-compile-proposal-store.js';
+import {
+  createLineageCompileProposal,
+  approveProposal as approveLineageProposal,
+  applyProposal as applyLineageProposal,
+} from './lineage-compile-proposal.js';
+import type { ProposedRefChange } from './lineage-compile-proposal.js';
 import { createDefaultConstitutionalLayer, auditSubject, type ConstitutionalAudit } from './constitutional-layer.js';
 import type { ReconstructionStoreStats } from './reconstruction-store.js';
 import { FailureBoundaryArchiveStore } from './failure-boundary-archive-store.js';
@@ -190,6 +201,10 @@ export interface PipelineConfig {
   branchPointDbPath: string;
   /** PresentSlice 持久化数据库路径 */
   presentSliceDbPath: string;
+  /** HistoricalCompressionRecord 持久化数据库路径 */
+  historicalCompressionRecordDbPath: string;
+  /** LineageCompileProposal 持久化数据库路径 */
+  lineageCompileProposalDbPath: string;
 }
 
 /** 提交观测的输入 */
@@ -261,6 +276,8 @@ export interface FixResult {
   compile?: CompileResult;
   /** 记录的证据条数 */
   evidenceCount: number;
+  /** ConstitutionalLayer 审计结果（v11 宪法审计） */
+  constitutionalAudit?: ConstitutionalAudit;
   /** 更新后的 Regulation 视图列表 */
   regulationViews: RegulationView[];
 }
@@ -375,6 +392,10 @@ export class CausalPipeline {
   readonly branchPoints: BranchPointStore;
   /** v13 PresentSlice 当前观测面存储 */
   readonly presentSlices: PresentSliceStore;
+  /** v13 HistoricalCompressionRecord 历史压缩记录存储 */
+  readonly historicalCompressionRecords: HistoricalCompressionRecordStore;
+  /** v13 LineageCompileProposal 谱系编译提案存储 */
+  readonly lineageCompileProposals: LineageCompileProposalStore;
 
   private rvBuilder: RegulationViewBuilder;
   private config: PipelineConfig;
@@ -411,6 +432,8 @@ export class CausalPipeline {
       reconstructionDbPath:           config.reconstructionDbPath           ?? ':memory:',
       branchPointDbPath:              config.branchPointDbPath              ?? ':memory:',
       presentSliceDbPath:             config.presentSliceDbPath             ?? ':memory:',
+      historicalCompressionRecordDbPath: config.historicalCompressionRecordDbPath ?? ':memory:',
+      lineageCompileProposalDbPath:      config.lineageCompileProposalDbPath      ?? ':memory:',
     };
     this.config = resolved;
 
@@ -468,6 +491,8 @@ export class CausalPipeline {
     this.reconstructions = new ReconstructionStore(resolved.reconstructionDbPath);
     this.branchPoints = new BranchPointStore(resolved.branchPointDbPath);
     this.presentSlices = new PresentSliceStore(resolved.presentSliceDbPath);
+    this.historicalCompressionRecords = new HistoricalCompressionRecordStore(resolved.historicalCompressionRecordDbPath);
+    this.lineageCompileProposals = new LineageCompileProposalStore(resolved.lineageCompileProposalDbPath);
 
     if (resolved.seedDefaults) {
       this.problemClasses.seedDefaults();
@@ -753,6 +778,42 @@ export class CausalPipeline {
             }
           }
           episodeEventIds.push(appendEv('compile_applied', `compile:${input.storyId}`, { compiledRefs: compile.compiledRefs }));
+
+          // v13: compile 成功 → 创建 LineageCompileProposal 记录本次编译
+          try {
+            const proposedChanges: ProposedRefChange[] = compile.compiledRefIds.map(refId => ({
+              refId,
+              changeKind: 'add' as const,
+              beforeValue: null,
+              afterValue: 'compiled',
+            }));
+            // 获取最新 PresentSlice（刚在 Step 9 创建，此处可能尚未写入，用 fallback）
+            const latestSlices = this.presentSlices.listAll(1);
+            const targetSliceId = latestSlices.length > 0 ? latestSlices[0].id : `pending_slice_${input.storyId}`;
+            // 获取已剪除分支引用
+            const prunedBranchRefs = (input.failedPathAtomIds ?? []).map(
+              (_, idx) => `pruned_path_${input.storyId}_${idx}`
+            );
+
+            let proposal = createLineageCompileProposal({
+              targetPresentSliceId: targetSliceId,
+              proposedLineageId: `lineage_${input.storyId}`,
+              supportingEpisodes: [input.storyId],
+              prunedBranchRefs,
+              proposedChanges,
+              justification: input.fixDescription,
+              reconstructionId: undefined, // reconstruction 尚未创建，后续回填
+              createdBy: input.operator ?? 'pipeline_recordfix',
+            });
+            // compile 已通过 hypothesis 门控，直接 approve + apply
+            const syntheticReviewId = `RD_auto_${input.storyId}_${crypto.randomBytes(4).toString('hex')}`;
+            proposal = approveLineageProposal(proposal, syntheticReviewId);
+            proposal = applyLineageProposal(proposal);
+            this.lineageCompileProposals.save(proposal);
+            episodeEventIds.push(appendEv('lineage_compile_proposal_applied', proposal.id, { status: proposal.status }));
+          } catch (error) {
+            this.warnBestEffortFailure('recordFix.lineageCompileProposal', error, { storyId: input.storyId });
+          }
         } else {
           episodeEventIds.push(appendEv('compile_blocked', undefined, { reason: 'compiledRefs=0' }));
         }
@@ -936,6 +997,18 @@ export class CausalPipeline {
     episodeEventIds.push(appendEv('reconstruction_written', reconstruction.id, { traceId: preTraceId, fidelityScore: reconstruction.fidelity.score }));
     // HIGH 4 修复：持久化 AcceptedReconstruction，使其成为可查询的治理对象
     this.reconstructions.save(reconstruction);
+    // v13: 回填 LineageCompileProposal 的 reconstructionId（创建时 reconstruction 尚不存在）
+    if (compile && compile.compiledRefs > 0) {
+      try {
+        const appliedProposals = this.lineageCompileProposals.listByStatus('applied', 1);
+        const lastProposal = appliedProposals.find(p => p.justification === input.fixDescription);
+        if (lastProposal && !lastProposal.reconstructionId) {
+          this.lineageCompileProposals.save({ ...lastProposal, reconstructionId: reconstruction.id });
+        }
+      } catch (error) {
+        this.warnBestEffortFailure('recordFix.lineageCompileProposal.backfill', error, { storyId: input.storyId });
+      }
+    }
     // v11 ConstitutionalLayer：对 DerivationTrace 执行宪法审计
     let constitutionalAudit: ConstitutionalAudit | undefined;
     try {
@@ -1134,6 +1207,30 @@ export class CausalPipeline {
       };
       const presentSlice = buildPresentSliceFromPipeline(snapshot);
       this.presentSlices.save(presentSlice);
+
+      // Step 9b: 创建 HistoricalCompressionRecord — 记录从 episode 到 PresentSlice 的压缩行为
+      try {
+        const allObsAtomIds = new Set(storySnapshot.observationAtomIds);
+        const majorChainSet = new Set(reconstruction.majorChain);
+        const discardedAtomIds = [...allObsAtomIds].filter(id => !majorChainSet.has(id));
+
+        const hcr = createHistoricalCompressionRecord({
+          name: `压缩: episode ${input.storyId} → PresentSlice ${presentSlice.id}`,
+          sourceEpisodeIds: [input.storyId],
+          targetPresentSliceId: presentSlice.id,
+          retainedAtomIds: reconstruction.majorChain,
+          discardedAtomIds,
+          // compressionRatio 自动计算（sourceCount / retainedCount）
+          lossDescription: discardedAtomIds.length > 0
+            ? `丢弃 ${discardedAtomIds.length} 个观测节点，保留 ${reconstruction.majorChain.length} 个主链节点`
+            : '无信息损失，所有观测节点均在主链中',
+          reversible: true, // 可通过 reconstruction 反查原始 episode
+          createdBy: input.operator ?? 'pipeline_recordfix',
+        });
+        this.historicalCompressionRecords.save(hcr);
+      } catch (hcrError) {
+        this.warnBestEffortFailure('recordFix.historicalCompressionRecord', hcrError, { storyId: input.storyId });
+      }
     } catch (error) {
       this.warnBestEffortFailure('recordFix.presentSlice', error, { storyId: input.storyId });
     }
@@ -1148,6 +1245,7 @@ export class CausalPipeline {
       compile,
       evidenceCount,
       regulationViews,
+      constitutionalAudit,
     };
   }
 
@@ -1485,6 +1583,8 @@ export class CausalPipeline {
     this.reconstructions.close();
     this.branchPoints.close();
     this.presentSlices.close();
+    this.historicalCompressionRecords.close();
+    this.lineageCompileProposals.close();
     // rvBuilder 不拥有独立 DB 连接，无需单独关闭
   }
 
