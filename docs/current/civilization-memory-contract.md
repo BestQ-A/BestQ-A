@@ -1,3 +1,16 @@
+---
+kind: contract
+status: draft
+phase: 10
+schema_version: 1
+describes: "FailureBoundaryArchive / CounterexampleCommons 文明记忆层规范"
+upstream:
+  - participatory-world-contract.md
+  - ontology-federation-contract.md
+downstream:
+  - v11-world-model-contract.md
+---
+
 # CivilizationMemory Contract — v11
 
 **状态**: draft  

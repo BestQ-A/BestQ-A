@@ -1,3 +1,15 @@
+---
+kind: contract
+status: draft
+phase: 11
+schema_version: 1
+describes: "ProofLineage / ConstitutionalLayer 反射性文明引擎规范"
+upstream:
+  - civilization-memory-contract.md
+  - participatory-world-contract.md
+downstream: []
+---
+
 # v11 World Model Contract — ReflexiveCivilizationEngine
 
 **状态**: draft  
