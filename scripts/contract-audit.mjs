@@ -1581,18 +1581,9 @@ async function checkValidityEnvelopeBindings(results) {
   }
 }
 
-/** §24 v9/v10/v11 本体联邦 + 参与式世界 + 文明记忆 + 反射性文明引擎 覆盖率 binding pass
+/** §24 v9/v10/v11 覆盖率 binding pass：验证合约文件（kind=contract）+ TypeScript 实现存在性。
  *
- * 验证 v9-v11 对象有合约文件（kind=contract）+ TypeScript 实现绑定。
- * 错误码：
- *   missing-v9-contract              — ontology-federation-contract.md 缺失或非 contract 类型
- *   missing-v10-contract             — participatory-world-contract.md 缺失或非 contract 类型
- *   missing-v11-civilization-contract — civilization-memory-contract.md 缺失或非 contract 类型
- *   missing-v11-reflexive-contract   — v11-world-model-contract.md 缺失或非 contract 类型
- *   missing-v9-impl                  — v9 TypeScript 实现文件不存在
- *   missing-v10-impl                 — v10 TypeScript 实现文件不存在
- *   missing-v11-civilization-impl    — v11 文明记忆 TypeScript 实现文件不存在
- *   missing-v11-reflexive-impl       — v11 ProofLineage/ConstitutionalLayer 实现文件不存在
+ * 错误码前缀：missing-v{9,10,11}-{contract,impl}，详见 CONTRACTS / IMPLS 表。
  */
 async function checkV9V10V11Coverage(results) {
   const CONTRACTS = [
