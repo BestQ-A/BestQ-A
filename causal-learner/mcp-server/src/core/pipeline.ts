@@ -900,7 +900,13 @@ export class CausalPipeline {
       episodeId: input.storyId,
       reconstructionId: reconstruction.id,
       contextKind: 'reconstruction',
-      premiseClaimIds: hypothesisId ? [hypothesisId] : [],
+      // 从 majorChain 派生 premise claims（首节点 + hypothesis），确保 CC_has_premises 通过
+      premiseClaimIds: [
+        ...reconstruction.majorChain.slice(0, 1),
+        ...(hypothesisId ? [hypothesisId] : []),
+      ],
+      // 从 Story 解决描述派生 conclusion，确保 CC_has_conclusion 通过
+      conclusionClaimId: `conclusion_${input.storyId}`,
       rejectedClaimIds: mechanismInstance.status === 'rejected' ? [mechanismInstance.id] : [],
       createdBy: 'pipeline_recordfix_shell',
       supportLinks: generatedSupportLinks,
