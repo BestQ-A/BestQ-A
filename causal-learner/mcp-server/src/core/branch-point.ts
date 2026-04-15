@@ -18,6 +18,8 @@ export interface BranchPoint {
   id: string;
   /** 所属 Episode（lineage 锚点） */
   episodeId: string;
+  /** v13: 血统链 ID，追踪分叉的历史谱系 */
+  lineageId?: string;
   /** 分叉位置描述（人类可读） */
   locationDescription: string;
   /** 候选路径数量（= FutureBranch 数量） */
@@ -26,6 +28,8 @@ export interface BranchPoint {
   controllableFactors: string[];
   /** 不可控因素（来自 context 中不可干预的 keys） */
   uncontrollableFactors: string[];
+  /** v13: 历史敏感性标签，标记哪些历史因素对此分叉有决定性影响 */
+  historicalSensitivity?: string[];
   /** 最终选定的 FutureBranch ID */
   chosenBranchId: string | null;
   /** 创建时间 */
@@ -35,10 +39,12 @@ export interface BranchPoint {
 
 export interface CreateBranchPointInput {
   episodeId: string;
+  lineageId?: string;
   locationDescription: string;
   candidateCount: number;
   controllableFactors?: string[];
   uncontrollableFactors?: string[];
+  historicalSensitivity?: string[];
   createdBy?: string;
 }
 
@@ -46,10 +52,12 @@ export function createBranchPoint(input: CreateBranchPointInput): BranchPoint {
   return {
     id: `BP_${crypto.randomBytes(6).toString('hex')}`,
     episodeId: input.episodeId,
+    lineageId: input.lineageId,
     locationDescription: input.locationDescription,
     candidateCount: input.candidateCount,
     controllableFactors: input.controllableFactors ?? [],
     uncontrollableFactors: input.uncontrollableFactors ?? [],
+    historicalSensitivity: input.historicalSensitivity,
     chosenBranchId: null,
     createdAt: new Date().toISOString(),
     createdBy: input.createdBy ?? 'system',
@@ -69,10 +77,18 @@ export interface FutureBranch {
   branchPointId: string;
   /** 路径 Atom ID 列表 */
   pathAtomIds: string[];
-  /** 预测结果描述 */
+  /** v13: 关联的干预 ID 列表，标记此分支依赖哪些主动干预 */
+  interventionIds?: string[];
+  /** v13: 预测轨迹，按时序描述路径上的关键状态变化 */
+  predictedTrajectory?: string[];
+  /** 预测结果描述（兼容旧 string 单值） */
   predictedOutcome: string;
-  /** 风险描述 */
-  riskProfile: string;
+  /** v13: 预测结果列表，多维度结果预测 */
+  predictedOutcomes?: string[];
+  /** 风险描述（v13 扩展为 string | string[]，兼容数组形式） */
+  riskProfile: string | string[];
+  /** v13: 信息增益估计，量化此分支对认知的贡献度 */
+  informationGainEstimate?: number;
   /** 路径权重/得分 */
   score: number;
   /** 分支状态 */
@@ -85,8 +101,12 @@ export interface FutureBranch {
 export interface CreateFutureBranchInput {
   branchPointId: string;
   pathAtomIds: string[];
+  interventionIds?: string[];
+  predictedTrajectory?: string[];
   predictedOutcome?: string;
-  riskProfile?: string;
+  predictedOutcomes?: string[];
+  riskProfile?: string | string[];
+  informationGainEstimate?: number;
   score: number;
   status?: BranchStatus;
   pruneReason?: string;
@@ -97,8 +117,12 @@ export function createFutureBranch(input: CreateFutureBranchInput): FutureBranch
     id: `FB_${crypto.randomBytes(6).toString('hex')}`,
     branchPointId: input.branchPointId,
     pathAtomIds: input.pathAtomIds,
+    interventionIds: input.interventionIds,
+    predictedTrajectory: input.predictedTrajectory,
     predictedOutcome: input.predictedOutcome ?? '',
+    predictedOutcomes: input.predictedOutcomes,
     riskProfile: input.riskProfile ?? '',
+    informationGainEstimate: input.informationGainEstimate,
     score: input.score,
     status: input.status ?? 'pending',
     pruneReason: input.pruneReason,

@@ -904,3 +904,26 @@ export {
   STANDARD_CONSTRAINTS,
   auditSubject,
 } from './constitutional-layer.js';
+
+// =============================================================================
+// v13 PresentSlice（当前观测面 — lineage-centered 桥接对象）
+// =============================================================================
+
+export type {
+  PresentSlice,
+  CreatePresentSliceInput,
+  PipelineSnapshot,
+} from './present-slice.js';
+
+export {
+  createPresentSlice,
+  buildPresentSliceFromPipeline,
+} from './present-slice.js';
+
+export type {
+  PresentSliceStoreStats,
+} from './present-slice-store.js';
+
+export {
+  PresentSliceStore,
+} from './present-slice-store.js';
