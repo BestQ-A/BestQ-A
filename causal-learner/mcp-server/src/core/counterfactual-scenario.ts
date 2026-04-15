@@ -7,6 +7,11 @@
  */
 
 import crypto from 'crypto';
+import {
+  MechanismProgram,
+  ExecutionContext,
+  executePhasedProgram,
+} from './mechanism-program.js';
 
 // =============================================================================
 // 类型定义
@@ -70,6 +75,103 @@ export interface CreateCounterfactualScenarioInput {
   divergencePoints?: string[];
   createdBy?: string;
   status?: CounterfactualScenario['status'];
+}
+
+// =============================================================================
+// 反事实推演引擎
+// =============================================================================
+
+/**
+ * 基于 MechanismProgram 推演反事实场景。
+ *
+ * 将 modifiedAssumptions 中的 set/remove 操作转为 stateOverrides，
+ * 将 intervention 类型的 assumption 映射到 stopBeforePhase，
+ * 调用 executePhasedProgram 获得预测轨迹，打包为 CounterfactualScenario。
+ */
+export function inferCounterfactual(
+  program: MechanismProgram,
+  baselineContext: ExecutionContext,
+  assumptions: CounterfactualAssumption[],
+  baseEpisodeId: string,
+  baseReconstructionId: string,
+): CounterfactualScenario {
+  // 构建状态覆盖
+  const stateOverrides: Record<string, unknown> = {};
+  for (const a of assumptions) {
+    if (a.modification === 'set' && a.toValue !== undefined) {
+      stateOverrides[a.targetRef] = a.toValue;
+    } else if (a.modification === 'remove') {
+      stateOverrides[a.targetRef] = undefined;
+    }
+  }
+
+  // 找第一个映射到干预点的 assumption
+  const interventionAssumption = assumptions.find(
+    a => program.interventionPoints.includes(a.targetRef),
+  );
+  const programIntervention = interventionAssumption
+    ? {
+        stopBeforePhase: interventionAssumption.targetRef,
+        stateOverrides,
+        reason: assumptions.map(a => a.rationale ?? a.targetRef).join('; '),
+      }
+    : stateOverrides && Object.keys(stateOverrides).length > 0
+    ? { stopBeforePhase: '', stateOverrides, reason: 'state_override_only' }
+    : undefined;
+
+  const trajectory = executePhasedProgram(program, baselineContext, programIntervention);
+
+  // 构建 PredictedStep 列表
+  const predictedTrajectory: PredictedStep[] = [];
+
+  // 步骤 0：初始状态快照
+  predictedTrajectory.push({
+    step: 0,
+    kind: 'initial_condition',
+    content: Object.entries(trajectory.contextSnapshot.stateVars)
+      .map(([k, v]) => `${k}=${v}`)
+      .join(', ') || '(empty context)',
+    source: 'episode_anchored',
+  });
+
+  // 每个 phase 结果
+  for (let i = 0; i < trajectory.phaseResults.length; i++) {
+    const r = trajectory.phaseResults[i];
+    predictedTrajectory.push({
+      step: i + 1,
+      kind: r.executed ? 'latent_phase' : 'intervention',
+      content: r.executed
+        ? `${r.phaseName}: [${r.stateChangesApplied.join(', ') || 'no state changes'}] obs=[${r.observationsEmitted.join(', ')}]`
+        : `${r.phaseName}: halted — ${r.haltReason}`,
+      source: 'program_simulated',
+    });
+  }
+
+  // 最终结局
+  predictedTrajectory.push({
+    step: predictedTrajectory.length,
+    kind: 'outcome',
+    content: trajectory.finalOutcome,
+    source: 'program_simulated',
+  });
+
+  const divergencePoints = assumptions
+    .filter(a => a.fromValue !== undefined && a.fromValue !== a.toValue)
+    .map(a => a.targetRef);
+
+  return createCounterfactualScenario({
+    baseEpisodeId,
+    baseReconstructionId,
+    modifiedAssumptions: assumptions,
+    mechanismProgramRefs: [program.id],
+    predictedTrajectory,
+    predictedObservationSignals: trajectory.phaseResults
+      .filter(r => r.executed)
+      .flatMap(r => r.observationsEmitted),
+    predictedOutcome: trajectory.finalOutcome,
+    divergencePoints,
+    status: 'current',
+  });
 }
 
 export function createCounterfactualScenario(

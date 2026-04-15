@@ -60,6 +60,86 @@ export interface CreateExperimentDesignInput {
   status?: ExperimentDesign['status'];
 }
 
+// =============================================================================
+// 信息增益计算引擎
+// =============================================================================
+
+/**
+ * 假设预测器：给定一个候选动作，每个假设会预测哪些观测信号。
+ */
+export interface HypothesisPredictor {
+  /** MechanismClass ID 或假设标识符 */
+  hypothesisId: string;
+  /** 该假设在此动作下预测会出现的观测信号 keys */
+  predictedSignals: string[];
+}
+
+/**
+ * 计算某个候选动作在一组假设下的信息增益。
+ *
+ * 原理：统计「执行该动作后，能区分的假设对数 / 总假设对数」。
+ * 两个假设"可区分"= 它们预测的信号集合不完全相同。
+ *
+ * 返回值在 [0, 1]：0 = 完全无法区分，1 = 每对假设均可区分。
+ */
+export function computeInformationGain(
+  hypotheses: HypothesisPredictor[],
+): number {
+  if (hypotheses.length <= 1) return 0;
+
+  let discriminatingPairs = 0;
+  let totalPairs = 0;
+
+  for (let i = 0; i < hypotheses.length; i++) {
+    for (let j = i + 1; j < hypotheses.length; j++) {
+      totalPairs++;
+      const sigsI = new Set(hypotheses[i].predictedSignals);
+      const sigsJ = new Set(hypotheses[j].predictedSignals);
+      // 两个信号集合不完全相同 → 可区分
+      const isDistinct =
+        hypotheses[i].predictedSignals.some(s => !sigsJ.has(s)) ||
+        hypotheses[j].predictedSignals.some(s => !sigsI.has(s));
+      if (isDistinct) discriminatingPairs++;
+    }
+  }
+
+  return totalPairs > 0 ? discriminatingPairs / totalPairs : 0;
+}
+
+/**
+ * 从候选动作集合中选出信息增益最大的实验。
+ *
+ * @param actionPredictors - 每个候选动作对应一组假设预测器
+ * @returns 最优动作、信息增益值、所有动作的区分力 map
+ */
+export function selectOptimalExperiment(
+  actionPredictors: Record<string, HypothesisPredictor[]>,
+): {
+  bestAction: string;
+  informationGain: number;
+  discriminatingPower: Record<string, number>;
+} {
+  const candidates = Object.keys(actionPredictors);
+  if (candidates.length === 0) {
+    return { bestAction: '', informationGain: 0, discriminatingPower: {} };
+  }
+
+  const discriminatingPower: Record<string, number> = {};
+  let bestAction = candidates[0];
+  let bestGain = -1;
+
+  for (const action of candidates) {
+    const gain = computeInformationGain(actionPredictors[action] ?? []);
+    discriminatingPower[action] = gain;
+    if (gain > bestGain) {
+      bestGain = gain;
+      bestAction = action;
+    }
+  }
+
+  return { bestAction, informationGain: Math.max(0, bestGain), discriminatingPower };
+}
+
 export function createExperimentDesign(
   input: CreateExperimentDesignInput
 ): ExperimentDesign {
