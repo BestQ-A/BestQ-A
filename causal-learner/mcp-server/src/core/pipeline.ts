@@ -106,6 +106,8 @@ import {
 } from './validity-envelope.js';
 import { ReviewDecisionStore } from './review-decision-store.js';
 import type { ReviewDecisionStoreStats } from './review-decision-store.js';
+import { ReconstructionStore } from './reconstruction-store.js';
+import type { ReconstructionStoreStats } from './reconstruction-store.js';
 import { FailureBoundaryArchiveStore } from './failure-boundary-archive-store.js';
 import {
   createFailureBoundaryArchive,
@@ -174,6 +176,8 @@ export interface PipelineConfig {
   reviewDecisionsDbPath: string;
   /** FailureBoundaryArchive 持久化数据库路径 */
   failureBoundaryArchiveDbPath: string;
+  /** ReconstructionStore 持久化数据库路径 */
+  reconstructionDbPath: string;
 }
 
 /** 提交观测的输入 */
@@ -353,6 +357,8 @@ export class CausalPipeline {
   readonly reviewDecisions: ReviewDecisionStore;
   /** v11 FailureBoundaryArchive 持久化存储 */
   readonly failureBoundaryArchives: FailureBoundaryArchiveStore;
+  /** AcceptedReconstruction 持久化存储（HIGH 4 修复） */
+  readonly reconstructions: ReconstructionStore;
 
   private rvBuilder: RegulationViewBuilder;
   private config: PipelineConfig;
@@ -386,6 +392,7 @@ export class CausalPipeline {
       validityEnvelopesDbPath:        config.validityEnvelopesDbPath        ?? ':memory:',
       reviewDecisionsDbPath:          config.reviewDecisionsDbPath          ?? ':memory:',
       failureBoundaryArchiveDbPath:   config.failureBoundaryArchiveDbPath   ?? ':memory:',
+      reconstructionDbPath:           config.reconstructionDbPath           ?? ':memory:',
     };
     this.config = resolved;
 
@@ -440,6 +447,7 @@ export class CausalPipeline {
     }
     this.reviewDecisions = new ReviewDecisionStore(resolved.reviewDecisionsDbPath);
     this.failureBoundaryArchives = new FailureBoundaryArchiveStore(resolved.failureBoundaryArchiveDbPath);
+    this.reconstructions = new ReconstructionStore(resolved.reconstructionDbPath);
 
     if (resolved.seedDefaults) {
       this.problemClasses.seedDefaults();
@@ -889,6 +897,8 @@ export class CausalPipeline {
     });
     this.derivationTraces.save(trace);
     episodeEventIds.push(appendEv('reconstruction_written', reconstruction.id, { traceId: preTraceId, fidelityScore: reconstruction.fidelity.score }));
+    // HIGH 4 修复：持久化 AcceptedReconstruction，使其成为可查询的治理对象
+    this.reconstructions.save(reconstruction);
 
     // Step 5: 生成 OntologyDelta（D1：所有路径均返回 OntologyDelta，不再用独立 NoUpdateReason）
     let ontologyUpdate: OntologyDelta;
@@ -1358,6 +1368,7 @@ export class CausalPipeline {
     this.validityEnvelopes.close();
     this.reviewDecisions.close();
     this.failureBoundaryArchives.close();
+    this.reconstructions.close();
     // rvBuilder 不拥有独立 DB 连接，无需单独关闭
   }
 
