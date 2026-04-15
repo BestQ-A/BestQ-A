@@ -946,6 +946,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     switch (name) {
       // Core observation tools
       case 'submit_observation': {
+        // v7-v8 bridge (#39): 同步写入 Observation + Event 到 legacy storage，
+        // 使 trigger_induction / suggest_causes / causal_search 可查询
+        const normalized = normalizeSubmitObservationArgs(args);
+        submitObservationTool(storage, normalized.observation, normalized.options as any);
+
+        // v9-v11 pipeline（主路径）
         return handleSubmitObservationTool(ensurePipelineInstance(pipeline), args);
       }
 
