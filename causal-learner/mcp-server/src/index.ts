@@ -822,6 +822,7 @@ export function buildPipelineConfig(baseDbPath: string): PipelineConfig {
     programRevisionProposalsDbPath: withSuffix('program-revision-proposal'),
     validityEnvelopesDbPath:        withSuffix('validity-envelope'),
     reviewDecisionsDbPath:          withSuffix('review-decision'),
+    failureBoundaryArchiveDbPath:   withSuffix('failure-boundary-archive'),
   };
 }
 

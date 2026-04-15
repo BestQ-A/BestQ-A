@@ -5,7 +5,7 @@
 
 import type { Event, Fact, Regulation, Json } from './types.js';
 import { factFromDict } from './types.js';
-import { signatureFull, dedupFacts } from './unify.js';
+import { signatureFull, signaturePredValue, dedupFacts } from './unify.js';
 
 export interface InduceOptions {
   minEvents: number;
@@ -122,14 +122,49 @@ function mostCommonFacts(factsByEvent: Fact[][], minSupport: number): Fact[] {
   return out;
 }
 
+/**
+ * effect 聚合用：只比较 pred+value 忽略 args，
+ * 因为 effect 的语义是"什么发生了"，args 差异应进入 preconditions
+ */
+function mostCommonEffects(factsByEvent: Fact[][], minSupport: number): Fact[] {
+  const counts = new Map<string, number>();
+  const factBySig = new Map<string, Fact>();
+  const n = factsByEvent.length;
+  for (const facts of factsByEvent) {
+    const seen = new Set<string>();
+    for (const f of facts) {
+      const sig = signaturePredValue(f);
+      if (seen.has(sig)) continue;
+      seen.add(sig);
+      counts.set(sig, (counts.get(sig) || 0) + 1);
+      // 保留第一个完整 fact（含 args）作为代表
+      if (!factBySig.has(sig)) factBySig.set(sig, { pred: f.pred, value: f.value, args: {} });
+    }
+  }
+  const out: Fact[] = [];
+  for (const [sig, count] of counts.entries()) {
+    if (count / Math.max(1, n) >= minSupport) {
+      const fact = factBySig.get(sig);
+      if (fact) out.push(fact);
+    }
+  }
+  out.sort((a, b) => {
+    const predCmp = a.pred.localeCompare(b.pred);
+    if (predCmp !== 0) return predCmp;
+    return JSON.stringify(a.value).localeCompare(JSON.stringify(b.value));
+  });
+  return out;
+}
+
 export function induceRegulation(
   cluster: Event[],
   options: Partial<InduceOptions> = {}
 ): Regulation {
   const opts = { ...DEFAULT_INDUCE_OPTIONS, ...options };
   const uaLists = cluster.map((e) => e.unexplainedAspects);
-  let eff = mostCommonFacts(uaLists, 1.0);
-  if (!eff.length) eff = mostCommonFacts(uaLists, opts.missingPreMinSupport).slice(0, opts.maxEffFacts);
+  // effect 聚合用 pred+value 匹配（忽略 args），args 差异进入 preconditions
+  let eff = mostCommonEffects(uaLists, 1.0);
+  if (!eff.length) eff = mostCommonEffects(uaLists, opts.missingPreMinSupport).slice(0, opts.maxEffFacts);
   eff = eff.slice(0, opts.maxEffFacts);
 
   const pre: Fact[] = [];

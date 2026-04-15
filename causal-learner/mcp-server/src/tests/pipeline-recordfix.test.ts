@@ -298,3 +298,249 @@ describe('v7 recordFix 收束验收', () => {
     pipeline.close();
   });
 });
+
+describe('v13 MSP 因果分段验收', () => {
+  it('majorChain 长度 1：唯一节点既是近因也是远因', () => {
+    const pipeline = new CausalPipeline({ seedDefaults: false, autoExplore: false });
+    const obs = pipeline.submitObservation({
+      rawInput: 'single node test',
+      facts: [{ pred: 'error', value: 'single' }],
+    });
+
+    const sourceAtomId = obs.story.observationAtomIds[0];
+    const result = pipeline.recordFix({
+      storyId: obs.story.id,
+      fixDescription: 'single node fix',
+      chosenPathAtomIds: [sourceAtomId],
+    });
+
+    assert.ok(Array.isArray(result.reconstruction.nearCauseSegment));
+    assert.ok(Array.isArray(result.reconstruction.midCauseSegment));
+    assert.ok(Array.isArray(result.reconstruction.deepCauseSegment));
+    assert.strictEqual(result.reconstruction.nearCauseSegment.length, 1);
+    assert.strictEqual(result.reconstruction.midCauseSegment.length, 0);
+    assert.strictEqual(result.reconstruction.deepCauseSegment.length, 0);
+    assert.strictEqual(result.reconstruction.nearCauseSegment[0].role, 'intervention');
+    assert.strictEqual(result.reconstruction.nearCauseSegment[0].node_ref, sourceAtomId);
+
+    pipeline.close();
+  });
+
+  it('majorChain 长度 2：首节点为远因，尾节点为近因', () => {
+    const pipeline = new CausalPipeline({ seedDefaults: false, autoExplore: false });
+    const obs = pipeline.submitObservation({
+      rawInput: 'two node test',
+      facts: [{ pred: 'cause', value: 'root' }, { pred: 'effect', value: 'leaf' }],
+    });
+
+    const [a0, a1] = obs.story.observationAtomIds;
+    assert.ok(a0 && a1, `需要 2 个 atom，实际: ${obs.story.observationAtomIds.length}`);
+
+    const result = pipeline.recordFix({
+      storyId: obs.story.id,
+      fixDescription: 'two node fix',
+      chosenPathAtomIds: [a0, a1],
+    });
+
+    // pipeline 追加 fixAtom，基于实际 majorChain 验证结构
+    const mc = result.reconstruction.majorChain;
+    const { deepCauseSegment: deep, midCauseSegment: mid, nearCauseSegment: near } = result.reconstruction;
+    assert.ok(mc.length >= 2);
+    assert.ok(deep.length >= 1);
+    assert.strictEqual(deep[0].role, 'premise');
+    assert.strictEqual(deep[0].node_ref, mc[0]);
+    assert.ok(near.length >= 1);
+    assert.strictEqual(near.at(-1)!.role, 'intervention');
+    assert.strictEqual(near.at(-1)!.node_ref, mc.at(-1));
+    assert.strictEqual(deep.length + mid.length + near.length, mc.length);
+
+    pipeline.close();
+  });
+
+  it('majorChain 长度 4+：三段分层（deep/mid/near 不重叠）', () => {
+    const pipeline = new CausalPipeline({ seedDefaults: false, autoExplore: false });
+    const obs = pipeline.submitObservation({
+      rawInput: 'four node test',
+      facts: [
+        { pred: 'cause', value: 'root' },
+        { pred: 'mechanism', value: 'link1' },
+        { pred: 'mechanism', value: 'link2' },
+        { pred: 'trigger', value: 'leaf' },
+      ],
+    });
+
+    const atoms = obs.story.observationAtomIds;
+    assert.ok(atoms.length >= 4, `需要 >= 4 个 atom，实际: ${atoms.length}`);
+
+    const result = pipeline.recordFix({
+      storyId: obs.story.id,
+      fixDescription: 'four node fix',
+      chosenPathAtomIds: atoms.slice(0, 4),
+    });
+
+    const mc = result.reconstruction.majorChain;
+    const { deepCauseSegment: deep, midCauseSegment: mid, nearCauseSegment: near } = result.reconstruction;
+    assert.ok(deep.length >= 1, 'deep 应非空');
+    assert.ok(mid.length >= 1, 'mid 应非空');
+    assert.ok(near.length >= 1, 'near 应非空');
+    assert.strictEqual(deep[0].role, 'premise');
+    assert.ok(mid.every(s => s.role === 'mechanism'));
+    assert.ok(near.every(s => s.role === 'intervention'));
+    assert.strictEqual(deep.length + mid.length + near.length, mc.length);
+
+    pipeline.close();
+  });
+
+  it('majorChain 长度 3+：三段均存在', () => {
+    const pipeline = new CausalPipeline({ seedDefaults: false, autoExplore: false });
+    const obs = pipeline.submitObservation({
+      rawInput: 'three node test',
+      facts: [
+        { pred: 'cause', value: 'root' },
+        { pred: 'mechanism', value: 'mid' },
+        { pred: 'trigger', value: 'leaf' },
+      ],
+    });
+
+    const atoms = obs.story.observationAtomIds;
+    assert.ok(atoms.length >= 3, `需要 >= 3 个 atom，实际: ${atoms.length}`);
+
+    const result = pipeline.recordFix({
+      storyId: obs.story.id,
+      fixDescription: 'three node fix',
+      chosenPathAtomIds: atoms.slice(0, 3),
+    });
+
+    const mc = result.reconstruction.majorChain;
+    const { deepCauseSegment: deep, midCauseSegment: mid, nearCauseSegment: near } = result.reconstruction;
+    assert.ok(deep.length >= 1);
+    assert.strictEqual(deep[0].role, 'premise');
+    assert.ok(mid.length >= 1);
+    assert.ok(mid.every(s => s.role === 'mechanism'));
+    assert.ok(near.length >= 1);
+    assert.ok(near.every(s => s.role === 'intervention'));
+    assert.strictEqual(deep.length + mid.length + near.length, mc.length);
+
+    pipeline.close();
+  });
+
+  it('minimalityJustification: fidelity 完全覆盖时 kind=coverage_saturated', () => {
+    const pipeline = new CausalPipeline({ seedDefaults: false, autoExplore: false });
+    const obs = pipeline.submitObservation({
+      rawInput: 'saturated test',
+      facts: [{ pred: 'error', value: 'saturated' }],
+    });
+
+    const atoms = obs.story.observationAtomIds;
+    const result = pipeline.recordFix({
+      storyId: obs.story.id,
+      fixDescription: 'saturated fix',
+      chosenPathAtomIds: atoms,
+    });
+
+    assert.ok(result.reconstruction.minimalityJustification !== null);
+    assert.strictEqual(result.reconstruction.minimalityJustification!.kind, 'coverage_saturated');
+    assert.ok(result.reconstruction.minimalityJustification!.rationale.length > 0);
+
+    pipeline.close();
+  });
+
+  it('unresolvedGaps: 当 chosenPathAtomIds 与 observationAtomIds 不一致时填充', () => {
+    const pipeline = new CausalPipeline({ seedDefaults: false, autoExplore: false });
+    const obs = pipeline.submitObservation({
+      rawInput: 'gaps test',
+      facts: [{ pred: 'error', value: 'gap' }, { pred: 'context', value: 'extra' }],
+    });
+
+    const atoms = obs.story.observationAtomIds;
+    assert.ok(atoms.length >= 2, `需要 >= 2 个 atom，实际: ${atoms.length}`);
+
+    const result = pipeline.recordFix({
+      storyId: obs.story.id,
+      fixDescription: 'partial path fix',
+      chosenPathAtomIds: [atoms[0]],
+    });
+
+    assert.ok(Array.isArray(result.reconstruction.unresolvedGaps));
+    const fidelity = result.reconstruction.fidelity;
+    assert.ok(Array.isArray(fidelity.missed_nodes));
+
+    pipeline.close();
+  });
+
+  it('unresolvedGaps 为空时 minimalityJustification.kind=coverage_saturated', () => {
+    const pipeline = new CausalPipeline({ seedDefaults: false, autoExplore: false });
+    const obs = pipeline.submitObservation({
+      rawInput: 'no gaps test',
+      facts: [{ pred: 'error', value: 'nogap' }],
+    });
+
+    const atoms = obs.story.observationAtomIds;
+    const result = pipeline.recordFix({
+      storyId: obs.story.id,
+      fixDescription: 'full coverage fix',
+      chosenPathAtomIds: atoms,
+    });
+
+    assert.strictEqual(result.reconstruction.unresolvedGaps.length, 0);
+    assert.strictEqual(result.reconstruction.fidelity.missed_nodes.length, 0);
+    assert.strictEqual(result.reconstruction.minimalityJustification!.kind, 'coverage_saturated');
+
+    pipeline.close();
+  });
+
+  it('ProvenanceSegment 结构完整: node_ref + role + weight + evidenceRefs', () => {
+    const pipeline = new CausalPipeline({ seedDefaults: false, autoExplore: false });
+    const obs = pipeline.submitObservation({
+      rawInput: 'segment structure test',
+      facts: [{ pred: 'error', value: 'seg' }],
+    });
+
+    const atoms = obs.story.observationAtomIds;
+    const result = pipeline.recordFix({
+      storyId: obs.story.id,
+      fixDescription: 'segment fix',
+      chosenPathAtomIds: atoms,
+    });
+
+    const allSegments = [
+      ...result.reconstruction.deepCauseSegment,
+      ...result.reconstruction.midCauseSegment,
+      ...result.reconstruction.nearCauseSegment,
+    ];
+
+    for (const seg of allSegments) {
+      assert.ok(typeof seg.node_ref === 'string' && seg.node_ref.length > 0, 'node_ref must be non-empty string');
+      assert.ok(['premise', 'mechanism', 'constraint', 'intervention'].includes(seg.role), `invalid role: ${seg.role}`);
+      assert.ok(typeof seg.weight === 'number' && seg.weight >= 0 && seg.weight <= 1, `invalid weight: ${seg.weight}`);
+      assert.ok(Array.isArray(seg.evidenceRefs), 'evidenceRefs must be array');
+    }
+
+    pipeline.close();
+  });
+
+  it('majorChain 字段存在且与 reconstructed_timeline 节点一致', () => {
+    const pipeline = new CausalPipeline({ seedDefaults: false, autoExplore: false });
+    const obs = pipeline.submitObservation({
+      rawInput: 'major chain test',
+      facts: [{ pred: 'error', value: 'chain' }],
+    });
+
+    const atoms = obs.story.observationAtomIds;
+    const result = pipeline.recordFix({
+      storyId: obs.story.id,
+      fixDescription: 'chain fix',
+      chosenPathAtomIds: atoms,
+    });
+
+    assert.ok(Array.isArray(result.reconstruction.majorChain));
+    assert.ok(result.reconstruction.majorChain.length > 0);
+
+    const timelineNodes = result.reconstruction.reconstructed_timeline.map(s => s.node_ref);
+    for (const mcNode of result.reconstruction.majorChain) {
+      assert.ok(timelineNodes.includes(mcNode), `majorChain node ${mcNode} not in timeline`);
+    }
+
+    pipeline.close();
+  });
+});
