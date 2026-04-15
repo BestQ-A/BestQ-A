@@ -797,6 +797,19 @@ export class CausalPipeline {
       ontologySnapshotRef: 'ontology_current',
       // P1：只在 accepted 时写入，rejected 路径不得绑定被否决的 bridge 对象
       mechanismInstanceIds: mechanismInstance.status === 'accepted' ? [mechanismInstance.id] : [],
+      // v13 Minimal Sufficient Provenance 雏形（reconstruction-contract.md schema v3，过渡态）
+      // TODO(v13-msp): 未来从 SupportLink + MechanismInstance + MechanismClass 链路派生：
+      //   - nearCauseSegment  ← 最后几步 DerivationStep + 刚记录的 ObservationRecord
+      //   - midCauseSegment   ← mechanismInstance 绑定 + 跨 Episode 的 SupportLink
+      //   - deepCauseSegment  ← MechanismClass 规格 + ContextScope 历史约束 + Ontology 不变量
+      //   - minimalityJustification ← 基于 supportLinks 闭包计算（future: core/minimal-provenance.ts）
+      //   - unresolvedGaps    ← 当 derivationTrace.chain_integrity !== 'complete' 时派生
+      // 第一轮为空，不影响既有 220 tests 通路。
+      nearCauseSegment: [],
+      midCauseSegment: [],
+      deepCauseSegment: [],
+      minimalityJustification: null,
+      unresolvedGaps: [],
     });
 
     // 创建并落盘 DerivationTrace（与 reconstruction 双向互链）

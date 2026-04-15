@@ -2,7 +2,7 @@
 kind: contract
 status: draft
 phase: 2
-schema_version: 1
+schema_version: 3
 describes: "过程重建对象规范"
 ---
 
@@ -67,6 +67,16 @@ AcceptedReconstruction:           # v7 §3.3 命名
   created_at: ISO8601
   created_by: string              # "pipeline_s6" | "human_review" | "regression_rerun"
   supersedes: string | null       # 前一版 Reconstruction 的 id
+
+  # v13 Minimal Sufficient Provenance 雏形（schema v3，第一轮过渡态）
+  # 把扁平的 reconstructed_timeline 按近/中/远因三段展开，
+  # 让 "最小充分追溯" 这条 v13 法律 (L3) 以 schema 扩展方式先压进 v7 骨架。
+  # 第一轮允许全部为空数组 / null（过渡态），不破坏既有 220 tests 通路。
+  nearCauseSegment: ProvenanceSegment[]    # 近因：当下切片上最直接的触发条件
+  midCauseSegment: ProvenanceSegment[]     # 中因：跨若干 Episode 的结构性成因
+  deepCauseSegment: ProvenanceSegment[]    # 远因：历史压缩态中的约束/律法层
+  minimalityJustification: MinimalityJustification | null  # 为何这条追溯是"最小充分的"
+  unresolvedGaps: UnresolvedGap[]          # 追溯链中仍未闭合的证据空洞
 ```
 
 ### §2.1 reconstructed_timeline.kind 枚举
@@ -93,6 +103,42 @@ AcceptedReconstruction:           # v7 §3.3 命名
 | `reconstructed_timeline` | 非空；step 编号严格递增；首步 kind 必须是 `initial_condition` |
 | `fidelity` | 不可为空——即使 score = 0 也必须给出 FidelityScore |
 | `supersedes` | 首版为 null；后续版本必须指向上一版的 id |
+| `nearCauseSegment` | 数组字段必须存在（schema v3），允许为空数组（过渡态）；每项必须是合法 ProvenanceSegment |
+| `midCauseSegment` | 数组字段必须存在（schema v3），允许为空数组（过渡态）；每项必须是合法 ProvenanceSegment |
+| `deepCauseSegment` | 数组字段必须存在（schema v3），允许为空数组（过渡态）；每项必须是合法 ProvenanceSegment |
+| `minimalityJustification` | 第一轮允许为 null（过渡态）；当 fidelity 等级升至 `excellent` 时 advisory 要求非空（未来 schema 版本强制）|
+| `unresolvedGaps` | 数组字段必须存在（schema v3），允许为空数组；`severity='high'` 的 gap 存在时 fidelity 等级不得标记为 `excellent`（advisory） |
+
+### §2.3 ProvenanceSegment / MinimalityJustification / UnresolvedGap Schema
+
+v13 Minimal Sufficient Provenance（最小充分追溯）的 schema 侧落脚点。这三类子对象是 `AcceptedReconstruction` §2 主 schema 中新增字段的元素类型，不独立落盘。
+
+```yaml
+ProvenanceSegment:                # v13 L3 追溯段节点
+  node_ref: string                # 引用一个 reconstructed_timeline.step.node_ref 或外部 Claim ID
+  role: string                    # "premise" | "mechanism" | "constraint" | "intervention"
+  weight: number                  # [0.0, 1.0]，对最终结论的解释权重
+  evidenceRefs: string[]          # 支撑该节点的 ObservationRecord / Claim / SupportLink ID 列表
+
+MinimalityJustification:          # v13 L3 最小充分性说明
+  kind: string                    # "coverage_saturated" | "budget_capped" | "heuristic_cutoff"
+  rationale: string               # 人类可读解释，说明为何在此处停止追溯
+
+UnresolvedGap:                    # v13 L5 追溯链中未闭合的证据空洞（剪枝的可能性空间）
+  kind: string                    # "missing_observation" | "hypothesis_untested" | "mechanism_proxy" | "unknown"
+  description: string             # 人类可读描述
+  severity: string                # "low" | "mid" | "high"
+```
+
+**分段语义**（与 v13 §4 Provenance&Reconstruction 层对齐）：
+
+| 段 | 回答的问题 | 典型内容 | 与 v7 对象的映射 |
+|----|-----------|---------|----------------|
+| `nearCauseSegment` | "当下切片上什么直接触发了结论？" | 最后几步 DerivationStep、刚记录的 ObservationRecord | Claim + ObservationRecord |
+| `midCauseSegment` | "哪条 MechanismInstance / 哪几个 Episode 把近因推导成必然？" | MechanismInstance 绑定、跨 Episode 的 SupportLink | MechanismInstance + SupportLink |
+| `deepCauseSegment` | "历史压缩态中的什么约束让这条链成立？" | MechanismClass 规格、ContextScope 的历史约束来源、Ontology 不变量 | MechanismClass + OntologyDelta |
+
+**最小充分追溯语义**：三段之和必须能"充分"解释 `reconstructed_timeline` 的结论节点；"最小"指不能再移除任何 ProvenanceSegment 而仍然充分。`minimalityJustification.kind` 记录在哪个判据下满足最小性。
 
 ---
 
@@ -246,6 +292,15 @@ JSON 根字段必须包含元数据：
 | I6 | 版本单调：同一 Episode 的 version 严格递增 | 版本冲突 |
 | I7 | supersede 链完整：v(N+1).supersedes 必须指向 v(N).id | 历史断裂 |
 | I8 | 首步锚定：reconstructed_timeline 首步 kind 必须是 `initial_condition` | 重建缺起点 |
+| I9 | 追溯段字段完备：`nearCauseSegment` / `midCauseSegment` / `deepCauseSegment` / `unresolvedGaps` 字段必须存在（可为空数组）（schema v3） | 审计红灯——v13 L3 追溯形状未激活 |
+| I10 | 最小充分性：`minimalityJustification` 字段必须存在（可为 null，过渡态） | 审计红灯 |
+| I11 | 高危空洞 vs 卓越评分互斥（advisory）：若 `unresolvedGaps` 任一项 `severity='high'`，则 `fidelity` 等级不得被标记为 `excellent` | 追溯声明与事实不一致 |
+
+**不变量分级**：
+
+- I1-I8：v2 既有硬约束，任一违反即阻断。
+- I9-I10：v3 新增硬约束，字段存在性必须满足；字段内容允许为空/null，作为"过渡态"合法值。
+- I11：v3 新增 advisory 约束，首轮只告警、不阻断；等下游（OntologyDelta fidelity 回归）工具链跟进后再升硬约束。
 
 ---
 
@@ -260,6 +315,9 @@ JSON 根字段必须包含元数据：
 | mechanism_instance_ids | **未实现** | 需新增 `core/mechanism-instance.ts` 并从 PatternInstance / path projection 过渡 |
 | 落盘路径 | `artifacts/` 目录已存在 | eval.mjs 扩展输出 `reconstructions/` 子目录 |
 | fidelity 回归检查 | **未实现** | 需在 OntologyDelta 提交前集成 |
+| nearCauseSegment / midCauseSegment / deepCauseSegment | **过渡态空数组**（schema v3） | 由 `reconstruction.ts` 默认填空数组；未来由 `pipeline.recordFix` 从 SupportLink + MechanismInstance + MechanismClass 链路填充 |
+| minimalityJustification | **过渡态 null**（schema v3） | 由 `reconstruction.ts` 默认填 `null`；未来由新 `core/minimal-provenance.ts` 基于 supportLinks 闭包计算 |
+| unresolvedGaps | **过渡态空数组**（schema v3） | 由 `reconstruction.ts` 默认填空数组；未来由 `derivation-chain` 的 `chain_integrity !== 'complete'` 情况派生 |
 
 ---
 
@@ -269,6 +327,7 @@ JSON 根字段必须包含元数据：
 |------|------|------|
 | 1 | 2026-04-13 | 初版。定义 AcceptedReconstruction schema、FidelityScore 四等级、key_node_coverage 评分方法、Episode/DerivationTrace 绑定关系、7 条不变量。对象命名对齐 v7 §3.3 |
 | 2 | 2026-04-14 | 引入 `mechanism_instance_ids` 作为 bridge 字段，明确 MechanismClass → MechanismInstance → Reconstruction 的目标绑定链 |
+| 3 | 2026-04-15 | v13 Minimal Sufficient Provenance 雏形入 schema：AcceptedReconstruction 新增 `nearCauseSegment` / `midCauseSegment` / `deepCauseSegment` / `minimalityJustification` / `unresolvedGaps` 五字段；新增 `ProvenanceSegment` / `MinimalityJustification` / `UnresolvedGap` 三类子对象（§2.3）；新增不变量 I9-I11；首轮以过渡态（空数组 / null）落地，不破坏既有 220 tests 通路 |
 
 ---
 
