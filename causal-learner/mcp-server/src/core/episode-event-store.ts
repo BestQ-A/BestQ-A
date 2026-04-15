@@ -28,7 +28,8 @@ export type EpisodeEventKind =
   | 'mechanism_instance_rejected'
   | 'reconstruction_written'
   | 'ontology_delta_written'
-  | 'outcome_recorded';
+  | 'outcome_recorded'
+  | 'failure_boundary_recorded';
 
 export interface EpisodeEvent {
   id: string;
