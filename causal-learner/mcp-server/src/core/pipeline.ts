@@ -106,6 +106,12 @@ import {
 } from './validity-envelope.js';
 import { ReviewDecisionStore } from './review-decision-store.js';
 import type { ReviewDecisionStoreStats } from './review-decision-store.js';
+import { FailureBoundaryArchiveStore } from './failure-boundary-archive-store.js';
+import {
+  createFailureBoundaryArchive,
+  appendFailureRecord,
+  type FailureBoundaryArchive,
+} from './failure-boundary-archive.js';
 import crypto from 'crypto';
 
 // =============================================================================
@@ -166,6 +172,8 @@ export interface PipelineConfig {
   validityEnvelopesDbPath: string;
   /** ReviewDecision 持久化数据库路径 */
   reviewDecisionsDbPath: string;
+  /** FailureBoundaryArchive 持久化数据库路径 */
+  failureBoundaryArchiveDbPath: string;
 }
 
 /** 提交观测的输入 */
@@ -343,6 +351,8 @@ export class CausalPipeline {
   readonly validityEnvelopes: ValidityEnvelopeStore;
   /** ReviewDecision 持久化存储（P06 review lane） */
   readonly reviewDecisions: ReviewDecisionStore;
+  /** v11 FailureBoundaryArchive 持久化存储 */
+  readonly failureBoundaryArchives: FailureBoundaryArchiveStore;
 
   private rvBuilder: RegulationViewBuilder;
   private config: PipelineConfig;
@@ -375,6 +385,7 @@ export class CausalPipeline {
       programRevisionProposalsDbPath: config.programRevisionProposalsDbPath ?? ':memory:',
       validityEnvelopesDbPath:        config.validityEnvelopesDbPath        ?? ':memory:',
       reviewDecisionsDbPath:          config.reviewDecisionsDbPath          ?? ':memory:',
+      failureBoundaryArchiveDbPath:   config.failureBoundaryArchiveDbPath   ?? ':memory:',
     };
     this.config = resolved;
 
@@ -428,6 +439,7 @@ export class CausalPipeline {
       this.validityEnvelopes.save(createDefaultValidityEnvelope(DEFAULT_MECHANISM_PROGRAM_ID));
     }
     this.reviewDecisions = new ReviewDecisionStore(resolved.reviewDecisionsDbPath);
+    this.failureBoundaryArchives = new FailureBoundaryArchiveStore(resolved.failureBoundaryArchiveDbPath);
 
     if (resolved.seedDefaults) {
       this.problemClasses.seedDefaults();
@@ -941,6 +953,44 @@ export class CausalPipeline {
 
     episodeEventIds.push(appendEv('outcome_recorded', story.id, { outcome: story.outcome, status: story.status }));
 
+    // Step 6b: v11 FailureBoundaryArchive — 记录失败路径为一等公民
+    if (input.failedPathAtomIds && input.failedPathAtomIds.length > 0) {
+      try {
+        // 获取或创建当前 episode 的失败档案
+        let archive = this.failureBoundaryArchives.get(`FBA_${input.storyId}`)
+          ?? createFailureBoundaryArchive({
+            id: `FBA_${input.storyId}`,
+            name: `失败边界: ${input.storyId}`,
+            description: `Episode ${input.storyId} 中尝试但失败的因果路径`,
+            createdBy: input.operator ?? 'pipeline_recordfix',
+            status: 'current',
+          });
+
+        for (const failedPath of input.failedPathAtomIds) {
+          archive = appendFailureRecord(archive, {
+            episodeRef: input.storyId,
+            mechanismRef: mechanismInstance.id,
+            description: `失败路径: [${failedPath.join(' → ')}]`,
+            costs: [{ kind: 'epistemic', description: '路径无法解释观测，已被剪除' }],
+            boundaryConditions: failedPath.map(atomId => ({
+              variableRef: atomId,
+              direction: 'equal' as const,
+              description: `节点 ${atomId} 在此路径中未通过 compile 验证`,
+            })),
+            recordedBy: input.operator ?? 'pipeline_recordfix',
+          });
+        }
+
+        this.failureBoundaryArchives.save(archive);
+        episodeEventIds.push(appendEv('failure_boundary_recorded', input.storyId, {
+          archiveId: archive.id,
+          failedPathCount: input.failedPathAtomIds.length,
+        }));
+      } catch (error) {
+        this.warnBestEffortFailure('recordFix.failureBoundary', error, { storyId: input.storyId });
+      }
+    }
+
     // Step 7: 生成 Regulation 视图 + Episode
     const regulationViews = this.rvBuilder.buildAll({ minWeight: 0.3 });
     // 全量查询：含 submitObservation 阶段写入的 observation_recorded
@@ -1307,6 +1357,7 @@ export class CausalPipeline {
     this.programRevisionProposals.close();
     this.validityEnvelopes.close();
     this.reviewDecisions.close();
+    this.failureBoundaryArchives.close();
     // rvBuilder 不拥有独立 DB 连接，无需单独关闭
   }
 
