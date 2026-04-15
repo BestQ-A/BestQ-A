@@ -1,0 +1,362 @@
+{
+  "timestamp": "2026-04-14T04:51:37.033Z",
+  "commits_scanned": 20,
+  "contracts_scanned": 41,
+  "designs_scanned": 12,
+  "code_files_with_frontmatter": 5,
+  "code_signals": 76,
+  "matrix": [
+    {
+      "intentSource": "docs/current/architecture-overview.md",
+      "intentDesc": "四层模块拓扑的读写路径",
+      "contractStatus": "current",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/artifact-contract.md",
+      "intentDesc": "artifacts 运行产物目录规范",
+      "contractStatus": "draft",
+      "implementedBy": [
+        "scripts/capture-baseline.mjs",
+        "scripts/eval.mjs",
+        "scripts/export-v7-artifacts.mjs"
+      ],
+      "alignedCommits": [],
+      "implementationStatus": "claimed_with_known_transition",
+      "driftSignal": "none"
+    },
+    {
+      "intentSource": "docs/current/compile-promotion-contract.md",
+      "intentDesc": "compile 晋升落盘规则",
+      "contractStatus": "current",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/contract-audit-contract.md",
+      "intentDesc": "契约审计规则规格",
+      "contractStatus": "current",
+      "implementedBy": [
+        "scripts/contract-audit.mjs"
+      ],
+      "alignedCommits": [],
+      "implementationStatus": "claimed_with_known_transition",
+      "driftSignal": "none"
+    },
+    {
+      "intentSource": "docs/current/counterfactual-scenario-contract.md",
+      "intentDesc": "反事实场景对象规范",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/coverage-matrix-contract.md",
+      "intentDesc": "coverage-matrix 表规范",
+      "contractStatus": "current",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/derivation-chain-contract.md",
+      "intentDesc": "推导链对象规范",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/episode-event-contract.md",
+      "intentDesc": "Episode 事件时间线",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/epistemic-contract.md",
+      "intentDesc": "显式求解与本体更新",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/experiment-design-contract.md",
+      "intentDesc": "实验设计对象规范",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/file-taxonomy-contract.md",
+      "intentDesc": "文件五类零交集分类公理",
+      "contractStatus": "current",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/hypothesis-contract.md",
+      "intentDesc": "Hypothesis 状态机门控",
+      "contractStatus": "current",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/intent-alignment-audit-contract.md",
+      "intentDesc": "测试agent与代码编写agent的意图一致性审计协议",
+      "contractStatus": "draft",
+      "implementedBy": [
+        "scripts/intent-alignment-audit.mjs"
+      ],
+      "alignedCommits": [],
+      "implementationStatus": "claimed_implemented",
+      "driftSignal": "none"
+    },
+    {
+      "intentSource": "docs/current/intent-alignment-report-template.md",
+      "intentDesc": "意图一致性审计报告输出模板规范",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/knowledge-source-contract.md",
+      "intentDesc": "composites 知识源规范",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/legacy-scaffolds-contract.md",
+      "intentDesc": "legacy 脚本登记",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/mechanism-class-contract.md",
+      "intentDesc": "MechanismClass 动力学模板",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/mechanism-instance-contract.md",
+      "intentDesc": "机制实例绑定规范",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/mechanism-program-contract.md",
+      "intentDesc": "机制程序对象规范",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/memory-layer-contract.md",
+      "intentDesc": "",
+      "contractStatus": "current",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/memory-layer-current.md",
+      "intentDesc": "当前真实存在的检索 MCP 工具清单",
+      "contractStatus": "current",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/memory-layer-target.md",
+      "intentDesc": "五层 retrieval 目标设计",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/metamodel.md",
+      "intentDesc": "五模块核心语义定义",
+      "contractStatus": "current",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/metrics-contract.md",
+      "intentDesc": "metrics.json 字段字典",
+      "contractStatus": "current",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/observation-model-contract.md",
+      "intentDesc": "观测投影对象规范",
+      "contractStatus": "current",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/ontology-delta-contract.md",
+      "intentDesc": "本体增量对象规范",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/pipeline-contract.md",
+      "intentDesc": "pipeline 的调用序列",
+      "contractStatus": "current",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/plugin-surface-contract.md",
+      "intentDesc": "双通道 plugin 分发边界",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/reconstruction-contract.md",
+      "intentDesc": "过程重建对象规范",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/ref-algebra-contract.md",
+      "intentDesc": "Ref 复合合法性代数",
+      "contractStatus": "current",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/run-summary-contract.md",
+      "intentDesc": "run summary 文档结构",
+      "contractStatus": "current",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/stats-snapshot-contract.md",
+      "intentDesc": "stats 原始快照结构",
+      "contractStatus": "current",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/summary-markdown-contract.md",
+      "intentDesc": "summary.md 结构规范",
+      "contractStatus": "current",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/support-link-contract.md",
+      "intentDesc": "证据边对象规范",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/template-invariant-contract.md",
+      "intentDesc": "Template 不变量门控",
+      "contractStatus": "current",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/testing-strategy-contract.md",
+      "intentDesc": "OpenAGI级测试验证体系与运行时信息收集规范",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/v6-world-model-contract.md",
+      "intentDesc": "四空间世界模型引擎",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/v7-world-model-contract.md",
+      "intentDesc": "五层世界动力学引擎",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    }
+  ],
+  "future_signals_count": 47,
+  "has_v8v9_in_code": true
+}
