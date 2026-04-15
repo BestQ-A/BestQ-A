@@ -12,7 +12,7 @@
 | **v7** | 主链路已跑通 | `CausalPipeline`, `Episode`, `ObservationRecord`, `MechanismInstance`, `DerivationTrace`, `OntologyDelta`, `Reconstruction` |
 | **v8** | 类型与存储已落地，但**占位符为主** | `CounterfactualScenario`, `MechanismProgram`, `ObservationModel`（默认实现是 `proxy:default_path_projection` 过渡态） |
 | **v9** | **零代码实现** | `OntologyModel`, `TranslationFunctor`, `ConflictSet`（文档存在，无类型/无存储/无工具） |
-| **v10** | **零代码实现** | `ObserverModel`, `InstrumentModel`, `DeploymentShiftModel`, `InstitutionModel` |
+| **v10** | **局部吸收已发生，未成为 operating center** | `ObserverModel`（类型 + 存储 + 测试已存在）, `InstrumentModel`, `DeploymentShiftModel`, `InstitutionModel`（后三者仍为零代码） |
 | **v11** | **零代码实现** | `FailureBoundaryArchive`, `CounterexampleCommons`, `ProofLineage`, `ConstitutionalLayer` |
 
 因为底层是 TypeScript + SQLite + MCP SDK，所以测试环境的选择必须兼顾**本地可运行**、**CI 可集成**、**版本可递增**。
