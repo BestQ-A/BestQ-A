@@ -824,6 +824,7 @@ export function buildPipelineConfig(baseDbPath: string): PipelineConfig {
     reviewDecisionsDbPath:          withSuffix('review-decision'),
     failureBoundaryArchiveDbPath:   withSuffix('failure-boundary-archive'),
     reconstructionDbPath:           withSuffix('reconstruction'),
+    branchPointDbPath:              withSuffix('branch-point'),
   };
 }
 
