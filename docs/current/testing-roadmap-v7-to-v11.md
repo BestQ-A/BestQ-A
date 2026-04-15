@@ -1,3 +1,8 @@
+---
+kind: index
+status: draft
+---
+
 # 测试路线图：从 v7 实现到 v11 文明引擎
 
 > 文档定位：基于当前代码现实与最终设计目标，制定分版本、分环境、可落地的测试策略。
@@ -11,9 +16,9 @@
 | **v6** | 核心代码已固化 | `RefAlgebra`, `PatternTemplate`, `CompositionRule` |
 | **v7** | 主链路已跑通 | `CausalPipeline`, `Episode`, `ObservationRecord`, `MechanismInstance`, `DerivationTrace`, `OntologyDelta`, `Reconstruction` |
 | **v8** | 类型与存储已落地，但**占位符为主** | `CounterfactualScenario`, `MechanismProgram`, `ObservationModel`（默认实现是 `proxy:default_path_projection` 过渡态） |
-| **v9** | **零代码实现** | `OntologyModel`, `TranslationFunctor`, `ConflictSet`（文档存在，无类型/无存储/无工具） |
+| **v9** | **局部吸收已发生，未成为 operating center** | `OntologyModel`（类型 + 存储已存在）, `TranslationFunctor`（类型已存在）, `ConflictSet`（类型 + 存储已存在），测试 `v9-ontology-federation.test.ts` 通过；但 federation 未成为运行中心 |
 | **v10** | **局部吸收已发生，未成为 operating center** | `ObserverModel`（类型 + 存储 + 测试已存在）, `InstrumentModel`, `DeploymentShiftModel`, `InstitutionModel`（后三者仍为零代码） |
-| **v11** | **零代码实现** | `FailureBoundaryArchive`, `CounterexampleCommons`, `ProofLineage`, `ConstitutionalLayer` |
+| **v11** | **局部吸收已发生，未成为 operating center** | `FailureBoundaryArchive`（类型 + 存储已存在）, `CounterexampleCommons`（类型已存在）, `ProofLineage`（类型已存在）, `ConstitutionalLayer`（类型已存在），测试 `v11-civilization-memory.test.ts` + `v11-proof-constitutional.test.ts` 通过；但文明记忆层未成为运行中心 |
 
 因为底层是 TypeScript + SQLite + MCP SDK，所以测试环境的选择必须兼顾**本地可运行**、**CI 可集成**、**版本可递增**。
 
