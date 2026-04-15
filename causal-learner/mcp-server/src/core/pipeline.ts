@@ -110,6 +110,7 @@ import { ReconstructionStore } from './reconstruction-store.js';
 import { BranchPointStore } from './branch-point-store.js';
 import { createBranchPoint, createFutureBranch, chooseBranch } from './branch-point.js';
 import { buildProofLineage, type ProofLineage } from './proof-lineage.js';
+import { createDefaultConstitutionalLayer, auditSubject, type ConstitutionalAudit } from './constitutional-layer.js';
 import type { ReconstructionStoreStats } from './reconstruction-store.js';
 import { FailureBoundaryArchiveStore } from './failure-boundary-archive-store.js';
 import {
@@ -919,6 +920,19 @@ export class CausalPipeline {
     episodeEventIds.push(appendEv('reconstruction_written', reconstruction.id, { traceId: preTraceId, fidelityScore: reconstruction.fidelity.score }));
     // HIGH 4 修复：持久化 AcceptedReconstruction，使其成为可查询的治理对象
     this.reconstructions.save(reconstruction);
+    // v11 ConstitutionalLayer：对 DerivationTrace 执行宪法审计
+    let constitutionalAudit: ConstitutionalAudit | undefined;
+    try {
+      const constitutionalLayer = createDefaultConstitutionalLayer();
+      constitutionalAudit = auditSubject(constitutionalLayer, trace, 'DerivationTrace');
+      if (!constitutionalAudit.mandatoryPassed) {
+        this.warnBestEffortFailure('recordFix.constitutionalAudit',
+          new Error(`宪法审计未通过: ${constitutionalAudit.failedCount} 条约束失败`),
+          { storyId: input.storyId, results: constitutionalAudit.results.filter(r => !r.passed) });
+      }
+    } catch (error) {
+      this.warnBestEffortFailure('recordFix.constitutionalAudit', error, { storyId: input.storyId });
+    }
 
     // MEDIUM 6/7 修复：从 candidatePaths + chosenPath + failedPaths 派生 BranchPoint 分叉治理
     if (storySnapshot.candidatePaths.length > 0 || (input.failedPathAtomIds && input.failedPathAtomIds.length > 0)) {
