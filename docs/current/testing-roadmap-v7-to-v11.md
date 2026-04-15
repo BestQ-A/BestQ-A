@@ -18,7 +18,7 @@ status: draft
 | **v8** | 类型与存储已落地，但**占位符为主** | `CounterfactualScenario`, `MechanismProgram`, `ObservationModel`（默认实现是 `proxy:default_path_projection` 过渡态） |
 | **v9** | **局部吸收已发生，未成为 operating center** | `OntologyModel`（类型 + 存储已存在）, `TranslationFunctor`（类型已存在）, `ConflictSet`（类型 + 存储已存在），测试 `v9-ontology-federation.test.ts` 通过；但 federation 未成为运行中心 |
 | **v10** | **局部吸收已发生，未成为 operating center** | `ObserverModel`（类型 + 存储 + 测试已存在）, `InstrumentModel`, `DeploymentShiftModel`, `InstitutionModel`（后三者仍为零代码） |
-| **v11** | **局部吸收已发生，未成为 operating center** | `FailureBoundaryArchive`（类型 + 存储已存在）, `CounterexampleCommons`（类型已存在）, `ProofLineage`（类型已存在）, `ConstitutionalLayer`（类型已存在），测试 `v11-civilization-memory.test.ts` + `v11-proof-constitutional.test.ts` 通过；但文明记忆层未成为运行中心 |
+| **v11** | **六大对象已接入 pipeline，部分运行** | `FailureBoundaryArchive`（Store + pipeline recordFix 写入）, `ReconstructionStore`（持久化 + 审计查询）, `BranchPoint`+`FutureBranch`（Store + 分叉治理 chosen/pruned）, `CounterexampleCommons`（归纳反例计数）, `ProofLineage`（从 DerivationTrace 构建）, `ConstitutionalLayer`（5 条宪法审计 mandatory PASS），测试 `v11-governance-stores.test.ts` + `v11-civilization-memory.test.ts` + `v11-proof-constitutional.test.ts` 通过；尚缺 `docs/current` 合约和 LineageCompileProposal/PresentSlice |
 
 因为底层是 TypeScript + SQLite + MCP SDK，所以测试环境的选择必须兼顾**本地可运行**、**CI 可集成**、**版本可递增**。
 
