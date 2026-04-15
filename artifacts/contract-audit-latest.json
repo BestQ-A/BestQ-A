@@ -1,50 +1,7 @@
 {
-  "timestamp": "2026-04-15T12:59:27.715Z",
-  "files_scanned": 711,
-  "errors": [
-    {
-      "file": "docs/current/reporting-workflow-contract.md",
-      "line": 1,
-      "code": "describes-conjunction",
-      "level": "error",
-      "msg": "describes 含连词/并列信号：任务回报文件命名、路径与模板规范"
-    },
-    {
-      "file": "docs/current/testing-roadmap-v7-to-v11.md",
-      "line": 1,
-      "code": "missing-kind",
-      "level": "error",
-      "msg": "缺少 `kind` 字段（应为 contract|instance|record|code|index）"
-    },
-    {
-      "file": "docs/current/testing-roadmap-v7-to-v11.md",
-      "line": 1,
-      "code": "missing-status",
-      "level": "error",
-      "msg": "缺少 `status:` 字段"
-    },
-    {
-      "file": "artifacts/intent-alignment-audit-latest.json",
-      "line": 1,
-      "code": "missing-kind",
-      "level": "error",
-      "msg": "缺少 `kind` 字段（应为 contract|instance|record|code|index）"
-    },
-    {
-      "file": "artifacts/intent-alignment-audit-latest.md",
-      "line": 1,
-      "code": "missing-kind",
-      "level": "error",
-      "msg": "缺少 `kind` 字段（应为 contract|instance|record|code|index）"
-    },
-    {
-      "file": "artifacts/intent-alignment-audit-latest.md",
-      "line": 1,
-      "code": "missing-status",
-      "level": "error",
-      "msg": "缺少 `status:` 字段"
-    }
-  ],
+  "timestamp": "2026-04-15T15:30:33.512Z",
+  "files_scanned": 709,
+  "errors": [],
   "warnings": [
     {
       "file": "docs/current/action-execution-contract.md",
@@ -243,6 +200,13 @@
       "msg": "describes 与 docs/current/transition-contract.md 相似（Jaccard=0.60）"
     },
     {
+      "file": "docs/current/testing-roadmap-v7-to-v11.md",
+      "line": 1,
+      "code": "type2-too-much-substance",
+      "level": "warning",
+      "msg": "index 引用密度过低 density=0.0%（<70% 可能夹带 substance）"
+    },
+    {
       "file": "docs/current/testing-strategy-contract.md",
       "line": 1,
       "code": "describes-too-long",
@@ -300,19 +264,19 @@
     }
   ],
   "summary": {
-    "ok": 693,
-    "warn": 14,
-    "err": 4
+    "ok": 694,
+    "warn": 15,
+    "err": 0
   },
   "kind_distribution": {
     "contract": 52,
     "instance": 641,
     "record": 2,
     "code": 12,
-    "index": 1,
+    "index": 2,
     "legacy_I": 0,
     "legacy_II": 0,
-    "missing": 3
+    "missing": 0
   },
   "binding_errors": {
     "missing_conforms_to": [],
@@ -631,7 +595,7 @@
     },
     {
       "file": "docs/current/testing-roadmap-v7-to-v11.md",
-      "kind": null,
+      "kind": "index",
       "density": 0
     },
     {
@@ -692,11 +656,6 @@
     {
       "file": "artifacts/20260414-001/summary.md",
       "kind": "instance",
-      "density": 0
-    },
-    {
-      "file": "artifacts/intent-alignment-audit-latest.md",
-      "kind": null,
       "density": 0
     },
     {
@@ -7763,28 +7722,6 @@
       "warnings": 0
     },
     {
-      "file": "artifacts/intent-alignment-audit-latest.json",
-      "format": "json",
-      "status": null,
-      "kind": null,
-      "legacy_kind": null,
-      "describes": null,
-      "density": null,
-      "errors": 1,
-      "warnings": 0
-    },
-    {
-      "file": "artifacts/intent-alignment-audit-latest.md",
-      "format": "md",
-      "status": "draft",
-      "kind": null,
-      "legacy_kind": null,
-      "describes": null,
-      "density": 0,
-      "errors": 2,
-      "warnings": 0
-    },
-    {
       "file": "causal-learner/mcp-server/scripts/analyze-open.mjs",
       "format": "js",
       "status": null,
@@ -8296,9 +8233,9 @@
       "status": "current",
       "kind": "contract",
       "legacy_kind": null,
-      "describes": "任务回报文件命名、路径与模板规范",
+      "describes": "任务回报文件规范",
       "density": 0,
-      "errors": 1,
+      "errors": 0,
       "warnings": 0
     },
     {
@@ -8393,12 +8330,12 @@
       "file": "docs/current/testing-roadmap-v7-to-v11.md",
       "format": "md",
       "status": "draft",
-      "kind": null,
+      "kind": "index",
       "legacy_kind": null,
       "describes": null,
       "density": 0,
-      "errors": 2,
-      "warnings": 0
+      "errors": 0,
+      "warnings": 1
     },
     {
       "file": "docs/current/testing-strategy-contract.md",

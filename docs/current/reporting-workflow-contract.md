@@ -3,7 +3,7 @@ kind: contract
 status: current
 phase: 0
 schema_version: 1
-describes: "任务回报文件命名、路径与模板规范"
+describes: "任务回报文件规范"
 ---
 
 # Reporting Workflow 合同：任务回报不再依赖人工复制
