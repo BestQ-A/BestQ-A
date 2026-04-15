@@ -823,6 +823,7 @@ export function buildPipelineConfig(baseDbPath: string): PipelineConfig {
     validityEnvelopesDbPath:        withSuffix('validity-envelope'),
     reviewDecisionsDbPath:          withSuffix('review-decision'),
     failureBoundaryArchiveDbPath:   withSuffix('failure-boundary-archive'),
+    reconstructionDbPath:           withSuffix('reconstruction'),
   };
 }
 

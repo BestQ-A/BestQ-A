@@ -631,13 +631,15 @@ async function collectTargets() {
       if (/\.(mjs|js)$/.test(f)) targets.push({ abs: path.join(CL_SCRIPTS_DIR, f), format: 'js' });
     }
   } catch {}
-  // 4. artifacts/**/*.json（跳过自生成报告）
+  // 4. artifacts/**/*.json（跳过自生成报告和审计 artifact）
   for (const f of await listFilesRec(ARTIFACTS_DIR, ['.json'])) {
-    if (path.basename(f) === 'contract-audit-latest.json') continue;
+    const base = path.basename(f);
+    if (base === 'contract-audit-latest.json' || base === 'intent-alignment-audit-latest.json') continue;
     targets.push({ abs: f, format: 'json' });
   }
-  // 4b. artifacts/**/*.md（md 格式 instance，如 summary.md）
+  // 4b. artifacts/**/*.md（md 格式 instance，如 summary.md；跳过审计 artifact）
   for (const f of await listFilesRec(ARTIFACTS_DIR, ['.md'])) {
+    if (path.basename(f) === 'intent-alignment-audit-latest.md') continue;
     targets.push({ abs: f, format: 'md' });
   }
   // 5. .omx/baselines/**/*.json
