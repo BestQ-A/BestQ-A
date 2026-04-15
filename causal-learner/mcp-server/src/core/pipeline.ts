@@ -787,9 +787,68 @@ export class CausalPipeline {
     // Step 4: 创建 AcceptedReconstruction（D2：用 mechanismInstance.id 写入）
     // 预生成 traceId，供 reconstruction 和 DerivationTrace 双向互链
     const preTraceId = `DT_${input.storyId}_${crypto.randomBytes(4).toString('hex')}`;
+    // ─── 预计算因果分段所需的 majorChain ────────────────────────────
+    // majorChain 由 createAcceptedReconstruction 内部从 chosenPathAtomIds 派生，
+    // 此处提前镜像同样逻辑以便分段赋值
+    const effectivePathIds = pathWithFix ?? storySnapshot.observationAtomIds;
+    const majorChainPreview = effectivePathIds.length > 0 ? effectivePathIds : ['episode_initial'];
+
+    // ─── 从 majorChain 派生三层因果分段（nearCauseSegment / midCauseSegment / deepCauseSegment）
+    // 分段策略：
+    //   - deepCauseSegment:  majorChain 首元素（根因 / 初始条件）
+    //   - nearCauseSegment:  majorChain 末尾 1~2 个元素（直接触发修复的节点）
+    //   - midCauseSegment:   majorChain 中间部分（链长度 >= 3 时存在）
+    const toSegment = (nodeRef: string, role: 'premise' | 'mechanism' | 'constraint' | 'intervention'): import('./reconstruction.js').ProvenanceSegment => ({
+      node_ref: nodeRef,
+      role,
+      weight: 1.0,
+      evidenceRefs: [],
+    });
+
+    let nearCauseSegment: import('./reconstruction.js').ProvenanceSegment[] = [];
+    let midCauseSegment: import('./reconstruction.js').ProvenanceSegment[] = [];
+    let deepCauseSegment: import('./reconstruction.js').ProvenanceSegment[] = [];
+
+    if (majorChainPreview.length === 1) {
+      // 链长度 1：唯一节点既是近因也是远因
+      nearCauseSegment = [toSegment(majorChainPreview[0], 'intervention')];
+    } else if (majorChainPreview.length === 2) {
+      // 链长度 2：首节点为远因，尾节点为近因
+      deepCauseSegment = [toSegment(majorChainPreview[0], 'premise')];
+      nearCauseSegment = [toSegment(majorChainPreview[1], 'intervention')];
+    } else {
+      // 链长度 >= 3：首节点为远因，尾部 1~2 个为近因，中间为中因
+      deepCauseSegment = [toSegment(majorChainPreview[0], 'premise')];
+      // 近因：取最后 2 个（或最后 1 个，取决于中间是否还有剩余）
+      const nearCount = majorChainPreview.length >= 4 ? 2 : 1;
+      const nearStart = majorChainPreview.length - nearCount;
+      nearCauseSegment = majorChainPreview.slice(nearStart).map(id => toSegment(id, 'intervention'));
+      // 中因：去掉首尾后的中间段
+      midCauseSegment = majorChainPreview.slice(1, nearStart).map(id => toSegment(id, 'mechanism'));
+    }
+
+    // ─── 预计算 fidelity 以派生 unresolvedGaps ─────────────────────────
+    // fidelity.missed_nodes 在 createAcceptedReconstruction 内部计算，
+    // 此处镜像 scoreFidelity 的逻辑提前获取 missed_nodes
+    const expectedNodes = new Set(effectivePathIds.length > 0 ? effectivePathIds : storySnapshot.observationAtomIds);
+    const actualNodes = new Set(majorChainPreview);
+    const missedNodes = [...expectedNodes].filter(n => !actualNodes.has(n));
+
+    const unresolvedGaps: import('./reconstruction.js').UnresolvedGap[] = missedNodes.map(nodeId => ({
+      kind: 'missing_observation' as const,
+      description: `fidelity 未覆盖节点: ${nodeId}`,
+      severity: 'mid' as const,
+    }));
+
+    // ─── minimalityJustification ──────────────────────────────────────
+    const minimalityJustification: import('./reconstruction.js').MinimalityJustification | null =
+      missedNodes.length === 0
+        ? { kind: 'coverage_saturated', rationale: '所有 majorChain 节点均被 fidelity 匹配覆盖，无遗漏' }
+        : { kind: 'heuristic_cutoff', rationale: `majorChain 存在 ${missedNodes.length} 个未覆盖节点，当前链为启发式截断` };
+
     const reconstruction = createAcceptedReconstruction({
       episodeId: input.storyId,
-      chosenPathAtomIds: pathWithFix ?? storySnapshot.observationAtomIds,
+      chosenPathAtomIds: effectivePathIds,
       observationAtomIds: storySnapshot.observationAtomIds,
       derivationChainId: hypothesisId ? `DC_${input.storyId}_${hypothesisId}` : undefined,
       traceId: preTraceId,
@@ -797,19 +856,12 @@ export class CausalPipeline {
       ontologySnapshotRef: 'ontology_current',
       // P1：只在 accepted 时写入，rejected 路径不得绑定被否决的 bridge 对象
       mechanismInstanceIds: mechanismInstance.status === 'accepted' ? [mechanismInstance.id] : [],
-      // v13 Minimal Sufficient Provenance 雏形（reconstruction-contract.md schema v3，过渡态）
-      // TODO(v13-msp): 未来从 SupportLink + MechanismInstance + MechanismClass 链路派生：
-      //   - nearCauseSegment  ← 最后几步 DerivationStep + 刚记录的 ObservationRecord
-      //   - midCauseSegment   ← mechanismInstance 绑定 + 跨 Episode 的 SupportLink
-      //   - deepCauseSegment  ← MechanismClass 规格 + ContextScope 历史约束 + Ontology 不变量
-      //   - minimalityJustification ← 基于 supportLinks 闭包计算（future: core/minimal-provenance.ts）
-      //   - unresolvedGaps    ← 当 derivationTrace.chain_integrity !== 'complete' 时派生
-      // 第一轮为空，不影响既有 220 tests 通路。
-      nearCauseSegment: [],
-      midCauseSegment: [],
-      deepCauseSegment: [],
-      minimalityJustification: null,
-      unresolvedGaps: [],
+      // v13 Minimal Sufficient Provenance — 从 majorChain + fidelity 派生
+      nearCauseSegment,
+      midCauseSegment,
+      deepCauseSegment,
+      minimalityJustification,
+      unresolvedGaps,
     });
 
     // 创建并落盘 DerivationTrace（与 reconstruction 双向互链）
