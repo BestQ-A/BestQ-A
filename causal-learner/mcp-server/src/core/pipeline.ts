@@ -107,6 +107,8 @@ import {
 import { ReviewDecisionStore } from './review-decision-store.js';
 import type { ReviewDecisionStoreStats } from './review-decision-store.js';
 import { ReconstructionStore } from './reconstruction-store.js';
+import { BranchPointStore } from './branch-point-store.js';
+import { createBranchPoint, createFutureBranch, chooseBranch } from './branch-point.js';
 import type { ReconstructionStoreStats } from './reconstruction-store.js';
 import { FailureBoundaryArchiveStore } from './failure-boundary-archive-store.js';
 import {
@@ -178,6 +180,8 @@ export interface PipelineConfig {
   failureBoundaryArchiveDbPath: string;
   /** ReconstructionStore 持久化数据库路径 */
   reconstructionDbPath: string;
+  /** BranchPoint 持久化数据库路径 */
+  branchPointDbPath: string;
 }
 
 /** 提交观测的输入 */
@@ -359,6 +363,8 @@ export class CausalPipeline {
   readonly failureBoundaryArchives: FailureBoundaryArchiveStore;
   /** AcceptedReconstruction 持久化存储（HIGH 4 修复） */
   readonly reconstructions: ReconstructionStore;
+  /** v13 BranchPoint 分叉治理存储 */
+  readonly branchPoints: BranchPointStore;
 
   private rvBuilder: RegulationViewBuilder;
   private config: PipelineConfig;
@@ -393,6 +399,7 @@ export class CausalPipeline {
       reviewDecisionsDbPath:          config.reviewDecisionsDbPath          ?? ':memory:',
       failureBoundaryArchiveDbPath:   config.failureBoundaryArchiveDbPath   ?? ':memory:',
       reconstructionDbPath:           config.reconstructionDbPath           ?? ':memory:',
+      branchPointDbPath:              config.branchPointDbPath              ?? ':memory:',
     };
     this.config = resolved;
 
@@ -448,6 +455,7 @@ export class CausalPipeline {
     this.reviewDecisions = new ReviewDecisionStore(resolved.reviewDecisionsDbPath);
     this.failureBoundaryArchives = new FailureBoundaryArchiveStore(resolved.failureBoundaryArchiveDbPath);
     this.reconstructions = new ReconstructionStore(resolved.reconstructionDbPath);
+    this.branchPoints = new BranchPointStore(resolved.branchPointDbPath);
 
     if (resolved.seedDefaults) {
       this.problemClasses.seedDefaults();
@@ -899,6 +907,48 @@ export class CausalPipeline {
     episodeEventIds.push(appendEv('reconstruction_written', reconstruction.id, { traceId: preTraceId, fidelityScore: reconstruction.fidelity.score }));
     // HIGH 4 修复：持久化 AcceptedReconstruction，使其成为可查询的治理对象
     this.reconstructions.save(reconstruction);
+
+    // MEDIUM 6/7 修复：从 candidatePaths + chosenPath + failedPaths 派生 BranchPoint 分叉治理
+    if (storySnapshot.candidatePaths.length > 0 || (input.failedPathAtomIds && input.failedPathAtomIds.length > 0)) {
+      try {
+        const allPaths = storySnapshot.candidatePaths;
+        const bp = createBranchPoint({
+          episodeId: input.storyId,
+          locationDescription: `recordFix 分叉: ${allPaths.length} 条候选路径`,
+          candidateCount: allPaths.length + (input.failedPathAtomIds?.length ?? 0),
+          createdBy: input.operator ?? 'pipeline_recordfix',
+        });
+
+        // 为 chosenPath 创建 chosen branch
+        const chosenPathIds = pathWithFix ?? storySnapshot.observationAtomIds;
+        const chosenBranch = createFutureBranch({
+          branchPointId: bp.id,
+          pathAtomIds: chosenPathIds,
+          predictedOutcome: input.fixDescription,
+          score: reconstruction.fidelity.score,
+          status: 'chosen',
+        });
+
+        // 为 failedPaths 创建 pruned branches
+        const prunedBranches = (input.failedPathAtomIds ?? []).map(failedPath =>
+          createFutureBranch({
+            branchPointId: bp.id,
+            pathAtomIds: failedPath,
+            score: 0,
+            status: 'pruned',
+            pruneReason: 'compile 验证失败或被操作者排除',
+          })
+        );
+
+        // 持久化
+        const finalBp = { ...bp, chosenBranchId: chosenBranch.id };
+        this.branchPoints.saveBranchPoint(finalBp);
+        this.branchPoints.saveFutureBranch(chosenBranch);
+        for (const pb of prunedBranches) this.branchPoints.saveFutureBranch(pb);
+      } catch (error) {
+        this.warnBestEffortFailure('recordFix.branchPoint', error, { storyId: input.storyId });
+      }
+    }
 
     // Step 5: 生成 OntologyDelta（D1：所有路径均返回 OntologyDelta，不再用独立 NoUpdateReason）
     let ontologyUpdate: OntologyDelta;
@@ -1369,6 +1419,7 @@ export class CausalPipeline {
     this.reviewDecisions.close();
     this.failureBoundaryArchives.close();
     this.reconstructions.close();
+    this.branchPoints.close();
     // rvBuilder 不拥有独立 DB 连接，无需单独关闭
   }
 
