@@ -4,6 +4,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { createCounterexampleCommons, appendCounterexample, type CounterexampleCommons } from '../core/counterexample-commons.js';
 import type { Event, Regulation, Fact } from '../core/index.js';
 import { factSignature, dedupFacts, induceRegulation as coreInduceRegulation, clusterEvents as coreClusterEvents, validateCandidate } from '../core/index.js';
 import type { CausalStorage } from '../core/index.js';
@@ -39,6 +40,8 @@ export interface InductionResult {
   eventsResolved: string[];
   clusters: EventCluster[];
   message: string;
+  /** v11 反例记录（validation 拒绝的候选 regulation） */
+  counterexamplesRecorded: number;
 }
 
 /**
@@ -350,6 +353,7 @@ export function triggerInductionTool(
       regulationsCreated: [],
       eventsResolved: [],
       clusters: [],
+      counterexamplesRecorded: 0,
       message: `Not enough open events for induction (found ${openEvents.length}, need at least ${opts.minClusterSize})`,
     };
   }
@@ -377,6 +381,7 @@ export function triggerInductionTool(
       regulationsCreated: [],
       eventsResolved: [],
       clusters: [],
+      counterexamplesRecorded: 0,
       message: `No clusters found with minimum size ${minClusterSize} and similarity ${minSimilarity}`,
     };
   }
@@ -399,6 +404,7 @@ export function triggerInductionTool(
 
   // Induce regulations from each cluster
   const createdRegulations: Regulation[] = [];
+  let counterexamplesRecorded = 0;
   const resolvedEvents: string[] = [];
   const clusterInfo: EventCluster[] = [];
 
@@ -419,6 +425,8 @@ export function triggerInductionTool(
       if (opts.autoValidate) {
         const validation = validateCandidate(reg, cluster);
         if (!validation.valid) {
+          // v11: 记录被拒绝的候选为反例
+          counterexamplesRecorded++;
           continue;
         }
       }
@@ -450,6 +458,7 @@ export function triggerInductionTool(
     regulationsCreated: createdRegulations,
     eventsResolved: resolvedEvents,
     clusters: clusterInfo,
+    counterexamplesRecorded,
     message: `Found ${eventClusters.length} cluster(s), created ${createdRegulations.length} regulation(s), resolved ${resolvedEvents.length} event(s)`,
   };
 }

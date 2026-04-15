@@ -109,6 +109,7 @@ import type { ReviewDecisionStoreStats } from './review-decision-store.js';
 import { ReconstructionStore } from './reconstruction-store.js';
 import { BranchPointStore } from './branch-point-store.js';
 import { createBranchPoint, createFutureBranch, chooseBranch } from './branch-point.js';
+import { buildProofLineage, type ProofLineage } from './proof-lineage.js';
 import type { ReconstructionStoreStats } from './reconstruction-store.js';
 import { FailureBoundaryArchiveStore } from './failure-boundary-archive-store.js';
 import {
@@ -904,6 +905,17 @@ export class CausalPipeline {
       supportLinks: generatedSupportLinks,
     });
     this.derivationTraces.save(trace);
+    // v11: 从 DerivationTrace 构建 ProofLineage（证明谱系）
+    let proofLineage: ProofLineage | undefined;
+    try {
+      proofLineage = buildProofLineage(
+        [trace],
+        `ProofLineage for ${input.storyId}`,
+        { createdBy: input.operator ?? 'pipeline_recordfix' }
+      );
+    } catch {
+      // trace 可能缺少 conclusionClaimId，best-effort
+    }
     episodeEventIds.push(appendEv('reconstruction_written', reconstruction.id, { traceId: preTraceId, fidelityScore: reconstruction.fidelity.score }));
     // HIGH 4 修复：持久化 AcceptedReconstruction，使其成为可查询的治理对象
     this.reconstructions.save(reconstruction);
