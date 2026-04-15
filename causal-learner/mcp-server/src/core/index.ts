@@ -281,6 +281,10 @@ export type {
   ReconstructedStep,
   FidelityScore,
   AcceptedReconstruction,
+  // v13 Minimal Sufficient Provenance 雏形（schema v3）
+  ProvenanceSegment,
+  MinimalityJustification,
+  UnresolvedGap,
 } from './reconstruction.js';
 
 // DerivationTrace (v7 §3.3 推导链 — 原 DerivationChain)

@@ -1,10 +1,10 @@
 {
-  "timestamp": "2026-04-15T10:21:15.751Z",
+  "timestamp": "2026-04-15T13:01:01.932Z",
   "commits_scanned": 20,
   "contracts_scanned": 54,
-  "designs_scanned": 17,
-  "code_files_with_frontmatter": 5,
-  "code_signals": 455,
+  "designs_scanned": 18,
+  "code_files_with_frontmatter": 6,
+  "code_signals": 594,
   "matrix": [
     {
       "intentSource": "docs/current/action-execution-contract.md",
@@ -333,10 +333,12 @@
       "intentSource": "docs/current/reconstruction-contract.md",
       "intentDesc": "过程重建对象规范",
       "contractStatus": "draft",
-      "implementedBy": [],
+      "implementedBy": [
+        "causal-learner/mcp-server/src/core/reconstruction.ts"
+      ],
       "alignedCommits": [],
-      "implementationStatus": "no_code_claim",
-      "driftSignal": "mode5_silent_gap"
+      "implementationStatus": "claimed_with_known_transition",
+      "driftSignal": "none"
     },
     {
       "intentSource": "docs/current/ref-algebra-contract.md",
@@ -474,6 +476,6 @@
       "driftSignal": "mode5_silent_gap"
     }
   ],
-  "future_signals_count": 435,
+  "future_signals_count": 568,
   "has_v8v9_in_code": true
 }

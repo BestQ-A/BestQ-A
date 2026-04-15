@@ -1,6 +1,6 @@
 # 意图一致性审计报告
 
-生成时间: 2026-04-15T10:21:15.749Z
+生成时间: 2026-04-15T13:01:01.929Z
 扫描 commit 数: 20
 扫描代码文件数: 已扫描
 
@@ -10,9 +10,9 @@
 |------|------|
 | 合同总数 | 51 |
 | 宣称对齐但未完成 (模式 1) | 0 |
-| 完全沉默的缺口 (模式 5) | 48 |
+| 完全沉默的缺口 (模式 5) | 47 |
 | metrics 僵尸声明 (模式 3) | 0 |
-| v8-v11 未来意图代码信号 | 435 处 |
+| v8-v11 未来意图代码信号 | 568 处 |
 
 ---
 
@@ -55,7 +55,7 @@
 | plugin-surface-contract.md | draft | (无) | - | no_code_claim | mode5_silent_gap |
 | prediction-error-contract.md | current | (无) | - | no_code_claim | mode5_silent_gap |
 | program-revision-proposal-contract.md | draft | (无) | - | no_code_claim | mode5_silent_gap |
-| reconstruction-contract.md | draft | (无) | - | no_code_claim | mode5_silent_gap |
+| reconstruction-contract.md | draft | causal-learner/mcp-server/src/core/reconstruction.ts | - | claimed_with_known_transition | - |
 | ref-algebra-contract.md | current | (无) | - | no_code_claim | mode5_silent_gap |
 | reporting-workflow-contract.md | current | (无) | - | no_code_claim | mode5_silent_gap |
 | review-decision-contract.md | current | (无) | - | no_code_claim | mode5_silent_gap |
@@ -121,7 +121,7 @@
 
 ## 3. 代码信号清单
 
-### future-intent (435 处)
+### future-intent (568 处)
 - `causal-learner/mcp-server/src/core/conflict-set.ts:51` /** 本次冲突分析关联的 TranslationFunctor ID */
 - `causal-learner/mcp-server/src/core/constitutional-layer.ts:2` * ConstitutionalLayer — v11 宪法层（基本求真约束规则集）
 - `causal-learner/mcp-server/src/core/constitutional-layer.ts:5` * ConstitutionalLayer 定义最基本的认识论约束：
@@ -132,20 +132,20 @@
 - `causal-learner/mcp-server/src/core/constitutional-layer.ts:55` subjectKind: 'DerivationTrace' | 'ProofLineage';
 - `causal-learner/mcp-server/src/core/constitutional-layer.ts:70` export interface CreateConstitutionalLayerInput {
 - `causal-learner/mcp-server/src/core/constitutional-layer.ts:76` status?: ConstitutionalLayer['status'];
-- ... 还有 425 处
+- ... 还有 558 处
 
-### todo (15 处)
+### todo (20 处)
 - `causal-learner/mcp-server/src/core/experiment-design-store.ts:6` * listByCounterfactual() 第一轮做内存过滤（过渡态），待后续加专用索引。
 - `causal-learner/mcp-server/src/core/experiment-design-store.ts:99` * 过渡态：内存过滤（basedOnCounterfactualIds 在 JSON blob 中），待后续加专用索引
 - `causal-learner/mcp-server/src/core/mechanism-instance.ts:19` | 'path_projection'  // 来自 AtomGraph 路径投影（过渡态，不得作为最终 current 语义）
 - `causal-learner/mcp-server/src/core/mechanism-instance.ts:34` /** 指向 MechanismClass（允许 proxy:* 前缀表示过渡态） */
 - `causal-learner/mcp-server/src/core/mechanism-program.ts:258` description:      '通过 AtomGraph 路径投影触发的默认机制程序（第一轮过渡模型）。不携带真实 phase 语义，占位用。',
 - `causal-learner/mcp-server/src/core/pipeline.ts:726` // source_kind='path_projection'：当前为过渡态，路径 Atom 作为 slot 绑定代理
-- `scripts/capture-baseline.mjs:40` * TODO(2026-04-13): stats-snapshot-contract.md / run-summary-contract.md 由并行 age...
-- `scripts/contract-audit.mjs:136` if (/§\s*2b|目标|target|future|待建|计划/.test(s)) mode = 'draft';
-- `scripts/eval.mjs:9` // TODO(2026-04-13): stats-snapshot-contract.md / run-summary-contract.md 由并行 ag...
-- `scripts/eval.mjs:18` *   3. 运行 Phase 1 占位 workload：causal-learner/mcp-server/tests/test-basic.mjs
-- ... 还有 5 处
+- `causal-learner/mcp-server/src/core/pipeline.ts:800` // v13 Minimal Sufficient Provenance 雏形（reconstruction-contract.md schema v3，过渡态...
+- `causal-learner/mcp-server/src/core/pipeline.ts:801` // TODO(v13-msp): 未来从 SupportLink + MechanismInstance + MechanismClass 链路派生：
+- `causal-learner/mcp-server/src/core/reconstruction.ts:82` * 第一轮以过渡态（空数组 / null）落地，不破坏既有调用。
+- `causal-learner/mcp-server/src/core/reconstruction.ts:106` /** v13 MSP 最小充分性说明；第一轮允许为 null（过渡态） */
+- ... 还有 10 处
 
 ### proxy (5 处)
 - `causal-learner/mcp-server/src/core/mechanism-instance.ts:34` /** 指向 MechanismClass（允许 proxy:* 前缀表示过渡态） */
@@ -153,6 +153,9 @@
 - `causal-learner/mcp-server/src/tests/pipeline-recordfix.test.ts:222` mechanism_class_ref: 'proxy:test_class',
 - `causal-learner/mcp-server/src/tests/pipeline-recordfix.test.ts:236` const base = { episode_id: 'ep_sm', mechanism_class_ref: 'proxy:ep_sm', bindings...
 - `causal-learner/mcp-server/src/tests/pipeline-recordfix.test.ts:291` mechanism_class_ref: 'proxy:ep_clean',
+
+### alignment-claim (1 处)
+- `causal-learner/mcp-server/src/core/reconstruction.ts:79` * 对齐 reconstruction-contract.md schema_version 3（2026-04-15 引入 v13 MSP 雏形）。
 
 ---
 
