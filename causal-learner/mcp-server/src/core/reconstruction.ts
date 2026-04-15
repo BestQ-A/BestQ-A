@@ -1,3 +1,7 @@
+// ---
+// kind: code
+// implements: docs/current/reconstruction-contract.md
+// ---
 import crypto from 'crypto';
 
 /** 重建步骤类型 */
@@ -33,7 +37,50 @@ export interface FidelityScore {
   extra_nodes: string[];
 }
 
-/** AcceptedReconstruction（v7 / reconstruction contract 最低层） */
+/**
+ * v13 Minimal Sufficient Provenance — 追溯段节点
+ * reconstruction-contract.md §2.3 ProvenanceSegment
+ */
+export interface ProvenanceSegment {
+  /** 引用一个 reconstructed_timeline.step.node_ref 或外部 Claim ID */
+  node_ref: string;
+  /** 角色：前提 / 机制 / 约束 / 干预 */
+  role: 'premise' | 'mechanism' | 'constraint' | 'intervention';
+  /** 解释权重 [0.0, 1.0] */
+  weight: number;
+  /** 支撑该节点的证据（ObservationRecord / Claim / SupportLink ID） */
+  evidenceRefs: string[];
+}
+
+/**
+ * v13 Minimal Sufficient Provenance — 最小充分性说明
+ * reconstruction-contract.md §2.3 MinimalityJustification
+ */
+export interface MinimalityJustification {
+  /** 为何停止追溯 */
+  kind: 'coverage_saturated' | 'budget_capped' | 'heuristic_cutoff';
+  /** 人类可读解释 */
+  rationale: string;
+}
+
+/**
+ * v13 Minimal Sufficient Provenance — 追溯链中未闭合的证据空洞
+ * reconstruction-contract.md §2.3 UnresolvedGap
+ */
+export interface UnresolvedGap {
+  kind: 'missing_observation' | 'hypothesis_untested' | 'mechanism_proxy' | 'unknown';
+  description: string;
+  severity: 'low' | 'mid' | 'high';
+}
+
+/**
+ * AcceptedReconstruction（v7 / reconstruction contract 最低层）
+ *
+ * 对齐 reconstruction-contract.md schema_version 3（2026-04-15 引入 v13 MSP 雏形）。
+ * nearCauseSegment / midCauseSegment / deepCauseSegment / minimalityJustification /
+ * unresolvedGaps 五字段为 v13 Minimal Sufficient Provenance 的 schema 侧雏形，
+ * 第一轮以过渡态（空数组 / null）落地，不破坏既有调用。
+ */
 export interface AcceptedReconstruction {
   id: string;
   version: number;
@@ -50,6 +97,16 @@ export interface AcceptedReconstruction {
   created_at: string;
   created_by: string;
   supersedes: string | null;
+  /** v13 MSP 近因段（当下切片上最直接的触发条件），第一轮允许为空数组 */
+  nearCauseSegment: ProvenanceSegment[];
+  /** v13 MSP 中因段（跨 Episode 的结构性成因），第一轮允许为空数组 */
+  midCauseSegment: ProvenanceSegment[];
+  /** v13 MSP 远因段（历史压缩态中的约束/律法层），第一轮允许为空数组 */
+  deepCauseSegment: ProvenanceSegment[];
+  /** v13 MSP 最小充分性说明；第一轮允许为 null（过渡态） */
+  minimalityJustification: MinimalityJustification | null;
+  /** v13 MSP 未闭合证据空洞列表 */
+  unresolvedGaps: UnresolvedGap[];
 }
 
 interface ReconstructionInput {
@@ -64,6 +121,12 @@ interface ReconstructionInput {
   mechanismInstanceIds?: string[];
   ontologySnapshotRef?: string;
   createdAt?: string;
+  // v13 MSP 雏形字段（均可选，未传则由 createAcceptedReconstruction 默认填空/null）
+  nearCauseSegment?: ProvenanceSegment[];
+  midCauseSegment?: ProvenanceSegment[];
+  deepCauseSegment?: ProvenanceSegment[];
+  minimalityJustification?: MinimalityJustification | null;
+  unresolvedGaps?: UnresolvedGap[];
 }
 
 function nowIso(): string {
@@ -169,5 +232,12 @@ export function createAcceptedReconstruction(input: ReconstructionInput): Accept
     created_at,
     created_by,
     supersedes: null,
+    // v13 MSP 雏形字段：第一轮以过渡态（空数组 / null）落地
+    // 未来由 pipeline.recordFix 从 SupportLink + MechanismInstance + MechanismClass 链路填充
+    nearCauseSegment: input.nearCauseSegment ?? [],
+    midCauseSegment: input.midCauseSegment ?? [],
+    deepCauseSegment: input.deepCauseSegment ?? [],
+    minimalityJustification: input.minimalityJustification ?? null,
+    unresolvedGaps: input.unresolvedGaps ?? [],
   };
 }

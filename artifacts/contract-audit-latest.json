@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-04-15T10:17:04.649Z",
+  "timestamp": "2026-04-15T12:59:27.715Z",
   "files_scanned": 711,
   "errors": [
     {
@@ -577,7 +577,7 @@
     {
       "file": "docs/current/reconstruction-contract.md",
       "kind": "contract",
-      "density": 0.0634
+      "density": 0.0454
     },
     {
       "file": "docs/current/ref-algebra-contract.md",
@@ -8275,7 +8275,7 @@
       "kind": "contract",
       "legacy_kind": null,
       "describes": "过程重建对象规范",
-      "density": 0.0634,
+      "density": 0.0454,
       "errors": 0,
       "warnings": 0
     },
