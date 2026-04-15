@@ -110,6 +110,10 @@ import { ReconstructionStore } from './reconstruction-store.js';
 import { BranchPointStore } from './branch-point-store.js';
 import { createBranchPoint, createFutureBranch, chooseBranch } from './branch-point.js';
 import { buildProofLineage, type ProofLineage } from './proof-lineage.js';
+import { PresentSliceStore } from './present-slice-store.js';
+import type { PresentSliceStoreStats } from './present-slice-store.js';
+import { buildPresentSliceFromPipeline } from './present-slice.js';
+import type { PipelineSnapshot } from './present-slice.js';
 import { createDefaultConstitutionalLayer, auditSubject, type ConstitutionalAudit } from './constitutional-layer.js';
 import type { ReconstructionStoreStats } from './reconstruction-store.js';
 import { FailureBoundaryArchiveStore } from './failure-boundary-archive-store.js';
@@ -184,6 +188,8 @@ export interface PipelineConfig {
   reconstructionDbPath: string;
   /** BranchPoint 持久化数据库路径 */
   branchPointDbPath: string;
+  /** PresentSlice 持久化数据库路径 */
+  presentSliceDbPath: string;
 }
 
 /** 提交观测的输入 */
@@ -367,6 +373,8 @@ export class CausalPipeline {
   readonly reconstructions: ReconstructionStore;
   /** v13 BranchPoint 分叉治理存储 */
   readonly branchPoints: BranchPointStore;
+  /** v13 PresentSlice 当前观测面存储 */
+  readonly presentSlices: PresentSliceStore;
 
   private rvBuilder: RegulationViewBuilder;
   private config: PipelineConfig;
@@ -402,6 +410,7 @@ export class CausalPipeline {
       failureBoundaryArchiveDbPath:   config.failureBoundaryArchiveDbPath   ?? ':memory:',
       reconstructionDbPath:           config.reconstructionDbPath           ?? ':memory:',
       branchPointDbPath:              config.branchPointDbPath              ?? ':memory:',
+      presentSliceDbPath:             config.presentSliceDbPath             ?? ':memory:',
     };
     this.config = resolved;
 
@@ -458,6 +467,7 @@ export class CausalPipeline {
     this.failureBoundaryArchives = new FailureBoundaryArchiveStore(resolved.failureBoundaryArchiveDbPath);
     this.reconstructions = new ReconstructionStore(resolved.reconstructionDbPath);
     this.branchPoints = new BranchPointStore(resolved.branchPointDbPath);
+    this.presentSlices = new PresentSliceStore(resolved.presentSliceDbPath);
 
     if (resolved.seedDefaults) {
       this.problemClasses.seedDefaults();
@@ -1106,6 +1116,28 @@ export class CausalPipeline {
         : undefined,
     };
 
+    // Step 9: 构建并持久化 PresentSlice（v13 当前观测面快照）
+    try {
+      const snapshot: PipelineSnapshot = {
+        name: `recordFix:${input.storyId}`,
+        episodeIds: [input.storyId],
+        reconstructionIds: [reconstruction.id],
+        reconstructionFidelities: [reconstruction.fidelity.score],
+        activeRegulationIds: regulationViews.map(rv => rv.id),
+        activeBranchPointIds: this.branchPoints.getByEpisode(input.storyId).map(bp => bp.id),
+        stateSnapshotIds: this.stateSnapshots.listByEpisode(input.storyId).map(s => s.id),
+        activeConstraints: reconstruction.unresolvedGaps?.map(g => g.description) ?? [],
+        visibleOutcomes: conclusion.recommendedActions ?? [],
+        inferredLatentStates: [],
+        unresolvedUnknowns: reconstruction.unresolvedGaps?.map(g => g.description) ?? [],
+        createdBy: input.operator ?? 'pipeline_recordfix',
+      };
+      const presentSlice = buildPresentSliceFromPipeline(snapshot);
+      this.presentSlices.save(presentSlice);
+    } catch (error) {
+      this.warnBestEffortFailure('recordFix.presentSlice', error, { storyId: input.storyId });
+    }
+
     return {
       story,
       episode,
@@ -1452,6 +1484,7 @@ export class CausalPipeline {
     this.failureBoundaryArchives.close();
     this.reconstructions.close();
     this.branchPoints.close();
+    this.presentSlices.close();
     // rvBuilder 不拥有独立 DB 连接，无需单独关闭
   }
 

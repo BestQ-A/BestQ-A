@@ -927,3 +927,55 @@ export type {
 export {
   PresentSliceStore,
 } from './present-slice-store.js';
+
+// =============================================================================
+// v13 HistoricalCompressionRecord（历史压缩行为的显式记录）
+// =============================================================================
+
+export type {
+  HistoricalCompressionRecord,
+  CreateHistoricalCompressionRecordInput,
+} from './historical-compression-record.js';
+
+export {
+  createHistoricalCompressionRecord,
+  assertValidCompressionRecord,
+} from './historical-compression-record.js';
+
+export type {
+  HistoricalCompressionRecordStoreStats,
+} from './historical-compression-record-store.js';
+
+export {
+  HistoricalCompressionRecordStore,
+} from './historical-compression-record-store.js';
+
+// =============================================================================
+// v13 LineageCompileProposal（谱系编译提案 — Institutional Compile Layer）
+// =============================================================================
+
+export type {
+  LineageCompileProposalStatus,
+  ProposedRefChange,
+  LineageCompileProposal,
+  CreateLineageCompileProposalInput,
+} from './lineage-compile-proposal.js';
+
+export {
+  createLineageCompileProposal,
+  assertValidLineageCompileProposal,
+  transitionProposalStatus,
+  challengeProposal,
+  approveProposal,
+  rejectProposal as rejectLineageProposal,
+  applyProposal,
+  rollbackProposal,
+} from './lineage-compile-proposal.js';
+
+export type {
+  LineageCompileProposalStoreStats,
+} from './lineage-compile-proposal-store.js';
+
+export {
+  LineageCompileProposalStore,
+} from './lineage-compile-proposal-store.js';

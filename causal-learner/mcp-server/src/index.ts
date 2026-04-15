@@ -825,6 +825,7 @@ export function buildPipelineConfig(baseDbPath: string): PipelineConfig {
     failureBoundaryArchiveDbPath:   withSuffix('failure-boundary-archive'),
     reconstructionDbPath:           withSuffix('reconstruction'),
     branchPointDbPath:              withSuffix('branch-point'),
+    presentSliceDbPath:             withSuffix('present-slice'),
   };
 }
 
