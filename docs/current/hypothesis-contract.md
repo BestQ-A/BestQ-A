@@ -1,3 +1,12 @@
+---
+kind: contract
+status: current
+verified: 2026-04-13
+phase: 1
+schema_version: 1
+describes: "Hypothesis 状态机门控"
+---
+
 # Hypothesis 合同：门控与状态机规范
 
 > 本文档是 `metamodel.md` 的局部合同，管辖假设生命周期、验证门控、晋升规则。

@@ -1,3 +1,12 @@
+---
+kind: contract
+status: current
+verified: 2026-04-13
+phase: 1
+schema_version: 1
+describes: "compile 晋升落盘规则"
+---
+
 # Compile 晋升合同：路径编译与引用强化规范
 
 > 本文档是 `metamodel.md` 的局部合同，管辖 Ref 编译（compile）、Hypothesis 晋升、证据记录、Shortcut 创建及失效传播。

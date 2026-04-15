@@ -577,3 +577,239 @@ export interface TestResult {
   notes?: string;
   metadata?: Record<string, unknown>;
 }
+
+// =============================================================================
+// v7 World Model — Claim Space
+// implements: docs/current/derivation-chain-contract.md
+// =============================================================================
+
+/**
+ * An explicit assertion about the world, with lifecycle status.
+ * v7 §3.3 — replaces the Hypothesis/Evidence split with a single typed object.
+ */
+export interface Claim {
+  id: string;
+  status: 'proposed' | 'accepted' | 'rejected' | 'superseded';
+  /** Human-readable assertion content */
+  target: string;
+  episodeId?: string;
+}
+
+/**
+ * Directed evidence edge from an observation to a claim.
+ * v7 §3.3 SupportLink — explicit edge, not an ID list.
+ * implements: docs/current/support-link-contract.md
+ */
+export interface SupportLink {
+  /** 格式: "SL_<episode_id>_<seq>" */
+  id: string;
+  observationRecordId: string;
+  claimId: string;
+  polarity: 'supports' | 'contradicts';
+  /** [0.0, 1.0] 闭区间 */
+  weight: number;
+  sourceKind: 'pipeline' | 'llm_binder' | 'human_review';
+  sourceRef: string | null;
+  createdAt: string;
+  createdBy: string;
+}
+
+// =============================================================================
+// v7 World Model — Derivation Space: DerivationTrace
+// implements: docs/current/derivation-chain-contract.md
+// =============================================================================
+
+/** Node kinds allowed in a DerivationStep */
+export type DerivationNodeKind =
+  | 'claim'
+  | 'observation'
+  | 'mechanism_class'
+  | 'latent_phase'
+  | 'observable_sig'
+  | 'intervention_point'
+  | 'initial_condition'
+  | 'entity'
+  | 'relation_node';
+
+/** Relation types for derivation steps (four-family taxonomy) */
+export type DerivationRelation =
+  // Structural
+  | 'enables' | 'requires' | 'composes'
+  // Explanatory
+  | 'causes' | 'explains' | 'amplifies'
+  // Evidential
+  | 'supports' | 'contradicts' | 'confirms'
+  // Interventional
+  | 'fixes' | 'blocks' | 'reveals';
+
+/** A typed reference to a node in the derivation graph */
+export interface NodeRef {
+  kind: DerivationNodeKind;
+  id: string;
+  /** Human-readable label */
+  label: string;
+}
+
+/** One step in a DerivationTrace proof chain */
+export interface DerivationStep {
+  stepNumber: number;
+  from: NodeRef;
+  relation: DerivationRelation;
+  to: NodeRef;
+  /** Can this step be independently replayed/verified? */
+  auditReplayable: boolean;
+  /** How to verify this step (null when auditReplayable=false) */
+  replayMethod?: 'mechanism_spec' | 'observation_match' | 'intervention_outcome' | 'logical_entailment' | 'human_judgment';
+  llmInvolved: boolean;
+  llmRole?: 'proposer' | 'binder';
+}
+
+/**
+ * A complete, auditable derivation trace.
+ * v7 §3.3 DerivationTrace (v6 name: DerivationChain).
+ */
+export interface DerivationTrace {
+  id: string;
+  contextKind: 'reconstruction' | 'inference';
+  episodeId?: string;
+  reconstructionId?: string;
+  premiseClaimIds: string[];
+  conclusionClaimId?: string;
+  /** Ordered proof steps — chain invariant: proof[i].to == proof[i+1].from */
+  proof: DerivationStep[];
+  /** Evidence edges supporting this trace */
+  supportLinks: SupportLink[];
+  /** Rejected alternative Claim IDs — must be explicit, never silently dropped */
+  rejectedClaimIds: string[];
+  totalSteps: number;
+  replayableSteps: number;
+  chainIntegrity: 'complete' | 'broken';
+  createdAt: string;
+  createdBy: string;
+}
+
+// =============================================================================
+// v7 §3.2 Episode 采样层支撑类型
+// implements: docs/current/v7-world-model-contract.md §3.2
+// (Episode 主接口 → see story.ts, 兼容包装层)
+// =============================================================================
+
+/**
+ * 一次观测记录，与 episodeId 显式绑定（v7 §10 条件 2）。
+ * Story.observationAtomIds 中的每个 Atom 对应一条 ObservationRecord。
+ * implements: docs/current/support-link-contract.md §3.1（SupportLink 的合法起点）
+ */
+export interface ObservationRecord {
+  id: string;
+  /** 所属 Episode ID（必填，不允许游离记录） */
+  episodeId: string;
+  /** 观测投影模型 ID（必须指向已存在的 ObservationModel） */
+  observationModelId: string;
+  /** 相对时间戳（数值步数或 ISO 字符串） */
+  t: number | string;
+  /** 观测来源标识（如 "submitObservation" / "external_sensor"） */
+  source: string;
+  /** 观测内容（结构化载荷；至少包含 atomId 和事实索引） */
+  payload: Record<string, unknown>;
+}
+
+/** 状态快照：Episode 某时刻的系统状态切片 */
+export interface StateSnapshot {
+  id: string;
+  episodeId: string;
+  t: number | string;
+  values: Record<string, unknown>;
+  createdBy: string;
+  createdAt: string;
+}
+
+/** 动作执行记录：ExperimentDesign 到新 Episode 的执行桥 */
+export interface ActionExecution {
+  id: string;
+  basedOnExperimentDesignId: string;
+  sourceEpisodeId: string;
+  targetEpisodeId?: string;
+  actionRef: string;
+  actionKind: 'measurement' | 'intervention';
+  actionClassId?: string;
+  parameters: Record<string, unknown>;
+  executionStatus: 'planned' | 'running' | 'completed' | 'failed' | 'abandoned';
+  observedOutcomeSummary?: string;
+  predictionError: number | null;
+  startedAt: string;
+  completedAt?: string | null;
+  createdBy: string;
+}
+
+/** 状态转移边：连接两个 StateSnapshot，归因到候选机制 */
+export interface Transition {
+  id: string;
+  episodeId: string;
+  fromSnapshotId: string;
+  toSnapshotId: string;
+  causedByActionId?: string;
+  /** 可能解释此转移的机制类 ID 列表 */
+  candidateMechanismIds: string[];
+  createdBy: string;
+  createdAt: string;
+}
+
+/** 结果记录：Episode 的最终结论（一等对象，非 Story.outcome 裸字段） */
+export interface OutcomeRecord {
+  id: string;
+  episodeId: string;
+  causedByActionExecutionId?: string;
+  status: 'success' | 'failure' | 'partial' | 'abandoned';
+  summary: string;
+  observedSignals: string[];
+  sideEffects: string[];
+  evidenceRefs: string[];
+  recordedAt: string;
+  recordedBy: string;
+}
+
+/** 预测误差：OutcomeRecord 与 CounterfactualScenario 之间的显式偏差对象 */
+export interface PredictionError {
+  id: string;
+  basedOnCounterfactualId?: string;
+  causedByActionExecutionId: string;
+  outcomeRecordId: string;
+  errorKind: 'observation' | 'transition' | 'outcome' | 'context' | 'unknown';
+  expectedSummary: string;
+  actualSummary: string;
+  deltaSummary: string;
+  severity: 'low' | 'medium' | 'high';
+  score: number | null;
+  recordedAt: string;
+  recordedBy: string;
+}
+
+/**
+ * v7 §3.3 Conclusion — 主流程输出的最终结论对象。
+ * 与 AcceptedReconstruction 配套，满足 §10 条件 5。
+ */
+export interface Conclusion {
+  /** 自然语言答案或结论摘要 */
+  answer: string;
+  /** 推荐后续行动（可选） */
+  recommendedActions?: string[];
+  /** 0..1 信心值，来源于 Reconstruction 保真度或证据强度 */
+  confidence: number;
+}
+
+// =============================================================================
+// v7 Utility: Fidelity Grade
+// (FidelityScore, AcceptedReconstruction → see reconstruction.ts)
+// (OntologyDelta, NoUpdateReason → see ontology-delta.ts)
+// =============================================================================
+
+/** Fidelity grade classification for reconstruction quality */
+export type FidelityGrade = 'excellent' | 'adequate' | 'poor' | 'failure';
+
+/** Classify a numeric fidelity score into a grade tier */
+export function fidelityGrade(score: number): FidelityGrade {
+  if (score >= 0.90) return 'excellent';
+  if (score >= 0.70) return 'adequate';
+  if (score >= 0.40) return 'poor';
+  return 'failure';
+}

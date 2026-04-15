@@ -18,6 +18,26 @@ export type {
   EventStatus,
   StorageStats,
   TestResult,
+  // v7 §3.3 Conclusion（§10 条件 5）
+  Conclusion,
+  // v7 §3.2 Episode 支撑类型
+  ObservationRecord,
+  StateSnapshot,
+  ActionExecution,
+  Transition,
+  OutcomeRecord,
+  PredictionError,
+  // v7 Claim Space
+  Claim,
+  SupportLink,
+  // v7 DerivationTrace
+  DerivationNodeKind,
+  DerivationRelation,
+  NodeRef,
+  DerivationStep,
+  DerivationTrace,
+  // v7 Fidelity utility
+  FidelityGrade,
 } from './types.js';
 
 export {
@@ -38,6 +58,8 @@ export {
   storyToAttempt,
   eventToDict,
   eventFromDict,
+  // v7 Fidelity utility
+  fidelityGrade,
 } from './types.js';
 
 // Unification
@@ -238,6 +260,8 @@ export type {
   ContextScope,
   StoryPath,
   StoryStatus,
+  InitialConditions,
+  Episode,
   Story as CaseStory,
 } from './story.js';
 
@@ -248,7 +272,46 @@ export {
   scopeToJson,
   scopeFromJson,
   StoryStorage,
+  toEpisode,
 } from './story.js';
+
+// Reconstruction / Ontology Update (v7 compatible derivation-space objects)
+export type {
+  ReconstructedStepKind,
+  ReconstructedStep,
+  FidelityScore,
+  AcceptedReconstruction,
+} from './reconstruction.js';
+
+// DerivationTrace (v7 §3.3 推导链 — 原 DerivationChain)
+export {
+  findChainBreak,
+  computeChainIntegrity,
+  createDerivationTrace,
+} from './derivation-trace.js';
+
+export {
+  createAcceptedReconstruction,
+} from './reconstruction.js';
+
+export type {
+  OntologyChangeAction,
+  OntologyChange,
+  FidelityRegressionCheck,
+  RegressionDetail,
+  OntologyDeltaKind,
+  OntologyDelta,
+  NoUpdateReasonPayload,
+} from './ontology-delta.js';
+
+export {
+  createRegressionCheck,
+  createOntologyDelta,
+  createOntologyDeltaNone,
+  buildRelationChange,
+  createOntologyDeltaFromReviewAccept,
+  createOntologyDeltaFromReviewReject,
+} from './ontology-delta.js';
 
 // Evidence (一等证据系统 - append-only)
 export type {
@@ -333,6 +396,7 @@ export type {
   ObservationResult,
   FixInput,
   FixResult,
+  ActionExecutionResult,
   PipelineStats,
 } from './pipeline.js';
 
@@ -352,3 +416,329 @@ export type {
 export {
   HypothesisStore,
 } from './hypothesis.js';
+
+// MechanismClass (v7 本体层动力学模板)
+export type {
+  MechanismCompilationStatus,
+  MechanismPhase,
+  MechanismClass,
+  ValidationResult as MechanismValidationResult,
+  PromoteSuccess,
+  PromoteNoPromotion,
+  PromoteResult,
+  DeprecateSuccess,
+  DeprecateNoOp,
+  DeprecateResult,
+} from './mechanism-class.js';
+
+export {
+  createMechanismClass,
+  createDefaultMechanismClass,
+  DEFAULT_MECHANISM_CLASS_ID,
+  promoteMechanismClass,
+  deprecateMechanismClass,
+  validateMechanismClass,
+} from './mechanism-class.js';
+
+export type {
+  MechanismClassStoreStats,
+} from './mechanism-class-store.js';
+
+export {
+  MechanismClassStore,
+} from './mechanism-class-store.js';
+
+// MechanismInstance (v7 经历层绑定实例 — MechanismClass × Episode)
+export type {
+  MechanismInstanceStatus,
+  MechanismInstanceSourceKind,
+  MechanismInstance,
+} from './mechanism-instance.js';
+
+export {
+  createMechanismInstance,
+  acceptInstance,
+  rejectInstance,
+  supersedeInstance,
+} from './mechanism-instance.js';
+
+// MechanismInstanceStore (SQLite 持久化层)
+export type {
+  MechanismInstanceStoreStats,
+} from './mechanism-instance-store.js';
+
+export {
+  MechanismInstanceStore,
+} from './mechanism-instance-store.js';
+
+// DerivationTraceStore (SQLite 持久化层)
+export type {
+  DerivationTraceStoreStats,
+} from './derivation-trace-store.js';
+
+export {
+  DerivationTraceStore,
+} from './derivation-trace-store.js';
+
+// EpisodeEventStore (Episode 轻量 timeline 持久化层)
+export type {
+  EpisodeEventKind,
+  EpisodeEvent,
+  EpisodeEventStoreStats,
+} from './episode-event-store.js';
+
+export {
+  createEpisodeEvent,
+  EpisodeEventStore,
+} from './episode-event-store.js';
+
+// SupportLinkStore (v7 证据边持久化层 — ObservationRecord → Claim)
+export type {
+  SupportLinkStoreStats,
+} from './support-link-store.js';
+
+export {
+  SupportLinkStore,
+} from './support-link-store.js';
+
+// ObservationRecordStore (v7 观测记录持久化层 — SupportLink 起点锚定)
+export type {
+  ObservationRecordStoreStats,
+} from './observation-record-store.js';
+
+export {
+  ObservationRecordStore,
+} from './observation-record-store.js';
+
+// ObservationModel + ObservationModelStore (v8 观测投影模型 — ObservationRecord 上游来源)
+export type {
+  ObservationSignalSpec,
+  ObservationModel,
+  CreateObservationModelInput,
+} from './observation-model.js';
+
+export {
+  createObservationModel,
+  createDefaultObservationModel,
+  DEFAULT_OBSERVATION_MODEL_ID,
+} from './observation-model.js';
+
+export type {
+  ObservationModelStoreStats,
+} from './observation-model-store.js';
+
+export {
+  ObservationModelStore,
+} from './observation-model-store.js';
+
+// MechanismProgram + MechanismProgramStore (v7 机制程序对象 — MechanismClass 到 MechanismInstance 的桥)
+export type {
+  MechanismProgramPhase,
+  MechanismProgram,
+  CreateMechanismProgramInput,
+} from './mechanism-program.js';
+
+export {
+  createMechanismProgram,
+  createDefaultMechanismProgram,
+  DEFAULT_MECHANISM_PROGRAM_ID,
+} from './mechanism-program.js';
+
+export type {
+  MechanismProgramStoreStats,
+} from './mechanism-program-store.js';
+
+export {
+  MechanismProgramStore,
+} from './mechanism-program-store.js';
+// CounterfactualScenario + CounterfactualScenarioStore (v8 反事实场景对象)
+export type {
+  CounterfactualAssumption,
+  PredictedStep,
+  CounterfactualScenario,
+  CreateCounterfactualScenarioInput,
+} from './counterfactual-scenario.js';
+
+export {
+  createCounterfactualScenario,
+} from './counterfactual-scenario.js';
+
+export type {
+  CounterfactualScenarioStoreStats,
+} from './counterfactual-scenario-store.js';
+
+export {
+  CounterfactualScenarioStore,
+} from './counterfactual-scenario-store.js';
+
+// ExperimentDesign + ExperimentDesignStore (v8 实验设计对象)
+export type {
+  ExperimentDesign,
+  CreateExperimentDesignInput,
+} from './experiment-design.js';
+
+export {
+  createExperimentDesign,
+} from './experiment-design.js';
+
+export type {
+  ExperimentDesignStoreStats,
+} from './experiment-design-store.js';
+
+export {
+  ExperimentDesignStore,
+} from './experiment-design-store.js';
+
+// ActionExecution + ActionExecutionStore (v8 最小执行桥)
+export type {
+  CreateActionExecutionInput,
+} from './action-execution.js';
+
+export {
+  createActionExecution,
+  createActionExecutionFromExperimentDesign,
+} from './action-execution.js';
+
+export type {
+  ActionExecutionStoreStats,
+} from './action-execution-store.js';
+
+export {
+  ActionExecutionStore,
+} from './action-execution-store.js';
+
+// OutcomeRecord + OutcomeRecordStore (v8 最小反馈对象)
+export type {
+  CreateOutcomeRecordInput,
+} from './outcome-record.js';
+
+export {
+  createOutcomeRecord,
+} from './outcome-record.js';
+
+export type {
+  OutcomeRecordStoreStats,
+} from './outcome-record-store.js';
+
+export {
+  OutcomeRecordStore,
+} from './outcome-record-store.js';
+
+// PredictionError + PredictionErrorStore (v8 最小偏差对象)
+export type {
+  CreatePredictionErrorInput,
+} from './prediction-error.js';
+
+export {
+  createPredictionError,
+} from './prediction-error.js';
+
+export type {
+  PredictionErrorStoreStats,
+} from './prediction-error-store.js';
+
+export {
+  PredictionErrorStore,
+} from './prediction-error-store.js';
+
+// StateSnapshot + StateSnapshotStore (v8 状态快照)
+export type {
+  CreateStateSnapshotInput,
+} from './state-snapshot.js';
+
+export {
+  createStateSnapshot,
+} from './state-snapshot.js';
+
+export type {
+  StateSnapshotStoreStats,
+} from './state-snapshot-store.js';
+
+export {
+  StateSnapshotStore,
+} from './state-snapshot-store.js';
+
+// Transition + TransitionStore (v8 状态转移边)
+export type {
+  CreateTransitionInput,
+} from './transition.js';
+
+export {
+  createTransition,
+} from './transition.js';
+
+export type {
+  TransitionStoreStats,
+} from './transition-store.js';
+
+export {
+  TransitionStore,
+} from './transition-store.js';
+
+// ProgramRevisionProposal + ProgramRevisionProposalStore (v8 偏差驱动模型修正提名)
+export type {
+  ProgramRevisionProposal,
+  CreateProgramRevisionProposalInput,
+} from './program-revision-proposal.js';
+
+export {
+  createProgramRevisionProposal,
+  assertValidProgramRevisionProposal,
+} from './program-revision-proposal.js';
+
+export type {
+  ProgramRevisionProposalStoreStats,
+} from './program-revision-proposal-store.js';
+
+export {
+  ProgramRevisionProposalStore,
+} from './program-revision-proposal-store.js';
+
+// ValidityEnvelope + ValidityEnvelopeStore (P05 MechanismProgram 有效域对象)
+export type {
+  ValidityConfidenceBand,
+  ValidityEnvelopeStatus,
+  ValidityEnvelope,
+  CreateValidityEnvelopeInput,
+} from './validity-envelope.js';
+
+export {
+  createValidityEnvelope,
+  assertValidValidityEnvelope,
+  DEFAULT_VALIDITY_ENVELOPE_ID,
+  createDefaultValidityEnvelope,
+} from './validity-envelope.js';
+
+export type {
+  ValidityEnvelopeStoreStats,
+} from './validity-envelope-store.js';
+
+export {
+  ValidityEnvelopeStore,
+} from './validity-envelope-store.js';
+
+// ReviewDecision + ReviewDecisionStore (P06 PRP review lane 裁决对象)
+export type {
+  ReviewDecisionKind,
+  ReviewDecision,
+  CreateReviewDecisionInput,
+  AcceptResult,
+  RejectResult,
+  SupersedeResult,
+} from './review-decision.js';
+
+export {
+  createReviewDecision,
+  assertValidReviewDecision,
+  acceptProposal,
+  rejectProposal,
+  supersedeProposal,
+} from './review-decision.js';
+
+export type {
+  ReviewDecisionStoreStats,
+} from './review-decision-store.js';
+
+export {
+  ReviewDecisionStore,
+} from './review-decision-store.js';

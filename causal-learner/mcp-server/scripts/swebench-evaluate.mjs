@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+// ---
+// kind: code
+// implements: docs/current/legacy-scaffolds-contract.md
+// ---
 /**
  * SWE-bench Evaluation with Causal Learner MCP
  *

@@ -1,0 +1,11 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/artifact-contract.md",
+  "$generated_by": "scripts/eval.mjs",
+  "$generated_at": "2026-04-13T14:54:16.075Z",
+  "build": "ok",
+  "test_basic": "ok",
+  "stats_before": "ok",
+  "stats_after": "ok",
+  "field_mapping_errors": []
+}

@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  node-build-and-test:
+    name: mcp-server build + tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: causal-learner/mcp-server
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: causal-learner/mcp-server/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (tsc)
+        run: npm run build
+
+      - name: Run tests
+        shell: bash
+        run: |
+          set -e
+          fail=0
+          for f in tests/test-*.mjs; do
+            echo "=== running $f ==="
+            node "$f" || fail=1
+          done
+          exit $fail
+
+  contract-truth-check:
+    name: 契约真值审计（contract drift gate）
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 运行 contract-audit.mjs
+        run: node scripts/contract-audit.mjs
+
+      - name: 上传审计报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: contract-audit-report
+          path: artifacts/contract-audit-latest.json
+          if-no-files-found: warn

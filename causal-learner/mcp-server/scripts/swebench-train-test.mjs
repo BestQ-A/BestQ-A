@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+// ---
+// kind: code
+// implements: docs/current/legacy-scaffolds-contract.md
+// ---
 /**
  * SWE-bench Train/Test Separation Script
  *

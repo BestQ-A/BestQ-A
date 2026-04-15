@@ -1,3 +1,12 @@
+---
+kind: contract
+status: current
+verified: 2026-04-13
+phase: 1
+schema_version: 1
+describes: "Ref 复合合法性代数"
+---
+
 # RefAlgebra 合同：关系代数约束规范
 
 > 本文档是 `metamodel.md` 的局部合同，管辖所有涉及 Ref 复合、Evidence 继承、force 约束的行为。

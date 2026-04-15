@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+// ---
+// kind: code
+// implements: docs/current/legacy-scaffolds-contract.md
+// ---
 /**
  * Generate visualization dashboard for causal learner
  * Exports HTML file with Event Pool, Regulation Network, and Learning Curves

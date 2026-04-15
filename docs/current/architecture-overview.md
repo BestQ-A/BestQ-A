@@ -1,3 +1,12 @@
+---
+kind: contract
+status: current
+verified: 2026-04-13
+phase: 1
+schema_version: 1
+describes: "四层模块拓扑的读写路径"
+---
+
 # BestQ-A 架构总览
 
 > 本文讲"模块怎么连、读写路径怎么走"。语义约束见 [`metamodel.md`](metamodel.md)，复合规则见 [`ref-algebra-contract.md`](ref-algebra-contract.md)。
@@ -504,7 +513,25 @@ problem-class.ts:
 
 ---
 
-## 12. 版本历史
+## 12. 合同文档 status 规范
+
+`docs/current/` 下每份合同必须在文件顶部 frontmatter 声明 `status` 字段，取值四选一：
+
+- `current` —— 合同与现有代码一致，每个断言都能在 `causal-learner/` 源码里找到；必填 `verified: YYYY-MM-DD`。
+- `draft` —— 描述未来态（Phase 2+ / 3+ / 5），当前无对应代码或代码不完整；不填 `verified`。
+- `mixed` —— 同一合同既含 current 段落又含 target 段落，正文必须用 §2A/§2B 或"现状/目标"显式分区；必填 `verified`。
+- `reference` —— 仅作模式参考，无代码绑定（如外部仓库分析、一次性审计报告）。
+
+### 规则
+
+- 契约审计脚本 `scripts/contract-audit.mjs` 读取 `status` 决定检查严格度：`current`/`mixed` 必须逐句回到代码校验，`draft` 仅检查格式，`reference` 豁免。
+- 新增契约必须在创建时带 `status`，禁止无 status 合入 `docs/current/`。
+- `current` 晋升需重跑审计并刷新 `verified` 日期。
+- 详细校验规则见 [contract-audit-contract.md](contract-audit-contract.md)。
+
+---
+
+## 13. 版本历史
 
 | 版本 | 日期 | 主要变更 |
 |------|------|---------|

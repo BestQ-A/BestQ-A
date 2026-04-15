@@ -1,0 +1,17 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/program-revision-proposal-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T10:57:06.879Z",
+  "id": "PRP_ccf9537499c1",
+  "basedOnPredictionErrorIds": [
+    "PE_af5f9847c014"
+  ],
+  "targetKind": "mechanism_program",
+  "targetRef": "MP_default_path_projection",
+  "proposedChangeKind": "validity_narrowing",
+  "rationale": "outcome 偏差（PE_af5f9847c014）提示机制程序有效域需收窄",
+  "status": "proposed",
+  "createdAt": "2026-04-14T10:57:06.874Z",
+  "createdBy": "scripts/export-v7-artifacts.mjs"
+}

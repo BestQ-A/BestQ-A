@@ -1,0 +1,16 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/state-snapshot-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T10:57:06.881Z",
+  "id": "SS_bbfeabbaa1fe",
+  "episodeId": "story_ac45db8c",
+  "t": 1,
+  "values": {
+    "actionRef": "set_retry_interval_500ms",
+    "executionStatus": "completed",
+    "outcomeSummary": "export-v7-artifacts action execution demo"
+  },
+  "createdBy": "scripts/export-v7-artifacts.mjs",
+  "createdAt": "2026-04-14T10:57:06.874Z"
+}

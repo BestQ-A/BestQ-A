@@ -1,0 +1,130 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/stats-snapshot-contract.md",
+  "$generated_by": "causal-learner/mcp-server/scripts/dump-stats.mjs",
+  "$generated_at": "2026-04-13T14:54:15.820Z",
+  "captured_at": "2026-04-13T14:54:15.820Z",
+  "storageStats": {
+    "observationCount": 0,
+    "eventCount": 0,
+    "regulationCount": 0,
+    "eventsByStatus": {
+      "open": 0,
+      "clustered": 0,
+      "resolved": 0,
+      "archived": 0
+    },
+    "regulationsByStatus": {
+      "candidate": 0,
+      "hypothesis": 0,
+      "confirmed": 0,
+      "retired": 0
+    }
+  },
+  "dualStats": {
+    "observationCount": 0,
+    "eventCount": 0,
+    "regulationCount": 0,
+    "eventsByStatus": {
+      "open": 0,
+      "clustered": 0,
+      "resolved": 0,
+      "archived": 0
+    },
+    "regulationsByStatus": {
+      "candidate": 0,
+      "hypothesis": 0,
+      "confirmed": 0,
+      "retired": 0
+    },
+    "shortTerm": {
+      "observationCount": 0,
+      "eventCount": 0,
+      "regulationCount": 0,
+      "eventsByStatus": {
+        "open": 0,
+        "clustered": 0,
+        "resolved": 0,
+        "archived": 0
+      },
+      "regulationsByStatus": {
+        "candidate": 0,
+        "hypothesis": 0,
+        "confirmed": 0,
+        "retired": 0
+      }
+    },
+    "longTerm": {
+      "observationCount": 0,
+      "eventCount": 0,
+      "regulationCount": 0,
+      "eventsByStatus": {
+        "open": 0,
+        "clustered": 0,
+        "resolved": 0,
+        "archived": 0
+      },
+      "regulationsByStatus": {
+        "candidate": 0,
+        "hypothesis": 0,
+        "confirmed": 0,
+        "retired": 0
+      }
+    },
+    "testMode": true,
+    "loadedRegulationIds": []
+  },
+  "longtermStats": {
+    "observationCount": 0,
+    "eventCount": 0,
+    "regulationCount": 0,
+    "eventsByStatus": {
+      "open": 0,
+      "clustered": 0,
+      "resolved": 0,
+      "archived": 0
+    },
+    "regulationsByStatus": {
+      "candidate": 0,
+      "hypothesis": 0,
+      "confirmed": 0,
+      "retired": 0
+    }
+  },
+  "graphStats": {
+    "atomCount": 0,
+    "refCount": 0,
+    "shortcutCount": 0,
+    "atomsByKind": {},
+    "refsByKind": {},
+    "refsByMode": {},
+    "avgWeight": 0,
+    "orphanAtoms": 0
+  },
+  "pipelineStats": {
+    "graph": {
+      "atomCount": 0,
+      "refCount": 0,
+      "shortcutCount": 0
+    },
+    "stories": {
+      "total": 0,
+      "resolved": 0,
+      "uncompiled": 0
+    },
+    "evidence": {
+      "total": 0,
+      "supports": 0,
+      "contradicts": 0
+    },
+    "problemClasses": 0,
+    "templates": 0,
+    "regulations": 0,
+    "hypotheses": {
+      "total": 0,
+      "open": 0,
+      "validated": 0,
+      "readyForCompile": 0
+    }
+  }
+}

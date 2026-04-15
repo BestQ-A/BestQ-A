@@ -1,3 +1,12 @@
+---
+kind: contract
+status: current
+verified: 2026-04-13
+phase: 1
+schema_version: 1
+describes: "五模块核心语义定义"
+---
+
 # BestQ-A 元模型：当前语义合同
 
 > 本文档是系统的**唯一语义底座**。所有代码、表结构、MCP 工具名必须与本文档对齐。

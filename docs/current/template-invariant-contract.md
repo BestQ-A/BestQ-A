@@ -1,3 +1,12 @@
+---
+kind: contract
+status: current
+verified: 2026-04-13
+phase: 1
+schema_version: 1
+describes: "Template 不变量门控"
+---
+
 # PatternTemplate 不变量合同：模板约束与门控规范
 
 > 本文档是 `metamodel.md` 的局部合同，管辖模板匹配、不变量门控、模板生命周期。
