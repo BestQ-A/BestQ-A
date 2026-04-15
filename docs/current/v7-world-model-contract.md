@@ -339,11 +339,11 @@ interface OntologyDelta {
 | `ActionClass` | `Skill` | 基本对齐 | 补 expectedEffects / ontology binding |
 | `ConstraintClass` | `ContextScope` / invariant 的分散约束 | 部分实现 | 升级为显式对象 |
 | `Episode` | `Story` | 需重大升级 | 增加 timeline / snapshots / transitions |
-| `ObservationRecord` | `Observation` + FACT Atom | 基本对齐 | 增加 `episodeId` 强绑定 |
-| `StateSnapshot` | 无显式对象 | 未实现 | 新增 |
-| `ActionExecution` | `executedSkillIds` | 部分实现 | 增加时间、参数、效果 |
-| `Transition` | 无显式对象 | 未实现 | 新增 |
-| `OutcomeRecord` | `Story.outcome` | 部分实现 | 从单字段升级为一等对象 |
+| `ObservationRecord` | `Observation` + FACT Atom | 部分实现 | 已具备 `episodeId` 与 `observationModelId`，后续补更强 schema |
+| `StateSnapshot` | `StateSnapshotStore` + `submitObservation()` / `executeExperimentDesign()` | 部分实现 | 最小状态切片已成立；后续补更强 values 语义 |
+| `ActionExecution` | `executedSkillIds` + `ActionExecutionStore` + `executeExperimentDesign()` | 部分实现 | 最小执行桥已成立；后续补 PredictionError 与更深 Episode 回流 |
+| `Transition` | `TransitionStore` + `executeExperimentDesign()` | 部分实现 | 最小状态转移边已成立；后续补机制归因 |
+| `OutcomeRecord` | `Story.outcome` + `OutcomeRecordStore` + `executeExperimentDesign()` | 部分实现 | 最小反馈对象已成立；后续补 PredictionError 与更深证据回流 |
 | `Claim` | `Hypothesis` | 基本对齐 | 扩展 accepted/rejected/superseded 全语义 |
 | `MechanismInstance` | `PatternInstance` + reconstruction 中的 path proxy | 部分实现 | 显式桥对象已出现，后续需脱离 path-only 过渡语义 |
 | `SupportLink` | Evidence IDs 间接关联 | 部分实现 | 已有最小类型与专项合同，但仍缺显式持久化/查询层 |
@@ -495,25 +495,32 @@ agent 可以无限扩大量，但权限不能跳过法律。
 
 | # | 缺口 | 状态 |
 |---|------|------|
-| 1 | `Episode` 具备完整 timeline（StateSnapshot / Transition）| ⚠️ 部分闭合：event log 已存在（`EpisodeEventStore`），但 StateSnapshot / Transition 仍未实现 |
+| 1 | `Episode` 具备完整 timeline（StateSnapshot / Transition）| ⚠️ 部分闭合：event log + StateSnapshot + Transition 均已实现并进入治理；但状态语义与归因仍待增强 |
 | 2 | `AcceptedReconstruction` 成为一等可落盘对象 | ✅ 已闭合 |
 | 3 | `OntologyDelta` 成为每个完成 episode 的必备输出 | ✅ 已闭合（kind=none 路径亦已覆盖） |
 | 4 | `MechanismInstance` 桥层存在（MechanismClass → MI → Reconstruction）| ✅ 已闭合 |
-| 5 | `SupportLink` 升级为显式边 | ❌ 仍主要以间接 ID 关联存在 |
-| 6 | `MechanismClass` 从关系模板升级为动力学模板 | ❌ 仍使用 `proxy:*` 过渡引用 |
+| 5 | `SupportLink` 升级为显式边 | ⚠️ 基础链已成立（SupportLink → ObservationRecord → ObservationModel），仍缺第二轮深审计 |
+| 6 | `MechanismClass` 从关系模板升级为动力学模板 | ⚠️ 基础治理已闭合（store / artifact / audit / de-proxy）；但多类本体化与晋升门控仍未完成 |
 
 ---
 
 ## §10 转 current 的条件
 
-- [ ] `Episode` 具备完整 timeline（`StateSnapshot` / `Transition` / `ActionExecution` 真实实现）
-- [ ] `ObservationRecord` 与 `episodeId` 显式绑定（当前仍通过 Story atoms 间接关联）
+- [x] `Episode` 已具备最小 timeline（`StateSnapshot` / `Transition` / `ActionExecution` 真实实现）（2026-04-14）
+- [x] `ObservationRecord` 与 `episodeId` 显式绑定（2026-04-14）
+- [x] `ObservationRecord.observationModelId` 已落地，并能经 SupportLink 回溯到 ObservationModel（2026-04-14）
 - [x] `AcceptedReconstruction` 成为显式对象并可落盘（2026-04-14）
 - [x] `OntologyDelta` 成为每个已完成 episode 的必备输出；无更新时用 `kind=none`（2026-04-14）
 - [x] 至少一条主流程输出 `Conclusion + Reconstruction`（2026-04-14，§10 条件 5）
 - [x] contract-audit 能检查以上对象的存在性与基本绑定关系（V7-1~V7-5，2026-04-14）
-- [ ] `MechanismClass` 脱离 `proxy:*` 过渡态，成为真实动力学模板
-- [ ] `SupportLink` 升级为显式边并纳入 contract-audit 第二轮检查
+- [x] 主链默认 `MechanismClass` 脱离 `proxy:*` 过渡态（2026-04-14）
+- [x] `MechanismClass` 已进入 artifact / contract-audit / CI 的治理链（2026-04-14）
+- [x] 至少一条 `ExperimentDesign → ActionExecution → new Episode` 最小闭环样例跑通（2026-04-14）
+- [x] 至少一条 `ActionExecution → OutcomeRecord` 最小反馈闭环样例跑通（2026-04-14）
+- [x] 至少一条 `OutcomeRecord → PredictionError` 最小偏差闭环样例跑通，并已进入治理链（2026-04-14）
+- [ ] `MechanismClass` 完成多类本体化与晋升门控，成为真实动力学模板
+- [ ] `SupportLink` 升级为显式边并纳入 contract-audit 第二轮深检查
+- [ ] `PredictionError` 补齐 score / semantic diff / MechanismProgram 反馈回路
 
 ---
 
@@ -523,3 +530,8 @@ agent 可以无限扩大量，但权限不能跳过法律。
 |---|---|---|
 | 1 | 2026-04-13 | 初版。把 v6 重新定位为 relation-law kernel，并补入五层世界动力学架构、Episode 轨迹与本体演化法律 |
 | 2 | 2026-04-14 | §3.2 Episode 接口加入 `episodeEventIds: string[]`；§9 缺口状态更新（缺口 2/3/4 已闭合）；§10 已完成条件打钩 |
+| 3 | 2026-04-14 | `ActionExecution` 最小运行时闭环与治理接入已成立；§4 映射、§10 条件同步更新 |
+| 4 | 2026-04-14 | `OutcomeRecord` 最小反馈闭环与治理接入已成立；§4 映射、§10 条件同步更新 |
+| 5 | 2026-04-14 | `PredictionError` 最小偏差闭环与治理接入已成立；§10 条件同步更新 |
+| 6 | 2026-04-14 | `StateSnapshot / Transition` 已实现并进入治理；§4 映射、§9 缺口、§10 条件同步更新 |
+| 7 | 2026-04-14 | `MechanismClass` 已进入 artifact / contract-audit / de-proxy 治理链；§9 缺口与 §10 条件同步更新 |

@@ -14,6 +14,10 @@ import {
 let passed = 0;
 let failed = 0;
 
+function isRealMechanismClassRef(ref) {
+  return typeof ref === 'string' && /^MC_[A-Za-z0-9_]+(?:_[0-9a-f]{4})?$/.test(ref);
+}
+
 function assert(cond, msg) {
   if (cond) {
     console.log(`  ✅ ${msg}`);
@@ -131,8 +135,8 @@ console.log('\n📦 Test 4: reconstruction.mechanism_instance_ids 语义正确�
   );
   // D3 验证：mechanism_class_ref 不含假 MC_hyp_ / MC_fallback_
   assert(
-    result.mechanismInstance.mechanism_class_ref.startsWith('proxy:'),
-    `mechanism_class_ref 使用 proxy:* 前缀 (${result.mechanismInstance.mechanism_class_ref})`
+    isRealMechanismClassRef(result.mechanismInstance.mechanism_class_ref),
+    `mechanism_class_ref 使用真实 MC_* (${result.mechanismInstance.mechanism_class_ref})`
   );
 
   pipeline.close();
@@ -214,7 +218,7 @@ console.log('\n📦 Test 6: selectedMechanismIds === mechanism_class_ref');
 
   assert(smIds.length === 1, `selectedMechanismIds.length === 1 (got ${smIds.length})`);
   assert(smIds[0] === mcRef, `selectedMechanismIds[0] === mechanism_class_ref (${smIds[0]})`);
-  assert(smIds[0].startsWith('proxy:'), `selectedMechanismIds[0] 是 proxy:* (${smIds[0]})`);
+  assert(isRealMechanismClassRef(smIds[0]), `selectedMechanismIds[0] 是真实 MC_* (${smIds[0]})`);
 
   pipeline.close();
 }

@@ -719,15 +719,26 @@ export interface StateSnapshot {
   episodeId: string;
   t: number | string;
   values: Record<string, unknown>;
+  createdBy: string;
+  createdAt: string;
 }
 
-/** 动作执行记录：Episode 中一次技能/工具调用 */
+/** 动作执行记录：ExperimentDesign 到新 Episode 的执行桥 */
 export interface ActionExecution {
   id: string;
-  episodeId: string;
-  t: number | string;
-  actionClassId: string;
-  parameters?: Record<string, unknown>;
+  basedOnExperimentDesignId: string;
+  sourceEpisodeId: string;
+  targetEpisodeId?: string;
+  actionRef: string;
+  actionKind: 'measurement' | 'intervention';
+  actionClassId?: string;
+  parameters: Record<string, unknown>;
+  executionStatus: 'planned' | 'running' | 'completed' | 'failed' | 'abandoned';
+  observedOutcomeSummary?: string;
+  predictionError: number | null;
+  startedAt: string;
+  completedAt?: string | null;
+  createdBy: string;
 }
 
 /** 状态转移边：连接两个 StateSnapshot，归因到候选机制 */
@@ -739,15 +750,38 @@ export interface Transition {
   causedByActionId?: string;
   /** 可能解释此转移的机制类 ID 列表 */
   candidateMechanismIds: string[];
+  createdBy: string;
+  createdAt: string;
 }
 
 /** 结果记录：Episode 的最终结论（一等对象，非 Story.outcome 裸字段） */
 export interface OutcomeRecord {
   id: string;
   episodeId: string;
-  t: number | string;
+  causedByActionExecutionId?: string;
   status: 'success' | 'failure' | 'partial' | 'abandoned';
   summary: string;
+  observedSignals: string[];
+  sideEffects: string[];
+  evidenceRefs: string[];
+  recordedAt: string;
+  recordedBy: string;
+}
+
+/** 预测误差：OutcomeRecord 与 CounterfactualScenario 之间的显式偏差对象 */
+export interface PredictionError {
+  id: string;
+  basedOnCounterfactualId?: string;
+  causedByActionExecutionId: string;
+  outcomeRecordId: string;
+  errorKind: 'observation' | 'transition' | 'outcome' | 'context' | 'unknown';
+  expectedSummary: string;
+  actualSummary: string;
+  deltaSummary: string;
+  severity: 'low' | 'medium' | 'high';
+  score: number | null;
+  recordedAt: string;
+  recordedBy: string;
 }
 
 /**

@@ -4,9 +4,13 @@ status: draft
 phase: 2
 schema_version: 1
 describes: "四空间世界模型引擎"
+superseded_by: v7-world-model-contract.md
 ---
 
 # v6 世界模型合同：世界采样与过程重建引擎
+
+> **本合同已被 [v7-world-model-contract.md](v7-world-model-contract.md) 取代**（2026-04-13）。
+> 保留原因：v6 仍代表“关系法律内核 + 四空间 world model”的重要中间设计，不应删除。
 
 > 本合同把 BestQ-A 的认识论目标从 v1–v5 的"平铺对象列表 + 两闭环"升级为**四空间正交架构 + 14 基础单元 + 7 步显式算子链**。
 > 核心主张：系统不是 answer generator，是 **evidence-driven world sampler + process reconstructor**。答案不是核心资产，推导链才是核心资产。

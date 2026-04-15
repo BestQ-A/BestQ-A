@@ -1,7 +1,7 @@
 ---
 kind: contract
 status: current
-verified: 2026-04-13
+verified: 2026-04-14
 phase: 1
 schema_version: 1
 describes: "pipeline 的调用序列"
@@ -72,7 +72,11 @@ Fix 信息 (FixInput: storyId + fixDescription + chosenPathAtomIds)
 
 **关键约束**：
 - compile 前必须通过 RefAlgebra 路径合法性检查
+- 已 `resolved` 的 Story 禁止再次 `recordFix`
+- compile 被拒绝时，Story 保持未 resolved
 - Evidence 写在 compile 之后（先确认合法，再记录证据）
+- Evidence 写入失败不回滚 compile 主结果
+- `myelinate()` 失败不回滚 compile 主结果
 - Regulation 只是投影，不直接写入
 
 ---
@@ -112,7 +116,7 @@ Fix 信息 (FixInput: storyId + fixDescription + chosenPathAtomIds)
 | `explore` | 非原子（只读 + tentative 创建） | 部分 tentative 可能已写入 |
 | `compile` | 单 DB 事务 | 路径不合法则全部不写 |
 | `Story.create/resolve` | 单 DB 事务 | 状态要么更新要么不动 |
-| `Evidence.record` | 单 DB 事务 + append-only | 不可回滚 |
+| `Evidence.record` | 单 DB 事务 + append-only | 失败仅影响证据条目，不回滚 compile 主结果 |
 | `myelinate` | 尽力而为 | 失败不影响主流程 |
 
 ---
@@ -172,8 +176,8 @@ Fix 信息 (FixInput: storyId + fixDescription + chosenPathAtomIds)
 
 ```
 流程位置：recordFix 的 EvidenceStore.recordSupport 调用
-处理方式：记录错误，compile 结果仍保留
-结果：部分 Ref 的 Evidence 未记录，但路径已编译
+处理方式：记录错误，继续后续流程
+结果：部分 Ref 的 Evidence 未记录，但路径已编译，Story 仍按 compile 主结果推进
 ```
 
 **日志建议**：
@@ -183,6 +187,14 @@ log.warn('Evidence 写入失败', {
   storyId: storyId,
   error: e.message
 });
+```
+
+### 4.5 myelinate 失败
+
+```
+流程位置：recordFix 末尾的 AtomGraph.myelinate()
+处理方式：记录错误，继续返回 compile 主结果
+结果：Shortcut 可能未更新，但 Story/Evidence/Regulation 主流程不回滚
 ```
 
 ---
@@ -225,8 +237,9 @@ interface PipelineContext {
 | **O3** | ingestFacts 是唯一的 Atom 写入口 | AtomGraph.ingestFacts |
 | **O4** | recordFix 必须先 compile 再 recordSupport | recordFix 顺序 |
 | **O5** | 确认路径合法（isPathLegal）才能写入 compiled Ref | compile 门控 |
-| **O6** | Evidence 写入必须在路径合法性检查之后 | compile 之后、myelinate 之前 |
-| **O7** | myelinate（快捷路径创建）在 compile 之后 | recordFix 末尾 |
+| **O6** | compile 被拒绝时 Story 保持未 resolved | recordFix 返回前 |
+| **O7** | Evidence 写入必须在路径合法性检查之后，且失败不回滚 compile | compile 之后、myelinate 之前 |
+| **O8** | myelinate（快捷路径创建）在 compile 之后，且失败不回滚主结果 | recordFix 末尾 |
 
 **违反检测**：
 ```typescript

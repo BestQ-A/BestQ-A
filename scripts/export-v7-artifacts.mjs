@@ -103,6 +103,7 @@ async function main() {
     mechanism_classes:             path.join(runDir, 'mechanism_classes'),
     program_revision_proposals:    path.join(runDir, 'program_revision_proposals'),
     review_decisions:              path.join(runDir, 'review_decisions'),
+    validity_envelopes:            path.join(runDir, 'validity_envelopes'),
   };
   for (const d of Object.values(dirs)) await mkdir(d, { recursive: true });
 
@@ -118,6 +119,7 @@ async function main() {
   const { DEFAULT_MECHANISM_PROGRAM_ID } = await fromDist('mechanism-program.js');
   const { DEFAULT_MECHANISM_CLASS_ID, createDefaultMechanismClass } = await fromDist('mechanism-class.js');
   const { acceptProposal } = await fromDist('review-decision.js');
+  const { createDefaultValidityEnvelope, DEFAULT_VALIDITY_ENVELOPE_ID } = await fromDist('validity-envelope.js');
 
   const pipeline = new CausalPipeline({ seedDefaults: false });
   const stats = {
@@ -133,6 +135,7 @@ async function main() {
     mechanism_classes: 0,
     program_revision_proposals: 0,
     review_decisions: 0,
+    validity_envelopes: 0,
   };
 
   // ──────────────────────────────────────────────────────────────────────
@@ -353,6 +356,24 @@ async function main() {
     if (axA.transition) {
       await writeArtifact(dirs.transitions, `${axA.transition.id}.json`, axA.transition, 'docs/current/transition-contract.md');
       stats.transitions++;
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
+  // ValidityEnvelope 导出（VE-1~VE-4 验证：有效域对象绑定合法性）
+  // 从 pipeline 内存 store 读取所有 VE，必须在 pipeline.close() 前
+  // ──────────────────────────────────────────────────────────────────────
+  {
+    const allMPs = pipeline.mechanismPrograms.listAll();
+    const veExported = new Set();
+    for (const mp of allMPs) {
+      const ves = pipeline.validityEnvelopes.listByMechanismProgram(mp.id);
+      for (const ve of ves) {
+        if (veExported.has(ve.id)) continue;
+        await writeArtifact(dirs.validity_envelopes, `${ve.id}.json`, ve, 'docs/current/validity-envelope-contract.md');
+        stats.validity_envelopes++;
+        veExported.add(ve.id);
+      }
     }
   }
 

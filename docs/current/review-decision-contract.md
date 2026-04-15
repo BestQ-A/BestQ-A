@@ -1,6 +1,6 @@
 ---
 kind: contract
-status: draft
+status: current
 phase: 4
 schema_version: 1
 describes: "ProgramRevisionProposal 审查决策对象规范"

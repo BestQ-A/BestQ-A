@@ -1523,6 +1523,64 @@ async function checkReviewDecisionBindings(results) {
   }
 }
 
+// §23 ValidityEnvelope binding pass（VE-1~VE-4）
+async function checkValidityEnvelopeBindings(results) {
+  const VE_CONTRACT = 'docs/current/validity-envelope-contract.md';
+  const MP_CONTRACT = 'docs/current/mechanism-program-contract.md';
+  const VALID_BANDS = new Set(['narrow', 'medium', 'broad']);
+
+  const veMap = new Map();
+  const mpMap = new Map();
+
+  for (const r of results) {
+    if (!r.fm || r.fm.$kind !== 'instance') continue;
+    const obj = r.fm;
+    const id  = obj.id;
+    if (!id) continue;
+    if      (obj.$conforms_to === VE_CONTRACT) veMap.set(id, { file: r.file, obj, findingsRef: r.findings });
+    else if (obj.$conforms_to === MP_CONTRACT) mpMap.set(id, { file: r.file, obj, findingsRef: r.findings });
+  }
+
+  // 反向索引：mpId → 是否有 status=current 的 VE 引用它
+  // VE-4 需要：status=current 的 VE 必须被至少一个 MP.validityEnvelopeRefs 引用
+  const currentVERefs = new Set();
+  for (const { obj } of mpMap.values()) {
+    const refs = obj.validityEnvelopeRefs ?? [];
+    for (const ref of refs) currentVERefs.add(ref);
+  }
+
+  for (const { file, obj, findingsRef } of veMap.values()) {
+    // VE-1：mechanismProgramRef 必须可解析
+    if (!obj.mechanismProgramRef || String(obj.mechanismProgramRef).trim() === '') {
+      findingsRef.push({ file, line: 1, code: 'bad-ve-mechanism-program-ref', level: 'error',
+        msg: `ValidityEnvelope.mechanismProgramRef 缺失` });
+    } else if (!mpMap.has(obj.mechanismProgramRef)) {
+      findingsRef.push({ file, line: 1, code: 'bad-ve-mechanism-program-ref', level: 'error',
+        msg: `ValidityEnvelope.mechanismProgramRef 引用不存在：${obj.mechanismProgramRef}` });
+    }
+
+    // VE-2：requiredPreconditions 与 invalidatingConditions 不得同时全空
+    const required = obj.requiredPreconditions ?? [];
+    const invalidating = obj.invalidatingConditions ?? [];
+    if (required.length === 0 && invalidating.length === 0) {
+      findingsRef.push({ file, line: 1, code: 'empty-ve-conditions', level: 'error',
+        msg: `ValidityEnvelope.requiredPreconditions 与 invalidatingConditions 同时为空` });
+    }
+
+    // VE-3：confidenceBand 必须合法
+    if (!obj.confidenceBand || !VALID_BANDS.has(obj.confidenceBand)) {
+      findingsRef.push({ file, line: 1, code: 'bad-ve-confidence-band', level: 'error',
+        msg: `ValidityEnvelope.confidenceBand 非法：${obj.confidenceBand ?? '<missing>'}` });
+    }
+
+    // VE-4：status=current 的 VE 必须被至少一个 MP.validityEnvelopeRefs 引用
+    if (obj.status === 'current' && !currentVERefs.has(obj.id)) {
+      findingsRef.push({ file, line: 1, code: 'orphan-current-validity-envelope', level: 'error',
+        msg: `ValidityEnvelope.status=current 但无任何 MechanismProgram.validityEnvelopeRefs 引用` });
+    }
+  }
+}
+
 async function main() {
   const targets = await collectTargets();
   const results = [];
@@ -1548,6 +1606,7 @@ async function main() {
   await checkProgramRevisionProposalBindings(results);
   await checkSupportLinkDeepBindings(results);
   await checkReviewDecisionBindings(results);
+  await checkValidityEnvelopeBindings(results);
 
   // kind 分布
   const kindDist = { contract: 0, instance: 0, record: 0, code: 0, index: 0, legacy_I: 0, legacy_II: 0, missing: 0 };
@@ -1630,6 +1689,11 @@ async function main() {
     bad_rd_decision: [],
     bad_rd_superseded_ref: [],
     empty_rd_rationale: [],
+    // ValidityEnvelope binding pass（§23）
+    bad_ve_mechanism_program_ref: [],
+    empty_ve_conditions: [],
+    bad_ve_confidence_band: [],
+    orphan_current_validity_envelope: [],
   };
   const codeToBucket = {
     'missing-conforms-to': 'missing_conforms_to',

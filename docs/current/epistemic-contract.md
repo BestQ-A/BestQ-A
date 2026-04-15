@@ -4,12 +4,12 @@ status: draft
 phase: 2
 schema_version: 1
 describes: "显式求解与本体更新"
-superseded_by: v6-world-model-contract.md
+superseded_by: v7-world-model-contract.md
 ---
 
 # Epistemic Contract：显式求解环与本体学习环
 
-> **本合同已被 [v6-world-model-contract.md](v6-world-model-contract.md) 取代**（2026-04-13）。保留作为演化记录，不再作为设计依据。
+> **本合同已被 [v7-world-model-contract.md](v7-world-model-contract.md) 取代**（2026-04-13）。保留作为演化记录，不再作为设计依据。
 
 > 本文档把 BestQ-A 的认识论目标正式化：系统的核心资产不是“答案文本”，而是**可回放实例、可审计证据、可比较假设、可复用机制、可更新本体**。
 > 本合同是 **目标态 draft contract**。它定义 v6 方向，但不宣称仓内已完整实现。

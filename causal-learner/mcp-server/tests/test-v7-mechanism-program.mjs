@@ -24,6 +24,10 @@ import {
 let pass = 0;
 let fail = 0;
 
+function isRealMechanismClassRef(ref) {
+  return typeof ref === 'string' && /^MC_[A-Za-z0-9_]+(?:_[0-9a-f]{4})?$/.test(ref);
+}
+
 function check(label, condition, got) {
   if (condition) {
     console.log(`  ✅ ${label}${got !== undefined ? ` (got: ${got})` : ''}`);
@@ -185,6 +189,7 @@ console.log('📦 T3: 默认 MechanismProgram pipeline 幂等写入');
   check('pipeline 构建后默认 MechanismProgram 已写入', mp1 !== null);
   check('默认程序 id === DEFAULT_MECHANISM_PROGRAM_ID', mp1?.id === DEFAULT_MECHANISM_PROGRAM_ID, mp1?.id);
   check("默认程序 status === 'current'", mp1?.status === 'current', mp1?.status);
+  check('默认程序 mechanismClassRef 使用真实 MC_*', isRealMechanismClassRef(mp1?.mechanismClassRef), mp1?.mechanismClassRef);
   check('默认程序 phases 非空', (mp1?.phases.length ?? 0) > 0, mp1?.phases.length);
   check('默认程序 emittedObservationSignals 非空', (mp1?.emittedObservationSignals.length ?? 0) > 0, mp1?.emittedObservationSignals.length);
   check('默认程序 failsWhen 不为 null', Array.isArray(mp1?.failsWhen));
@@ -194,7 +199,7 @@ console.log('📦 T3: 默认 MechanismProgram pipeline 幂等写入');
   const defaultProg = createDefaultMechanismProgram();
   check('createDefaultMechanismProgram().id 正确', defaultProg.id === DEFAULT_MECHANISM_PROGRAM_ID, defaultProg.id);
   check("createDefaultMechanismProgram().status === 'current'", defaultProg.status === 'current', defaultProg.status);
-  check('createDefaultMechanismProgram().mechanismClassRef 是 proxy:*', defaultProg.mechanismClassRef.startsWith('proxy:'), defaultProg.mechanismClassRef);
+  check('createDefaultMechanismProgram().mechanismClassRef 是真实 MC_*', isRealMechanismClassRef(defaultProg.mechanismClassRef), defaultProg.mechanismClassRef);
 
   // getStats 包含 mechanismPrograms
   const pipeline2 = new CausalPipeline({ seedDefaults: false });
@@ -256,7 +261,7 @@ console.log('📦 T4: MechanismInstance.mechanism_program_ref bridge 验证');
   // 验证能从 pipeline.mechanismPrograms store 中解析
   const resolvedProg = pipeline.mechanismPrograms.get(mi2.mechanism_program_ref ?? '');
   check('pipeline MI.mechanism_program_ref 能在 pipeline.mechanismPrograms 中解析', resolvedProg !== null);
-  check('解析出的 program.mechanismClassRef 是 proxy:*', resolvedProg?.mechanismClassRef.startsWith('proxy:') ?? false, resolvedProg?.mechanismClassRef);
+  check('解析出的 program.mechanismClassRef 是真实 MC_*', isRealMechanismClassRef(resolvedProg?.mechanismClassRef), resolvedProg?.mechanismClassRef);
 
   pipeline.close();
   store.close();
