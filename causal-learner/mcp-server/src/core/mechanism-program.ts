@@ -121,6 +121,125 @@ export function createMechanismProgram(input: CreateMechanismProgramInput): Mech
 }
 
 // =============================================================================
+// 运行时执行（Phase 推演引擎）
+// =============================================================================
+
+/** 执行时的世界状态快照 */
+export interface ExecutionContext {
+  /** 世界状态变量 key → value */
+  stateVars: Record<string, unknown>;
+}
+
+/** 干预：在指定 phase 停止并覆盖部分状态变量 */
+export interface ProgramIntervention {
+  /** 在哪个 phase 名处停止（执行到该 phase 之前停止） */
+  stopBeforePhase: string;
+  /** 覆盖哪些状态变量 */
+  stateOverrides?: Record<string, unknown>;
+  /** 干预说明 */
+  reason: string;
+}
+
+/** 单个 phase 的执行结果 */
+export interface PhaseExecutionResult {
+  phaseName: string;
+  executed: boolean;
+  stateChangesApplied: string[];
+  observationsEmitted: string[];
+  haltReason?: string;
+}
+
+/** 完整的 phase 执行轨迹 */
+export interface PhasedTrajectory {
+  programId: string;
+  contextSnapshot: ExecutionContext;
+  phaseResults: PhaseExecutionResult[];
+  finalOutcome: string;
+  completedPhases: number;
+  totalPhases: number;
+  wasInterrupted: boolean;
+}
+
+/**
+ * 执行 MechanismProgram 的 phase 序列。
+ *
+ * - 无干预：顺序执行所有 phase，返回成功结局
+ * - 有干预：在 stopBeforePhase 处停止，返回 interrupted 结局
+ * - failsWhen：检测 stateVars 中满足失效条件的情况（格式 "key=value"）
+ */
+export function executePhasedProgram(
+  program: MechanismProgram,
+  context: ExecutionContext,
+  intervention?: ProgramIntervention,
+): PhasedTrajectory {
+  // 应用干预的初始状态覆盖
+  const activeContext: ExecutionContext = {
+    stateVars: { ...context.stateVars, ...(intervention?.stateOverrides ?? {}) },
+  };
+
+  const phaseResults: PhaseExecutionResult[] = [];
+  let wasInterrupted = false;
+  let finalOutcome = program.outcomes.find(o => /confirm|success|complete/i.test(o))
+    ?? program.outcomes[0]
+    ?? 'completed';
+
+  for (const phase of program.phases) {
+    // 干预点：在该 phase 之前停止
+    if (intervention && intervention.stopBeforePhase === phase.name) {
+      phaseResults.push({
+        phaseName: phase.name,
+        executed: false,
+        stateChangesApplied: [],
+        observationsEmitted: [],
+        haltReason: `intervention: ${intervention.reason}`,
+      });
+      wasInterrupted = true;
+      finalOutcome = `interrupted_before_${phase.name}`;
+      break;
+    }
+
+    // 检测 failsWhen 条件（格式 "key=value"）
+    const failCondition = program.failsWhen.find(cond => {
+      const eq = cond.indexOf('=');
+      if (eq < 0) return false;
+      const key = cond.slice(0, eq).trim();
+      const val = cond.slice(eq + 1).trim();
+      return String(activeContext.stateVars[key]) === val;
+    });
+
+    if (failCondition) {
+      phaseResults.push({
+        phaseName: phase.name,
+        executed: false,
+        stateChangesApplied: [],
+        observationsEmitted: [],
+        haltReason: `failsWhen: ${failCondition}`,
+      });
+      wasInterrupted = true;
+      finalOutcome = program.outcomes.find(o => /reject|fail/i.test(o)) ?? 'failed';
+      break;
+    }
+
+    phaseResults.push({
+      phaseName: phase.name,
+      executed: true,
+      stateChangesApplied: [...phase.expectedStateChanges],
+      observationsEmitted: [...phase.expectedObservations],
+    });
+  }
+
+  return {
+    programId: program.id,
+    contextSnapshot: activeContext,
+    phaseResults,
+    finalOutcome,
+    completedPhases: phaseResults.filter(r => r.executed).length,
+    totalPhases: program.phases.length,
+    wasInterrupted,
+  };
+}
+
+// =============================================================================
 // 默认 MechanismProgram（第一轮：所有 path_projection MechanismInstance 共享）
 // =============================================================================
 
