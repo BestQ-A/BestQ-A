@@ -15,9 +15,12 @@
 
 import path from 'node:path';
 import process from 'node:process';
-import { pathToFileURL } from 'node:url';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 
-const ROOT = process.cwd();
+// 基于测试文件位置计算 BestQ-A 项目根，避免依赖运行时 cwd
+// （CI 在 causal-learner/mcp-server 下运行 .mjs 测试，cwd 不是项目根）
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(__dirname, '..', '..', '..');
 const DIST_CORE = path.join(ROOT, 'causal-learner', 'mcp-server', 'dist', 'core');
 
 let pass = 0;
