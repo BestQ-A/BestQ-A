@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-04-14T12:14:39.636Z",
-  "files_scanned": 707,
+  "timestamp": "2026-04-15T10:17:04.649Z",
+  "files_scanned": 711,
   "errors": [
     {
       "file": "docs/current/reporting-workflow-contract.md",
@@ -82,11 +82,25 @@
       "msg": "describes 与 docs/current/transition-contract.md 相似（Jaccard=0.60）"
     },
     {
+      "file": "docs/current/civilization-memory-contract.md",
+      "line": 1,
+      "code": "describes-too-long",
+      "level": "warning",
+      "msg": "describes 超过 20 字：54 字"
+    },
+    {
       "file": "docs/current/intent-alignment-audit-contract.md",
       "line": 1,
       "code": "describes-too-long",
       "level": "warning",
       "msg": "describes 超过 20 字：27 字"
+    },
+    {
+      "file": "docs/current/ontology-federation-contract.md",
+      "line": 1,
+      "code": "describes-too-long",
+      "level": "warning",
+      "msg": "describes 超过 20 字：55 字"
     },
     {
       "file": "docs/current/outcome-record-contract.md",
@@ -122,6 +136,13 @@
       "code": "duplicate-truth",
       "level": "warning",
       "msg": "describes 与 docs/current/transition-contract.md 相似（Jaccard=0.60）"
+    },
+    {
+      "file": "docs/current/participatory-world-contract.md",
+      "line": 1,
+      "code": "describes-too-long",
+      "level": "warning",
+      "msg": "describes 超过 20 字：42 字"
     },
     {
       "file": "docs/current/prediction-error-contract.md",
@@ -178,6 +199,13 @@
       "code": "describes-too-long",
       "level": "warning",
       "msg": "describes 超过 20 字：32 字"
+    },
+    {
+      "file": "docs/current/review-decision-contract.md",
+      "line": 107,
+      "code": "symbol-drift",
+      "msg": "符号 `rejectProposal` 在附近引用的 .ts 文件中未找到",
+      "level": "warning"
     },
     {
       "file": "docs/current/state-snapshot-contract.md",
@@ -257,6 +285,13 @@
       "msg": "describes 与 docs/current/state-snapshot-contract.md 相似（Jaccard=0.60）"
     },
     {
+      "file": "docs/current/v11-world-model-contract.md",
+      "line": 1,
+      "code": "describes-too-long",
+      "level": "warning",
+      "msg": "describes 超过 20 字：44 字"
+    },
+    {
       "file": "docs/current/validity-envelope-contract.md",
       "line": 1,
       "code": "describes-too-long",
@@ -266,11 +301,11 @@
   ],
   "summary": {
     "ok": 693,
-    "warn": 10,
+    "warn": 14,
     "err": 4
   },
   "kind_distribution": {
-    "contract": 48,
+    "contract": 52,
     "instance": 641,
     "record": 2,
     "code": 12,
@@ -344,7 +379,19 @@
     "bad_rd_proposal_ref": [],
     "bad_rd_decision": [],
     "bad_rd_superseded_ref": [],
-    "empty_rd_rationale": []
+    "empty_rd_rationale": [],
+    "bad_ve_mechanism_program_ref": [],
+    "empty_ve_conditions": [],
+    "bad_ve_confidence_band": [],
+    "orphan_current_validity_envelope": [],
+    "missing_v9_contract": [],
+    "missing_v10_contract": [],
+    "missing_v11_civilization_contract": [],
+    "missing_v11_reflexive_contract": [],
+    "missing_v9_impl": [],
+    "missing_v10_impl": [],
+    "missing_v11_civilization_impl": [],
+    "missing_v11_reflexive_impl": []
   },
   "density_distribution": [
     {
@@ -363,6 +410,11 @@
       "density": 0.069
     },
     {
+      "file": "docs/current/civilization-memory-contract.md",
+      "kind": "contract",
+      "density": 0
+    },
+    {
       "file": "docs/current/compile-promotion-contract.md",
       "kind": "contract",
       "density": 0
@@ -370,7 +422,7 @@
     {
       "file": "docs/current/contract-audit-contract.md",
       "kind": "contract",
-      "density": 0.0129
+      "density": 0.0124
     },
     {
       "file": "docs/current/contract-vs-impl-audit.md",
@@ -488,7 +540,17 @@
       "density": 0.0431
     },
     {
+      "file": "docs/current/ontology-federation-contract.md",
+      "kind": "contract",
+      "density": 0
+    },
+    {
       "file": "docs/current/outcome-record-contract.md",
+      "kind": "contract",
+      "density": 0
+    },
+    {
+      "file": "docs/current/participatory-world-contract.md",
       "kind": "contract",
       "density": 0
     },
@@ -579,6 +641,11 @@
     },
     {
       "file": "docs/current/transition-contract.md",
+      "kind": "contract",
+      "density": 0
+    },
+    {
+      "file": "docs/current/v11-world-model-contract.md",
       "kind": "contract",
       "density": 0
     },
@@ -7839,6 +7906,17 @@
       "warnings": 0
     },
     {
+      "file": "docs/current/civilization-memory-contract.md",
+      "format": "md",
+      "status": "draft",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "FailureBoundaryArchive / CounterexampleCommons 文明记忆层规范",
+      "density": 0,
+      "errors": 0,
+      "warnings": 1
+    },
+    {
       "file": "docs/current/compile-promotion-contract.md",
       "format": "md",
       "status": "current",
@@ -7856,7 +7934,7 @@
       "kind": "contract",
       "legacy_kind": null,
       "describes": "契约审计规则规格",
-      "density": 0.0129,
+      "density": 0.0124,
       "errors": 0,
       "warnings": 0
     },
@@ -8114,6 +8192,17 @@
       "warnings": 0
     },
     {
+      "file": "docs/current/ontology-federation-contract.md",
+      "format": "md",
+      "status": "draft",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "OntologyModel / TranslationFunctor / ConflictSet 本体联邦规范",
+      "density": 0,
+      "errors": 0,
+      "warnings": 1
+    },
+    {
       "file": "docs/current/outcome-record-contract.md",
       "format": "md",
       "status": "current",
@@ -8123,6 +8212,17 @@
       "density": 0,
       "errors": 0,
       "warnings": 5
+    },
+    {
+      "file": "docs/current/participatory-world-contract.md",
+      "format": "md",
+      "status": "draft",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "ObserverModel / InstitutionModel 参与式自反世界规范",
+      "density": 0,
+      "errors": 0,
+      "warnings": 1
     },
     {
       "file": "docs/current/pipeline-contract.md",
@@ -8204,13 +8304,13 @@
     {
       "file": "docs/current/review-decision-contract.md",
       "format": "md",
-      "status": "draft",
+      "status": "current",
       "kind": "contract",
       "legacy_kind": null,
       "describes": "ProgramRevisionProposal 审查决策对象规范",
       "density": 0,
       "errors": 0,
-      "warnings": 1
+      "warnings": 2
     },
     {
       "file": "docs/current/run-summary-contract.md",
@@ -8321,6 +8421,17 @@
       "density": 0,
       "errors": 0,
       "warnings": 5
+    },
+    {
+      "file": "docs/current/v11-world-model-contract.md",
+      "format": "md",
+      "status": "draft",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "ProofLineage / ConstitutionalLayer 反射性文明引擎规范",
+      "density": 0,
+      "errors": 0,
+      "warnings": 1
     },
     {
       "file": "docs/current/v6-world-model-contract.md",

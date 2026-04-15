@@ -1581,6 +1581,74 @@ async function checkValidityEnvelopeBindings(results) {
   }
 }
 
+/** §24 v9/v10/v11 本体联邦 + 参与式世界 + 文明记忆 + 反射性文明引擎 覆盖率 binding pass
+ *
+ * 验证 v9-v11 对象有合约文件（kind=contract）+ TypeScript 实现绑定。
+ * 错误码：
+ *   missing-v9-contract              — ontology-federation-contract.md 缺失或非 contract 类型
+ *   missing-v10-contract             — participatory-world-contract.md 缺失或非 contract 类型
+ *   missing-v11-civilization-contract — civilization-memory-contract.md 缺失或非 contract 类型
+ *   missing-v11-reflexive-contract   — v11-world-model-contract.md 缺失或非 contract 类型
+ *   missing-v9-impl                  — v9 TypeScript 实现文件不存在
+ *   missing-v10-impl                 — v10 TypeScript 实现文件不存在
+ *   missing-v11-civilization-impl    — v11 文明记忆 TypeScript 实现文件不存在
+ *   missing-v11-reflexive-impl       — v11 ProofLineage/ConstitutionalLayer 实现文件不存在
+ */
+async function checkV9V10V11Coverage(results) {
+  const CONTRACTS = [
+    { file: 'docs/current/ontology-federation-contract.md',  code: 'missing-v9-contract',               label: 'v9 OntologyFederation' },
+    { file: 'docs/current/participatory-world-contract.md',  code: 'missing-v10-contract',              label: 'v10 ParticipativeWorld' },
+    { file: 'docs/current/civilization-memory-contract.md',  code: 'missing-v11-civilization-contract', label: 'v11 CivilizationMemory' },
+    { file: 'docs/current/v11-world-model-contract.md',      code: 'missing-v11-reflexive-contract',    label: 'v11 ReflexiveCivilizationEngine' },
+  ];
+
+  const IMPLS = [
+    { rel: 'causal-learner/mcp-server/src/core/ontology-model.ts',           code: 'missing-v9-impl',               label: 'v9 OntologyModel' },
+    { rel: 'causal-learner/mcp-server/src/core/translation-functor.ts',      code: 'missing-v9-impl',               label: 'v9 TranslationFunctor' },
+    { rel: 'causal-learner/mcp-server/src/core/conflict-set.ts',             code: 'missing-v9-impl',               label: 'v9 ConflictSet' },
+    { rel: 'causal-learner/mcp-server/src/core/observer-model.ts',           code: 'missing-v10-impl',              label: 'v10 ObserverModel' },
+    { rel: 'causal-learner/mcp-server/src/core/institution-model.ts',        code: 'missing-v10-impl',              label: 'v10 InstitutionModel' },
+    { rel: 'causal-learner/mcp-server/src/core/failure-boundary-archive.ts', code: 'missing-v11-civilization-impl', label: 'v11 FailureBoundaryArchive' },
+    { rel: 'causal-learner/mcp-server/src/core/counterexample-commons.ts',   code: 'missing-v11-civilization-impl', label: 'v11 CounterexampleCommons' },
+    { rel: 'causal-learner/mcp-server/src/core/proof-lineage.ts',            code: 'missing-v11-reflexive-impl',    label: 'v11 ProofLineage' },
+    { rel: 'causal-learner/mcp-server/src/core/constitutional-layer.ts',     code: 'missing-v11-reflexive-impl',    label: 'v11 ConstitutionalLayer' },
+  ];
+
+  const byFile = new Map(results.map(r => [r.file, r]));
+
+  // 合约文件检查：必须存在且 kind=contract
+  for (const { file, code, label } of CONTRACTS) {
+    const r = byFile.get(file);
+    if (!r || r.kind !== 'contract') {
+      const target = r ?? byFile.get('scripts/contract-audit.mjs');
+      if (target) {
+        target.findings.push({ file: target.file, line: 1, code, level: 'error',
+          msg: `${label} 合约文件缺失或 kind 非 contract：${file}` });
+      }
+    }
+  }
+
+  // TypeScript 实现文件检查
+  const implContractMap = {
+    'missing-v9-impl':               'docs/current/ontology-federation-contract.md',
+    'missing-v10-impl':              'docs/current/participatory-world-contract.md',
+    'missing-v11-civilization-impl': 'docs/current/civilization-memory-contract.md',
+    'missing-v11-reflexive-impl':    'docs/current/v11-world-model-contract.md',
+  };
+  for (const { rel, code, label } of IMPLS) {
+    const abs = path.join(ROOT, ...rel.split('/'));
+    const info = await readFileInfo(abs);
+    if (!info.exists) {
+      const contractFile = implContractMap[code];
+      const r = byFile.get(contractFile) ?? byFile.get('scripts/contract-audit.mjs');
+      if (r) {
+        r.findings.push({ file: r.file, line: 1, code, level: 'error',
+          msg: `${label} TypeScript 实现文件不存在：${rel}` });
+      }
+    }
+  }
+}
+
 async function main() {
   const targets = await collectTargets();
   const results = [];
@@ -1607,6 +1675,7 @@ async function main() {
   await checkSupportLinkDeepBindings(results);
   await checkReviewDecisionBindings(results);
   await checkValidityEnvelopeBindings(results);
+  await checkV9V10V11Coverage(results);
 
   // kind 分布
   const kindDist = { contract: 0, instance: 0, record: 0, code: 0, index: 0, legacy_I: 0, legacy_II: 0, missing: 0 };
@@ -1694,6 +1763,15 @@ async function main() {
     empty_ve_conditions: [],
     bad_ve_confidence_band: [],
     orphan_current_validity_envelope: [],
+    // v9/v10/v11 覆盖率 pass（§24）
+    missing_v9_contract: [],
+    missing_v10_contract: [],
+    missing_v11_civilization_contract: [],
+    missing_v11_reflexive_contract: [],
+    missing_v9_impl: [],
+    missing_v10_impl: [],
+    missing_v11_civilization_impl: [],
+    missing_v11_reflexive_impl: [],
   };
   const codeToBucket = {
     'missing-conforms-to': 'missing_conforms_to',
@@ -1774,6 +1852,20 @@ async function main() {
     'bad-rd-decision':        'bad_rd_decision',
     'bad-rd-superseded-ref':  'bad_rd_superseded_ref',
     'empty-rd-rationale':     'empty_rd_rationale',
+    // ValidityEnvelope binding pass（§23）
+    'bad-ve-mechanism-program-ref':        'bad_ve_mechanism_program_ref',
+    'empty-ve-conditions':                 'empty_ve_conditions',
+    'bad-ve-confidence-band':              'bad_ve_confidence_band',
+    'orphan-current-validity-envelope':    'orphan_current_validity_envelope',
+    // v9/v10/v11 覆盖率 pass（§24）
+    'missing-v9-contract':               'missing_v9_contract',
+    'missing-v10-contract':              'missing_v10_contract',
+    'missing-v11-civilization-contract': 'missing_v11_civilization_contract',
+    'missing-v11-reflexive-contract':    'missing_v11_reflexive_contract',
+    'missing-v9-impl':                   'missing_v9_impl',
+    'missing-v10-impl':                  'missing_v10_impl',
+    'missing-v11-civilization-impl':     'missing_v11_civilization_impl',
+    'missing-v11-reflexive-impl':        'missing_v11_reflexive_impl',
   };
   for (const r of results) {
     for (const f of r.findings) {
@@ -1852,7 +1944,7 @@ async function main() {
   process.exit(errors.length > 0 ? 1 : 0);
 }
 
-export { checkV7Bindings, checkObservationModelBindings, checkCounterfactualBindings, checkExperimentDesignBindings, checkActionExecutionBindings, checkOutcomeRecordBindings, checkPredictionErrorBindings, checkStateSnapshotBindings, checkTransitionBindings, checkMechanismClassBindings, checkProgramRevisionProposalBindings, checkSupportLinkDeepBindings, checkReviewDecisionBindings };
+export { checkV7Bindings, checkObservationModelBindings, checkCounterfactualBindings, checkExperimentDesignBindings, checkActionExecutionBindings, checkOutcomeRecordBindings, checkPredictionErrorBindings, checkStateSnapshotBindings, checkTransitionBindings, checkMechanismClassBindings, checkProgramRevisionProposalBindings, checkSupportLinkDeepBindings, checkReviewDecisionBindings, checkValidityEnvelopeBindings, checkV9V10V11Coverage };
 
 const _IS_MAIN = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename);
 if (_IS_MAIN) {
