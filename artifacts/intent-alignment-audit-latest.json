@@ -1,11 +1,20 @@
 {
-  "timestamp": "2026-04-14T04:51:37.033Z",
+  "timestamp": "2026-04-15T10:21:15.751Z",
   "commits_scanned": 20,
-  "contracts_scanned": 41,
-  "designs_scanned": 12,
+  "contracts_scanned": 54,
+  "designs_scanned": 17,
   "code_files_with_frontmatter": 5,
-  "code_signals": 76,
+  "code_signals": 455,
   "matrix": [
+    {
+      "intentSource": "docs/current/action-execution-contract.md",
+      "intentDesc": "ActionExecution 对象规范",
+      "contractStatus": "current",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
     {
       "intentSource": "docs/current/architecture-overview.md",
       "intentDesc": "四层模块拓扑的读写路径",
@@ -27,6 +36,15 @@
       "alignedCommits": [],
       "implementationStatus": "claimed_with_known_transition",
       "driftSignal": "none"
+    },
+    {
+      "intentSource": "docs/current/civilization-memory-contract.md",
+      "intentDesc": "FailureBoundaryArchive / CounterexampleCommons 文明记忆层规范",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
     },
     {
       "intentSource": "docs/current/compile-promotion-contract.md",
@@ -161,7 +179,7 @@
     {
       "intentSource": "docs/current/mechanism-class-contract.md",
       "intentDesc": "MechanismClass 动力学模板",
-      "contractStatus": "draft",
+      "contractStatus": "current",
       "implementedBy": [],
       "alignedCommits": [],
       "implementationStatus": "no_code_claim",
@@ -249,6 +267,33 @@
       "driftSignal": "mode5_silent_gap"
     },
     {
+      "intentSource": "docs/current/ontology-federation-contract.md",
+      "intentDesc": "OntologyModel / TranslationFunctor / ConflictSet 本体联邦规范",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/outcome-record-contract.md",
+      "intentDesc": "OutcomeRecord 对象规范",
+      "contractStatus": "current",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/participatory-world-contract.md",
+      "intentDesc": "ObserverModel / InstitutionModel 参与式自反世界规范",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
       "intentSource": "docs/current/pipeline-contract.md",
       "intentDesc": "pipeline 的调用序列",
       "contractStatus": "current",
@@ -260,6 +305,24 @@
     {
       "intentSource": "docs/current/plugin-surface-contract.md",
       "intentDesc": "双通道 plugin 分发边界",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/prediction-error-contract.md",
+      "intentDesc": "PredictionError 对象规范",
+      "contractStatus": "current",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/program-revision-proposal-contract.md",
+      "intentDesc": "PredictionError 驱动的模型修正提名对象",
       "contractStatus": "draft",
       "implementedBy": [],
       "alignedCommits": [],
@@ -285,8 +348,35 @@
       "driftSignal": "mode5_silent_gap"
     },
     {
+      "intentSource": "docs/current/reporting-workflow-contract.md",
+      "intentDesc": "任务回报文件命名、路径与模板规范",
+      "contractStatus": "current",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/review-decision-contract.md",
+      "intentDesc": "ProgramRevisionProposal 审查决策对象规范",
+      "contractStatus": "current",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
       "intentSource": "docs/current/run-summary-contract.md",
       "intentDesc": "run summary 文档结构",
+      "contractStatus": "current",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/state-snapshot-contract.md",
+      "intentDesc": "StateSnapshot 对象规范",
       "contractStatus": "current",
       "implementedBy": [],
       "alignedCommits": [],
@@ -339,6 +429,24 @@
       "driftSignal": "mode5_silent_gap"
     },
     {
+      "intentSource": "docs/current/transition-contract.md",
+      "intentDesc": "Transition 对象规范",
+      "contractStatus": "current",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/v11-world-model-contract.md",
+      "intentDesc": "ProofLineage / ConstitutionalLayer 反射性文明引擎规范",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
+    },
+    {
       "intentSource": "docs/current/v6-world-model-contract.md",
       "intentDesc": "四空间世界模型引擎",
       "contractStatus": "draft",
@@ -355,8 +463,17 @@
       "alignedCommits": [],
       "implementationStatus": "no_code_claim",
       "driftSignal": "mode5_silent_gap"
+    },
+    {
+      "intentSource": "docs/current/validity-envelope-contract.md",
+      "intentDesc": "MechanismProgram 有效域对象规范",
+      "contractStatus": "draft",
+      "implementedBy": [],
+      "alignedCommits": [],
+      "implementationStatus": "no_code_claim",
+      "driftSignal": "mode5_silent_gap"
     }
   ],
-  "future_signals_count": 47,
+  "future_signals_count": 435,
   "has_v8v9_in_code": true
 }

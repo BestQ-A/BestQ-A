@@ -237,8 +237,8 @@ async function scanCodeSignals() {
       if (/(对齐|收束|修正|对齐上游)/.test(l) && /contract|合同|上游/.test(l)) {
         signals.push({ file: rel, line: i + 1, kind: 'alignment-claim', text: l.trim() });
       }
-      // v8/v9 前瞻信号
-      if (/(ValidityEnvelope|PerspectiveModel|TranslationFunctor|OntologyModel|CounterfactualScenario)/.test(l)) {
+      // v8-v11 前瞻信号
+      if (/(ValidityEnvelope|PerspectiveModel|TranslationFunctor|OntologyModel|CounterfactualScenario|ObserverModel|InstitutionModel|filterObservations|checkRolePermission|FailureBoundaryArchive|CounterexampleCommons|ProofLineage|ConstitutionalLayer|buildProofLineage|auditSubject)/.test(l)) {
         signals.push({ file: rel, line: i + 1, kind: 'future-intent', text: l.trim() });
       }
     }
@@ -349,9 +349,9 @@ function buildAlignmentMatrix({ contracts, designs, commits, codeFiles, codeSign
     }
   }
 
-  // 4.5 检查 design_history 中的 v8/v9 意图是否有代码信号
+  // 4.5 检查 design_history 中的 v8-v11 意图是否有代码信号
   const futureSignals = codeSignals.filter(s => s.kind === 'future-intent');
-  const hasV8V9InCode = futureSignals.length > 0;
+  const hasV8V9InCode = futureSignals.length > 0; // 变量名保留兼容旧报告结构
 
   return { matrix, futureSignals, hasV8V9InCode, intentItems };
 }
@@ -385,7 +385,7 @@ function generateReport({ matrix, futureSignals, hasV8V9InCode, commits, codeSig
     `| 宣称对齐但未完成 (模式 1) | ${driftCounts.mode1} |`,
     `| 完全沉默的缺口 (模式 5) | ${driftCounts.mode5} |`,
     `| metrics 僵尸声明 (模式 3) | ${hasMetricsDrift ? '1 (eval.mjs 已修正但合同未更新)' : '0'} |`,
-    `| v8/v9 未来意图代码信号 | ${hasV8V9InCode ? `${futureSignals.length} 处` : '0 (完全沉默)'} |`,
+    `| v8-v11 未来意图代码信号 | ${hasV8V9InCode ? `${futureSignals.length} 处` : '0 (完全沉默)'} |`,
     '',
     '---',
     '',
@@ -455,13 +455,13 @@ function generateReport({ matrix, futureSignals, hasV8V9InCode, commits, codeSig
     );
   }
 
-  // C4: v8/v9 完全沉默
+  // C4: v8-v11 完全沉默
   if (!hasV8V9InCode) {
     lines.push(
-      '### C4: v8/v9 设计意图在代码层零占位符',
+      '### C4: v8-v11 设计意图在代码层零占位符',
       '',
-      '- **矛盾点**：`design_history/` 中已经正式落盘了 v8（生成式本体）和 v9（本体联邦），但代码中找不到任何 `ValidityEnvelope`、`PerspectiveModel`、`TranslationFunctor`、`OntologyModel` 的占位符或 TODO。',
-      '- **意图侧**：v8/v9 被视为正式版本演进方向，不是临时笔记。',
+      '- **矛盾点**：`design_history/` 中已经正式落盘了 v8-v11，但代码中找不到任何 `ValidityEnvelope`、`TranslationFunctor`、`OntologyModel`、`ObserverModel`、`ProofLineage`、`ConstitutionalLayer` 等信号。',
+      '- **意图侧**：v8-v11 被视为正式版本演进方向，不是临时笔记。',
       '- **实现侧**：系统完全没有任何代码信号来锚定这些高级意图，存在被遗忘的风险。',
       '- **改善建议**：',
       '  1. 在 `mechanism-class-contract.md` 末尾增加 "v8 前瞻" 附录，说明 `phases/thresholds/contextConstraints` 字段未来会升级为 `ValidityEnvelope`。',
@@ -548,12 +548,12 @@ function generateReport({ matrix, futureSignals, hasV8V9InCode, commits, codeSig
     );
   }
 
-  // 发现 4: v8/v9 完全沉默（已在矛盾表中详述，此处简要引用）
+  // 发现 4: v8-v11 完全沉默（已在矛盾表中详述，此处简要引用）
   if (!hasV8V9InCode) {
     lines.push(
-      '### 发现 #4: v8/v9 意图在代码层完全沉默（模式 5）',
+      '### 发现 #4: v8-v11 意图在代码层完全沉默（模式 5）',
       '',
-      '> 详见 **C4: v8/v9 设计意图在代码层零占位符**。',
+      '> 详见 **C4: v8-v11 设计意图在代码层零占位符**。',
       ''
     );
   }
@@ -586,7 +586,7 @@ function generateReport({ matrix, futureSignals, hasV8V9InCode, commits, codeSig
     '',
     '1. **修正 metrics-contract.md**：同步 `eval.mjs` 中已经正确的字段来源。',
     '2. **为 proxy 前缀建立退役计划**：消除 mechanism-instance 层的模式 1 漂移。',
-    '3. **评估 v8/v9 占位符**：决定是否在当前代码中加入前瞻类型声明。',
+    '3. **评估 v8-v11 占位符**：确认 v9-v11 实现文件是否已全面覆盖设计意图。',
     '4. **检查沉默的合同**：确认 `mode5_silent_gap` 列表中的合同是否真的不需要代码实现。',
     ''
   );
