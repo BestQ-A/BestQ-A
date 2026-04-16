@@ -1,0 +1,12 @@
+src/
+tests/
+benchmark/
+dist/tests/
+dist/benchmark/
+.claude/
+tsconfig.json
+*.ts
+!*.d.ts
+.git/
+.gitignore
+node_modules/

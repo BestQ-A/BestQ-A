@@ -12,6 +12,8 @@
  * 用法：
  *   npx tsx src/benchmark/swe-bench-runner.ts
  *   npx tsx src/benchmark/swe-bench-runner.ts --split 0.6
+ *   npx tsx src/benchmark/swe-bench-runner.ts --real          # 使用真实 SWE-bench Lite 数据集
+ *   npx tsx src/benchmark/swe-bench-runner.ts --real --split 0.6
  */
 
 import { CausalPipeline } from '../core/pipeline.js';
@@ -21,14 +23,12 @@ import { triggerInductionTool } from '../tools/induction.js';
 import { suggestCausesTool, importSweIssueTool } from '../tools/swebench.js';
 import type { SweIssue } from '../tools/swebench.js';
 import type { Observation, Regulation } from '../core/types.js';
+import { loadSWEBenchLite } from './swe-bench-data.js';
+import type { LabeledIssue } from './swe-bench-data.js';
 
 // =============================================================================
 // 数据集：按 category 分组，每类 5 个，共 6 类 30 issue
 // =============================================================================
-
-interface LabeledIssue extends SweIssue {
-  expectedCategory: string;
-}
 
 const DATASET: LabeledIssue[] = [
   // --- category: type_error ---
@@ -275,32 +275,55 @@ export async function runBenchmark(options: {
 if (process.argv[1]?.includes('swe-bench-runner')) {
   const splitIdx = process.argv.indexOf('--split');
   const trainRatio = splitIdx >= 0 ? parseFloat(process.argv[splitIdx + 1]) : 0.7;
+  const useReal = process.argv.includes('--real');
 
-  runBenchmark({ trainRatio }).then(r => {
-    console.log('\n=== SWE-bench Causal Learning Benchmark ===\n');
-    console.log(`数据集：${DATASET.length} issues / 6 categories`);
-    console.log(`训练集：${r.trainSize}  测试集：${r.testSize}  split=${trainRatio}`);
-    console.log(`训练集 categories: ${r.uniqueCategoriesInTrain}`);
-    console.log(`归纳产出：${r.regulationsLearned} regulations   diversity=${r.diversity.toFixed(2)}\n`);
-
-    console.log('--- 学到的 regulations ---');
-    for (const reg of r.regulations) {
-      console.log(`  [${reg.id}] support=${reg.supportN}`);
-      console.log(`    pre: ${reg.pre || '(空)'}`);
-      console.log(`    eff: ${reg.eff || '(空)'}`);
+  /** 加载数据集：--real 时尝试真实数据，失败则降级到内置 */
+  async function resolveDataset(): Promise<{ issues: LabeledIssue[]; source: string }> {
+    if (!useReal) {
+      return { issues: DATASET, source: `内置合成 (${DATASET.length} issues / 6 categories)` };
     }
 
-    console.log('\n--- 预测结果 ---');
-    for (const p of r.predictions) {
-      const hitIcon = p.hit ? '[HIT]' : '[MISS]';
-      const catIcon = p.categoryCorrect ? '[OK ]' : '[   ]';
-      console.log(`  ${hitIcon} ${catIcon} ${p.issueId.padEnd(10)} expected=${p.expectedCategory.padEnd(15)} pred=${p.topRegulationPreCategory ?? '-'}  score=${p.topScore.toFixed(2)}`);
+    console.log('[benchmark] --real 模式：尝试加载 SWE-bench Lite 真实数据集...');
+    const realIssues = await loadSWEBenchLite();
+    if (realIssues && realIssues.length > 0) {
+      const categories = new Set(realIssues.map(i => i.expectedCategory));
+      return {
+        issues: realIssues,
+        source: `SWE-bench Lite 真实数据 (${realIssues.length} issues / ${categories.size} categories)`,
+      };
     }
 
-    console.log('\n--- 指标 ---');
-    console.log(`  hit_rate:          ${(r.hitRate * 100).toFixed(1)}%  (${r.predictions.filter(p => p.hit).length}/${r.testSize})`);
-    console.log(`  category_accuracy: ${(r.categoryAccuracy * 100).toFixed(1)}%  (${r.predictions.filter(p => p.categoryCorrect).length}/${r.testSize})`);
-    console.log(`  avg_causes:        ${r.avgCauses.toFixed(1)}`);
-    console.log(`  duration:          ${r.duration}ms\n`);
-  });
+    console.warn('[benchmark] 真实数据加载失败，降级到内置数据集');
+    return { issues: DATASET, source: `内置合成（降级）(${DATASET.length} issues / 6 categories)` };
+  }
+
+  resolveDataset().then(({ issues, source }) =>
+    runBenchmark({ issues, trainRatio }).then(r => {
+      console.log('\n=== SWE-bench Causal Learning Benchmark ===\n');
+      console.log(`数据集：${source}`);
+      console.log(`训练集：${r.trainSize}  测试集：${r.testSize}  split=${trainRatio}`);
+      console.log(`训练集 categories: ${r.uniqueCategoriesInTrain}`);
+      console.log(`归纳产出：${r.regulationsLearned} regulations   diversity=${r.diversity.toFixed(2)}\n`);
+
+      console.log('--- 学到的 regulations ---');
+      for (const reg of r.regulations) {
+        console.log(`  [${reg.id}] support=${reg.supportN}`);
+        console.log(`    pre: ${reg.pre || '(空)'}`);
+        console.log(`    eff: ${reg.eff || '(空)'}`);
+      }
+
+      console.log('\n--- 预测结果 ---');
+      for (const p of r.predictions) {
+        const hitIcon = p.hit ? '[HIT]' : '[MISS]';
+        const catIcon = p.categoryCorrect ? '[OK ]' : '[   ]';
+        console.log(`  ${hitIcon} ${catIcon} ${p.issueId.padEnd(10)} expected=${p.expectedCategory.padEnd(15)} pred=${p.topRegulationPreCategory ?? '-'}  score=${p.topScore.toFixed(2)}`);
+      }
+
+      console.log('\n--- 指标 ---');
+      console.log(`  hit_rate:          ${(r.hitRate * 100).toFixed(1)}%  (${r.predictions.filter(p => p.hit).length}/${r.testSize})`);
+      console.log(`  category_accuracy: ${(r.categoryAccuracy * 100).toFixed(1)}%  (${r.predictions.filter(p => p.categoryCorrect).length}/${r.testSize})`);
+      console.log(`  avg_causes:        ${r.avgCauses.toFixed(1)}`);
+      console.log(`  duration:          ${r.duration}ms\n`);
+    })
+  );
 }

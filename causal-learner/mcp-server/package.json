@@ -1,14 +1,47 @@
 {
-  "name": "causal-learner-mcp",
-  "version": "0.1.0",
-  "description": "MCP server for exception-driven causal learning",
+  "name": "@bestqa/causal-learner",
+  "version": "0.2.0",
+  "description": "Exception-driven causal learning MCP server / 异常驱动的因果学习 MCP 服务器",
   "type": "module",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "causal-learner": "dist/index.js"
+  },
+  "files": [
+    "dist/core/",
+    "dist/tools/",
+    "dist/index.*",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
-    "test": "npm run build && node --test dist/tests/**/*.test.js"
+    "test": "npm run build && node --test dist/tests/**/*.test.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "causal-learning",
+    "mcp",
+    "swe-bench",
+    "causal-reasoning",
+    "model-context-protocol",
+    "exception-driven"
+  ],
+  "author": "BestQ-A <m17098999990@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BestQ-A/BestQ-A.git",
+    "directory": "causal-learner/mcp-server"
+  },
+  "homepage": "https://github.com/BestQ-A/BestQ-A/tree/main/causal-learner/mcp-server",
+  "bugs": {
+    "url": "https://github.com/BestQ-A/BestQ-A/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
