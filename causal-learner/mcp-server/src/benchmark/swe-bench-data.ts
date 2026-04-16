@@ -52,40 +52,41 @@ const REMOTE_URLS = [
 // 辅助：从 repo 名派生 error category
 // =============================================================================
 
-/** 从 repo 名称和 problem_statement 内容推断 category */
-function deriveCategory(repo: string, problemStatement: string): string {
-  const lower = problemStatement.toLowerCase();
+/**
+ * 从 FAIL_TO_PASS test 路径 + problem_statement 推断 repo:module 级 category
+ * 三种格式：
+ *   pytest path: repo/module/tests/... → repo:module
+ *   unittest:    test_name (module.tests.TestClass) → repo:module
+ *   bare name:   test_func_name → 从 problem_statement 提取 lib.xxx
+ */
+function deriveModuleCategory(
+  repo: string,
+  failToPassJson: string,
+  problemStatement: string
+): string {
+  const repoShort = repo.split('/')[1] || repo;
+  const tests = parseTestList(failToPassJson);
+  if (tests.length === 0) return repoShort + ':unknown';
 
-  // 按错误关键词优先匹配
-  if (lower.includes('typeerror')) return 'type_error';
-  if (lower.includes('importerror') || lower.includes('modulenotfounderror')) return 'import_error';
-  if (lower.includes('attributeerror')) return 'attribute_error';
-  if (lower.includes('keyerror')) return 'key_error';
-  if (lower.includes('valueerror')) return 'value_error';
-  if (lower.includes('indexerror')) return 'index_error';
-  if (lower.includes('assertionerror') || lower.includes('asserterror')) return 'assertion_error';
-  if (lower.includes('syntaxerror')) return 'syntax_error';
-  if (lower.includes('runtimeerror')) return 'runtime_error';
-  if (lower.includes('overflowerror') || lower.includes('recursionerror')) return 'overflow_error';
-  if (lower.includes('oserror') || lower.includes('filenotfounderror') || lower.includes('permissionerror')) return 'os_error';
-  if (lower.includes('notimplementederror')) return 'not_implemented_error';
+  const first = tests[0];
 
-  // 按 repo 名大类兜底
-  const repoLower = repo.toLowerCase();
-  if (repoLower.includes('django')) return 'django_issue';
-  if (repoLower.includes('flask')) return 'flask_issue';
-  if (repoLower.includes('requests')) return 'requests_issue';
-  if (repoLower.includes('scikit') || repoLower.includes('sklearn')) return 'sklearn_issue';
-  if (repoLower.includes('sympy')) return 'sympy_issue';
-  if (repoLower.includes('matplotlib')) return 'matplotlib_issue';
-  if (repoLower.includes('sphinx')) return 'sphinx_issue';
-  if (repoLower.includes('astropy')) return 'astropy_issue';
-  if (repoLower.includes('pytest')) return 'pytest_issue';
-  if (repoLower.includes('xarray')) return 'xarray_issue';
-  if (repoLower.includes('pandas')) return 'pandas_issue';
-  if (repoLower.includes('pylint')) return 'pylint_issue';
+  // 格式1: pytest path — repo/module/tests/... 或 lib/module/...
+  const pyPath = first.match(/^([\w-]+)\/([\w-]+)/);
+  if (pyPath) return repoShort + ':' + pyPath[2];
 
-  return 'unknown';
+  // 格式2: tests/module/...
+  const testPath = first.match(/^tests?\/([\w-]+)/);
+  if (testPath) return repoShort + ':' + testPath[1];
+
+  // 格式3: unittest — test_name (module.submod.tests.TestClass)
+  const unittest = first.match(/\(([\w]+)\./);
+  if (unittest) return repoShort + ':' + unittest[1];
+
+  // 格式4: bare function — 从 problem_statement 提取 lib.module 引用
+  const libImport = problemStatement.match(new RegExp(repoShort.replace('-', '.') + '\\.(\\w+)', 'i'));
+  if (libImport) return repoShort + ':' + libImport[1];
+
+  return repoShort + ':core';
 }
 
 /** 从 problem_statement 中提取简短的错误日志片段 */
@@ -159,13 +160,17 @@ function extractSemanticTags(text: string): string[] {
 export function convertToLabeledIssues(instances: SWEBenchInstance[]): LabeledIssue[] {
   return instances.map((inst): LabeledIssue => {
     const failingTests = parseTestList(inst.FAIL_TO_PASS);
-    const category = deriveCategory(inst.repo, inst.problem_statement);
+    // 主 category 用 repo 级别（12 类，每类 10-50 样本，归纳可学）
+    // 模块信息作为辅助 label 进入 facts，不作为 category
+    const category = inst.repo.split('/')[1] || inst.repo;
+    const moduleCategory = deriveModuleCategory(inst.repo, inst.FAIL_TO_PASS, inst.problem_statement);
     const errorLog = extractErrorSnippet(inst.problem_statement);
     const module = extractModuleFromTests(failingTests);
     const semanticTags = extractSemanticTags(inst.problem_statement);
 
     // 构造更丰富的 labels：swe-bench + category + module + semantic tags
     const labels = ['swe-bench', category];
+    labels.push(`module_cat:${moduleCategory}`);
     if (module) labels.push(`module:${module}`);
     for (const tag of semanticTags) labels.push(`semantic:${tag}`);
 

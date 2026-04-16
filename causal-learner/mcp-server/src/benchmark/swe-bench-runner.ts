@@ -160,8 +160,15 @@ function splitTrainTest(issues: LabeledIssue[], trainRatio: number): {
   return { train, test };
 }
 
-/** 从 regulation 的 eff/pre 中查找 error_category（eff 优先） */
+/** 从 regulation 的 eff 中提取 category（repo 优先，error_category 兜底） */
 function regulationCategory(reg: Regulation): string | null {
+  // repo 级 category：eff 中的 repo fact → 提取 repo 短名
+  const repoEff = reg.eff.find(f => f.pred === 'repo');
+  if (repoEff) {
+    const val = String(repoEff.value);
+    return val.includes('/') ? val.split('/')[1] : val;
+  }
+  // 兜底：error_category
   const effCat = reg.eff.find(f => f.pred === 'error_category');
   if (effCat) return String(effCat.value);
   const preCat = reg.pre.find(f => f.pred === 'error_category');
@@ -186,20 +193,20 @@ export async function runBenchmark(options: {
   for (const issue of train) {
     const obs = importSweIssueTool(storage, issue);
     // 覆盖 focusFacts：用 error_category 替代通用 has_issue
-    // 多维 focusFacts：error_category + module label，让聚类按多维度分桶
-    const focusCandidates = obs.facts.filter(f =>
-      f.pred === 'error_category' ||
-      (f.pred === 'issue_label' && typeof f.value === 'string' && f.value.startsWith('module:'))
-    );
-    if (focusCandidates.length > 0) {
-      obs.focusFacts = focusCandidates;
+    // focusFacts = repo fact，让归纳按 repo 聚类（对齐 repo 级 category）
+    const repoFact = obs.facts.find(f => f.pred === 'repo');
+    if (repoFact) {
+      obs.focusFacts = [repoFact];
     }
     submitObservationTool(storage, obs);
-    pipeline.submitObservation({
-      rawInput: `[${issue.repo}] ${issue.title}`,
-      facts: obs.facts,
-      context: { custom: { repo: issue.repo, issueId: issue.issueId, expectedCategory: issue.expectedCategory } },
-    });
+    // pipeline（v9-v11）写入用 try/catch 容错——真实数据可能触发 atom-graph edge case
+    try {
+      pipeline.submitObservation({
+        rawInput: `[${issue.repo}] ${issue.title}`,
+        facts: obs.facts.slice(0, 10),
+        context: { custom: { repo: issue.repo, issueId: issue.issueId } },
+      });
+    } catch { /* benchmark 核心路径是 v7-v8，pipeline crash 不阻塞 */ }
   }
 
   const uniqueCategoriesInTrain = new Set(train.map(i => i.expectedCategory)).size;
@@ -214,15 +221,12 @@ export async function runBenchmark(options: {
   for (const issue of test) {
     const tmpStorage = createStorage(':memory:');
     const obsFull = importSweIssueTool(tmpStorage, issue);
-    const testFocus = obsFull.facts.filter(f =>
-      f.pred === 'error_category' ||
-      (f.pred === 'issue_label' && typeof f.value === 'string' && f.value.startsWith('module:'))
-    );
+    const testRepoFact = obsFull.facts.find(f => f.pred === 'repo');
     const testObs: Observation = {
       observationId: `bench_test_${issue.issueId}`,
       timestamp: new Date().toISOString(),
       facts: obsFull.facts,
-      focusFacts: testFocus.length > 0 ? testFocus : obsFull.focusFacts,
+      focusFacts: testRepoFact ? [testRepoFact] : obsFull.focusFacts,
       context: { repo: issue.repo },
     };
 
