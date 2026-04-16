@@ -383,10 +383,14 @@ export interface Regulation {
   nextTests?: Record<string, unknown>[];
   tags?: string[];
   metadata?: Record<string, unknown>;
-  /** 知识层级：0=公理（基本事实），1+=定理（从更基本的知识组合派生） */
+  /** 知识层级：0=基础观测归纳，1+=从更基本的知识组合派生 */
   level?: number;
   /** 本条知识从哪些更基本的 regulation 组合派生（引用链） */
   derivedFrom?: string[];
+  /** 确认本条知识的 event IDs（每次 event 验证成功时追加） */
+  confirmedByEvents?: string[];
+  /** 挑战本条知识的 event IDs（每次 event 反驳时追加） */
+  challengedByEvents?: string[];
 }
 
 /**
