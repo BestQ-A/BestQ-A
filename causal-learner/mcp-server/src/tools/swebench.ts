@@ -6,6 +6,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Observation, Event, Regulation, Fact } from '../core/index.js';
 import { detectEvent, explainObservation, EffectIndex } from '../core/index.js';
+import { scoredExplain, createTopKSemiring } from '../core/provenance-semiring.js';
 import type { CausalStorage } from '../core/index.js';
 
 /**
@@ -408,18 +409,22 @@ export function suggestCausesTool(
     }
   }
 
-  // === 原有逻辑：精确 backward chaining（作为补充） ===
-  const stories = explainObservation(obs, regulations, {
-    topK: 10, beamSize: 30, maxDepth: 5, maxAssumptions: 5,
+  // === semiring backward chaining：用 scoredExplain 替代旧 explainObservation ===
+  const semiring = createTopKSemiring(10);
+  const scoredStories = scoredExplain(obs, regulations, semiring, 10, {
+    beamSize: 30, maxDepth: 5, maxAssumptions: 5,
   });
 
-  // Convert stories to suggestions
-  for (const story of stories) {
+  // 从 scoredStories 构建 suggestions（用 probability 作为 score）
+  for (const story of scoredStories) {
     for (const regId of story.regulationIds) {
       const reg = storage.getRegulation(regId);
       if (!reg) continue;
 
-      // Find which predicates matched
+      // 已被部分匹配阶段收录的 regulation 跳过（去重）
+      if (suggestions.some(s => s.regulationId === regId)) continue;
+
+      // 匹配的前置条件谓词
       const matchedPreds: string[] = [];
       for (const pre of reg.pre) {
         const match = obs.facts.find(
@@ -430,13 +435,12 @@ export function suggestCausesTool(
         }
       }
 
-      // Calculate confidence
+      // 用 probability 决定 confidence 等级
       let confidence: 'high' | 'medium' | 'low' = 'low';
-      const score = story.score || 0;
-      if (score > -0.5) confidence = 'high';
-      else if (score > -1.5) confidence = 'medium';
+      if (story.probability > 0.5) confidence = 'high';
+      else if (story.probability > 0.1) confidence = 'medium';
 
-      // Generate suggested fix from regulation metadata
+      // 从 regulation metadata 提取修复建议
       let suggestedFix: string | undefined;
       if (reg.metadata?.fixes && Array.isArray(reg.metadata.fixes)) {
         const fixes = reg.metadata.fixes as FixInfo[];
@@ -448,7 +452,7 @@ export function suggestCausesTool(
       suggestions.push({
         regulationId: regId,
         description: reg.description,
-        score: score,
+        score: story.probability,
         matchedPredicates: matchedPreds,
         suggestedFix,
         confidence,

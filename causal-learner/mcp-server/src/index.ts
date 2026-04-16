@@ -893,6 +893,21 @@ export function normalizeSubmitObservationArgs(args: unknown): NormalizedSubmitO
     rawRefs: observation.rawRefs,
     metadata: observation.metadata,
   };
+
+  // 自动补充 bitemporal 时间戳：recordedAt（录入时间）、validFrom（生效时间）
+  const now = new Date().toISOString();
+  for (const fact of normalizedObservation.facts) {
+    if (!fact.recordedAt) fact.recordedAt = now;
+    if (!fact.validFrom) fact.validFrom = now;
+    // validTo 不设置 = 当前有效
+  }
+  if (normalizedObservation.focusFacts) {
+    for (const fact of normalizedObservation.focusFacts) {
+      if (!fact.recordedAt) fact.recordedAt = now;
+      if (!fact.validFrom) fact.validFrom = now;
+    }
+  }
+
   const pipelineInput: ObservationInput = {
     rawInput: buildRawInput(normalizedObservation),
     facts: normalizedObservation.facts,
