@@ -84,6 +84,18 @@ import {
   sampleEvidenceTool,
 } from './tools/search.js';
 
+// 跨条目模式挖掘工具
+import { discoverPatterns } from './tools/pattern-discovery.js';
+
+// 实验建议工具
+import { suggestNextExperiment } from './tools/experiment-advisor.js';
+
+// 自然语言解析工具
+import {
+  parseNaturalLanguage,
+  toObservationFacts,
+} from './tools/natural-language.js';
+
 // v5 图工具 (卡片盒 + 双模式)
 import {
   addAtomTool,
@@ -655,6 +667,17 @@ const TOOLS: Tool[] = [
     description: 'Ingest a set of facts as atoms and auto-create cooccurs edges between them.',
     inputSchema: { type: 'object', properties: { facts: { type: 'array', items: { type: 'object', properties: { pred: { type: 'string' }, value: {}, args: { type: 'object' } }, required: ['pred', 'value'] } }, context: { type: 'object' } }, required: ['facts'] },
   },
+  // 跨条目模式挖掘工具
+  {
+    name: 'discover_patterns',
+    description: 'Discover hidden cross-entry patterns from all experiments: parameter sensitivity, tradeoffs, uncovered regions, and regulation conflicts.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        maxResults: { type: 'number', default: 20, description: 'Maximum results per analysis category' },
+      },
+    },
+  },
   // Smart caching and test mode tools
   {
     name: 'set_test_mode',
@@ -685,6 +708,29 @@ const TOOLS: Tool[] = [
         },
       },
       required: ['observation'],
+    },
+  },
+  // 实验建议工具
+  {
+    name: 'suggest_experiment',
+    description: 'Suggest the next most informative experiment based on information gain analysis. Analyzes uncertainty, exploration gaps, interaction effects, and counterfactual opportunities.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        topK: { type: 'number', default: 5, description: 'Number of top suggestions to return' },
+      },
+    },
+  },
+  // 自然语言解析 + 提交工具
+  {
+    name: 'parse_and_submit',
+    description: 'Parse natural language (Chinese/English) into structured causal facts and submit as observation. Supports single sentences ("改了 d_cp 到 3.8，精度降到 0.8px"), multi-line, and Markdown tables.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        text: { type: 'string', description: 'Natural language text describing parameter changes and their effects. Supports Chinese/English, single/multi-line, and Markdown tables.' },
+      },
+      required: ['text'],
     },
   },
 ];
@@ -1224,6 +1270,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: 'text', text: JSON.stringify(stats, null, 2) }] };
       }
 
+      // 跨条目模式挖掘工具
+      case 'discover_patterns': {
+        const maxResults = (args?.maxResults as number) || 20;
+        const report = discoverPatterns(storage, maxResults);
+        return { content: [{ type: 'text', text: JSON.stringify(report, null, 2) }] };
+      }
+
       // Smart caching and test mode tools
       case 'set_test_mode': {
         if (!dualStorage) {
@@ -1275,6 +1328,69 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
         const loadResult = dualStorage.loadRelevantKnowledge(observation);
         return { content: [{ type: 'text', text: JSON.stringify(loadResult, null, 2) }] };
+      }
+
+      // 实验建议工具
+      case 'suggest_experiment': {
+        const topK = (args?.topK as number) || 5;
+        const suggestions = suggestNextExperiment(storage, topK);
+        return { content: [{ type: 'text', text: JSON.stringify(suggestions, null, 2) }] };
+      }
+
+      // 自然语言解析 + 提交
+      case 'parse_and_submit': {
+        const text = args?.text as string;
+        if (!text || typeof text !== 'string') {
+          return {
+            content: [{ type: 'text', text: JSON.stringify({ error: 'text parameter is required' }, null, 2) }],
+            isError: true,
+          };
+        }
+        const parsed = parseNaturalLanguage(text);
+        const currentPipeline = ensurePipelineInstance(pipeline);
+        const results: Array<{ storyId: string; facts: unknown[]; direction: string }> = [];
+
+        for (const item of parsed.items) {
+          const facts = toObservationFacts(item);
+          const pipelineInput: ObservationInput = {
+            rawInput: text,
+            facts,
+            context: toContextScope(undefined, {
+              source: 'natural_language',
+              direction: item.direction,
+              ...(item.affectedModule ? { affectedModule: item.affectedModule } : {}),
+            }),
+          };
+          const pipelineResult = currentPipeline.submitObservation(pipelineInput);
+
+          // 同步写入 legacy storage
+          const legacyObs = {
+            observationId: generateObservationId(),
+            timestamp: new Date().toISOString(),
+            facts,
+          };
+          storage.saveObservation(legacyObs);
+
+          results.push({
+            storyId: pipelineResult.story.id,
+            facts,
+            direction: item.direction,
+          });
+        }
+
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify({
+              parsed: {
+                itemCount: parsed.items.length,
+                fromTable: parsed.fromTable,
+                items: parsed.items,
+              },
+              submitted: results,
+            }, null, 2),
+          }],
+        };
       }
 
       default:
