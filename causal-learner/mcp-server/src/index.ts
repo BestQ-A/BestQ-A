@@ -944,6 +944,7 @@ export function buildPipelineConfig(baseDbPath: string): PipelineConfig {
     presentSliceDbPath:             withSuffix('present-slice'),
     historicalCompressionRecordDbPath: withSuffix('historical-compression-record'),
     lineageCompileProposalDbPath:     withSuffix('lineage-compile-proposal'),
+    prunedBranchRecordDbPath:         withSuffix('pruned-branch-record'),
   };
 }
 

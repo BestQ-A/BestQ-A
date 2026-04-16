@@ -10,7 +10,20 @@ describes: "五模块核心语义定义"
 # BestQ-A 元模型：当前语义合同
 
 > 本文档是系统的**唯一语义底座**。所有代码、表结构、MCP 工具名必须与本文档对齐。
-> 不是 v6，而是 v1-v5 的收束。
+> 本文件原始范围是 v1-v5 的收束（五模块核心语义）。v6-v13 层在之上追加，不替换这里的五个对象。
+> **v6+ 追加层的合同不在此文件，见 §11.3 v6+ 扩展层索引** — 新增对象必须同时在对应的独立 `*-contract.md` 里定义。
+
+---
+
+## 0.5 v6+ 扩展层（非替换）
+
+五模块是本体论基底，v6-v13 在之上追加三类能力：
+
+- **执行闭环层（v6-v8）**：MechanismInstance / MechanismProgram / ReviewDecision / ValidityEnvelope / CounterfactualScenario / ExperimentDesign / ActionExecution / OutcomeRecord / PredictionError
+- **治理层（v9-v11）**：ProgramRevisionProposal / FailureBoundaryArchive / StateSnapshot / Transition
+- **历史生成层（v12-v13）**：AcceptedReconstruction（MSP）/ BranchPoint / PresentSlice / HistoricalCompressionRecord / LineageCompileProposal / **PrunedBranchRecord（G5 被剪分支）**
+
+这些对象**不改写五个基底**，只在闭环顶端给出 lineage、失败边界、谱系治理的审计面。具体 schema 与不变量见 `docs/current/*-contract.md` 与 `docs/design_history/v13_historical_generative_ontology.md`。
 
 ---
 
@@ -431,3 +444,26 @@ graph TD
 |------|------|------|
 | RefAlgebra 合同 | `current/ref-algebra-contract.md` | 复合规则、force 约束、evidencePolicy、proof 失效 |
 | Template 不变量合同 | `current/template-invariant-contract.md` | SlotFingerprint、InvariantCheck、模板生命周期、涌现治理 |
+
+### 11.3 v6+ 扩展层索引
+
+五模块基底之外的追加对象，SSOT 在各自独立合同里；本表只给索引，不重复 schema：
+
+| 对象 | 合同 | v 分层 |
+|------|------|--------|
+| MechanismInstance / MechanismClass / MechanismProgram | `current/mechanism-instance-contract.md`、`current/mechanism-class-contract.md`、`current/mechanism-program-contract.md` | v6 |
+| ReviewDecision | `current/review-decision-contract.md` | v6 |
+| ValidityEnvelope | `current/validity-envelope-contract.md` | v6 |
+| CounterfactualScenario / ExperimentDesign | `current/counterfactual-scenario-contract.md`、`current/experiment-design-contract.md` | v7 |
+| ActionExecution / OutcomeRecord / PredictionError | `current/action-execution-contract.md`、`current/outcome-record-contract.md`、`current/prediction-error-contract.md` | v7-v8 |
+| StateSnapshot / Transition | `current/state-snapshot-contract.md`、`current/transition-contract.md` | v9 |
+| ProgramRevisionProposal | `current/program-revision-proposal-contract.md` | v9 |
+| FailureBoundaryArchive | `current/civilization-memory-contract.md`、`current/v11-world-model-contract.md` | v11 |
+| AcceptedReconstruction（Minimal Sufficient Provenance） | `current/reconstruction-contract.md` | v12 |
+| BranchPoint | `current/branch-point-contract.md` | v12-v13 |
+| PresentSlice | `current/present-slice-contract.md` | v13 |
+| HistoricalCompressionRecord | `current/historical-compression-record-contract.md` | v13 |
+| LineageCompileProposal | `current/lineage-compile-proposal-contract.md` | v13 |
+| **PrunedBranchRecord（G5 被剪分支）** | `current/pruned-branch-record-contract.md` | v13 |
+
+更深的设计背景见 `design_history/v13_historical_generative_ontology.md`（根公理 G1-G6、谱系本体化完整论证）。
