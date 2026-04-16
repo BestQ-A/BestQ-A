@@ -1,6 +1,7 @@
 ---
 kind: contract
 status: current
+describes: ReconstructionStore
 implements:
   - causal-learner/mcp-server/src/core/reconstruction-store.ts
   - causal-learner/mcp-server/src/core/reconstruction.ts
