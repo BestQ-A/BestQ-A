@@ -929,6 +929,29 @@ export {
 } from './present-slice-store.js';
 
 // =============================================================================
+// v13 PrunedBranchRecord（被剪掉的真实分支 — Failure as Pruned Possibility Space）
+// =============================================================================
+
+export type {
+  PrunedBranchRecord,
+  PruneReason,
+  CreatePrunedBranchRecordInput,
+} from './pruned-branch-record.js';
+
+export {
+  createPrunedBranchRecord,
+  assertValidPrunedBranchRecord,
+} from './pruned-branch-record.js';
+
+export type {
+  PrunedBranchRecordStoreStats,
+} from './pruned-branch-record-store.js';
+
+export {
+  PrunedBranchRecordStore,
+} from './pruned-branch-record-store.js';
+
+// =============================================================================
 // v13 HistoricalCompressionRecord（历史压缩行为的显式记录）
 // =============================================================================
 
