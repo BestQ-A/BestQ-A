@@ -979,3 +979,39 @@ export type {
 export {
   LineageCompileProposalStore,
 } from './lineage-compile-proposal-store.js';
+
+// =============================================================================
+// Refutation（DoWhy 风格反驳测试 — regulation 归纳后自动验证）
+// =============================================================================
+
+export type {
+  RefutationTest,
+  RefutationResult,
+  RefutationOptions,
+} from './refutation.js';
+
+export {
+  refuteRegulation,
+} from './refutation.js';
+
+// =============================================================================
+// Provenance Semiring（Scallop 风格 top-k probability semiring）
+// =============================================================================
+
+export type {
+  ProvenanceSemiring,
+  ProvenanceTag,
+  TopKProofs,
+  ScoredStory,
+  ScoredExplainOptions,
+} from './provenance-semiring.js';
+
+export {
+  BooleanSemiring,
+  ProbabilitySemiring,
+  TopKSemiring,
+  scoredExplain,
+  createBooleanSemiring,
+  createProbabilitySemiring,
+  createTopKSemiring,
+} from './provenance-semiring.js';
