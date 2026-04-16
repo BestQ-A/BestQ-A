@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-04-16T13:53:02.239Z",
+  "timestamp": "2026-04-16T13:57:26.147Z",
   "files_scanned": 714,
   "errors": [],
   "warnings": [
@@ -51,6 +51,13 @@
       "code": "describes-too-long",
       "level": "warning",
       "msg": "describes 超过 20 字：54 字"
+    },
+    {
+      "file": "docs/current/counterfactual-scenario-contract.md",
+      "line": 1,
+      "code": "describes-too-long",
+      "level": "warning",
+      "msg": "describes 超过 20 字：22 字"
     },
     {
       "file": "docs/current/historical-compression-record-contract.md",
@@ -292,8 +299,8 @@
     }
   ],
   "summary": {
-    "ok": 695,
-    "warn": 19,
+    "ok": 694,
+    "warn": 20,
     "err": 0
   },
   "kind_distribution": {
@@ -7956,13 +7963,13 @@
     {
       "file": "docs/current/counterfactual-scenario-contract.md",
       "format": "md",
-      "status": "draft",
+      "status": "current",
       "kind": "contract",
       "legacy_kind": null,
-      "describes": "反事实场景对象规范",
+      "describes": "CounterfactualScenario",
       "density": 0,
       "errors": 0,
-      "warnings": 0
+      "warnings": 1
     },
     {
       "file": "docs/current/coverage-matrix-contract.md",
@@ -8011,10 +8018,10 @@
     {
       "file": "docs/current/experiment-design-contract.md",
       "format": "md",
-      "status": "draft",
+      "status": "current",
       "kind": "contract",
       "legacy_kind": null,
-      "describes": "实验设计对象规范",
+      "describes": "ExperimentDesign",
       "density": 0,
       "errors": 0,
       "warnings": 0

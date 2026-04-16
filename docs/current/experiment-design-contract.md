@@ -1,9 +1,8 @@
 ---
 kind: contract
-status: draft
-phase: 3
+status: current
 schema_version: 1
-describes: "实验设计对象规范"
+describes: ExperimentDesign
 upstream:
   - v8_generative_ontology.md
   - counterfactual-scenario-contract.md
@@ -163,35 +162,29 @@ ExperimentDesign
 
 ## §6 与当前代码的映射
 
-| 目标对象 | 当前最接近对象 | 现状判断 | 升级方向 |
-|---|---|---|---|
-| `ExperimentDesign` | 无显式对象 | 未实现 | 后续新增 `core/experiment-design.ts` / store |
-| `basedOnCounterfactualIds` | `CounterfactualScenario` 已有对象与 store | 已可对接 | 直接引用 |
-| `candidateInterventions` | `ActionClass / Skill` 的自然延伸 | 尚未统一 | 后续与 ActionClass 合同接线 |
-| `expectedInformationGain` | 当前仅存在于 v8 设计史 | 未实现 | 第一轮可先占位 |
+| 目标对象 | 实现位置 | 现状判断 |
+|---|---|---|
+| `ExperimentDesign` | `core/experiment-design.ts:15-42` | **已实现**，含构造器与闭环计算 |
+| `basedOnCounterfactualIds` | `core/experiment-design.ts` | **已实现**，直接引用 CounterfactualScenario |
+| `candidateInterventions` | `core/experiment-design.ts` | **已实现**，ActionClass 自然延伸 |
+| `expectedInformationGain` | `core/experiment-design.ts:143-194` | **已实现**，含 discriminatingPower 计算 |
+| `ExperimentDesignStore` | `core/experiment-design-store.ts:66-106` | **已实现**，SQLite WAL 持久化 |
+
+Pipeline 集成：`core/pipeline.ts:417-419` 将 ExperimentDesign 接入 `executeExperimentDesign` 闭环（Scenario→Design→Execution）。
 
 ---
 
-## §7 第一轮实现建议
+## §7 实现状态（2026-04-16）
 
-本合同当前仍是 `draft`，第一轮不要求完整实验规划引擎。
+**已完成**：
+- `core/experiment-design.ts`：类型定义 + `expectedInformationGain` + `discriminatingPower`
+- `core/experiment-design-store.ts`：SQLite WAL 持久化（save/get/list/getByEpisode/getStats）
+- `core/pipeline.ts`：`executeExperimentDesign` 主流程（CounterfactualScenario→ExperimentDesign→ActionExecution→新 Episode 闭环）
 
-建议最小实现：
-
-1. 新增 `experiment-design.ts`
-2. 新增 `experiment-design-store.ts`
-3. 允许用最小占位策略生成：
-   - `expectedInformationGain`
-   - `discriminatingPower`
-4. 至少支持：
-   - 引用多个 counterfactual
-   - 给出一个推荐 action
-
-不要求：
-
-- 真实信息增益算法
-- 多目标优化
-- 风险最小化求解器
+**已知范围限制**（v13 §8 扩展方向）：
+- 多目标优化（当前单目标 discriminatingPower 排序）
+- 风险最小化求解器（当前占位）
+- 与 ActionClass 合同的完整接线（当前通过 candidateInterventions 字符串列表）
 
 ---
 

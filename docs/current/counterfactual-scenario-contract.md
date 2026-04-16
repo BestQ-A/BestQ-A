@@ -1,9 +1,8 @@
 ---
 kind: contract
-status: draft
-phase: 3
+status: current
 schema_version: 1
-describes: "反事实场景对象规范"
+describes: CounterfactualScenario
 upstream:
   - v8_generative_ontology.md
   - mechanism-program-contract.md
@@ -186,34 +185,29 @@ CounterfactualScenario
 
 ## §6 与当前代码的映射
 
-| 目标对象 | 当前最接近对象 | 现状判断 | 升级方向 |
-|---|---|---|---|
-| `CounterfactualScenario` | 无显式对象 | 未实现 | 新增 `core/counterfactual-scenario.ts` / store |
-| `modifiedAssumptions` | 现在仅存在于设计史讨论中 | 未实现 | 新增 |
-| `predictedTrajectory` | `AcceptedReconstruction.reconstructed_timeline` 的未来版 | 未实现 | 可复用其 step 结构风格 |
-| `mechanismProgramRefs` | `MechanismProgram` 已有持久化对象 | 已可对接 | 直接引用 |
+| 目标对象 | 实现位置 | 现状判断 |
+|---|---|---|
+| `CounterfactualScenario` | `core/counterfactual-scenario.ts:36-59` | **已实现**，含不变量校验与 `inferCounterfactual` 推演入口 |
+| `modifiedAssumptions` | `core/counterfactual-scenario.ts:44` | **已实现**，作为 Fact[] 字段 |
+| `predictedTrajectory` | `core/counterfactual-scenario.ts:48` | **已实现**，`inferCounterfactual` 自动生成 |
+| `mechanismProgramRefs` | `core/counterfactual-scenario.ts:46` | **已实现**，引用 MechanismProgram |
+| `CounterfactualScenarioStore` | `core/counterfactual-scenario-store.ts` | **已实现**，SQLite WAL 持久化 |
+
+Pipeline 集成：`core/pipeline.ts:1062-1138` 将 CounterfactualScenario 接入主流程。
 
 ---
 
-## §7 第一轮实现建议
+## §7 实现状态（2026-04-16）
 
-本合同当前仍是 `draft`，第一轮不要求完整反事实模拟引擎。
+**已完成**：
+- `core/counterfactual-scenario.ts`：类型定义 + `inferCounterfactual` 推演引擎
+- `core/counterfactual-scenario-store.ts`：SQLite WAL 持久化（save/get/list/getByEpisode/getStats）
+- `core/pipeline.ts`：pipeline 集成（ExecuteExperimentDesign → Scenario → Design → Execution 闭环）
 
-建议最小实现：
-
-1. 新增 `counterfactual-scenario.ts`
-2. 新增 `counterfactual-scenario-store.ts`
-3. 允许用一个最小占位策略生成 `predictedTrajectory`
-4. 至少支持：
-   - 改一个条件
-   - 生成一条最小预测轨迹
-   - 给出一个 `predictedOutcome`
-
-不要求：
-
-- 多场景搜索
-- 信息增益排序
-- 真正的 experiment planner
+**已知范围限制**（v13 §8 扩展方向）：
+- 多场景搜索（当前单次推演）
+- 信息增益排序（由 `ExperimentDesign.expectedInformationGain` 承担）
+- 真正的 counterfactual 真值验证（当前为结构化占位）
 
 ---
 
