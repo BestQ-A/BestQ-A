@@ -347,15 +347,71 @@ export function suggestCausesTool(
     return [];
   }
 
-  // Try to explain the observation
-  const stories = explainObservation(obs, regulations, {
-    topK: 10,
-    beamSize: 30,
-    maxDepth: 5,
-    maxAssumptions: 5,
-  });
-
   const suggestions: CauseSuggestion[] = [];
+
+  // === 核心修复：部分匹配诊断（不要求所有 goals 被覆盖） ===
+  // 扫描每条 regulation，计算已知 facts 与其 pre+eff 的 overlap
+  const obsSigs = new Set(obs.facts.map(f => `${f.pred}|${JSON.stringify(f.value)}`));
+  const obsPreds = new Set(obs.facts.map(f => f.pred));
+
+  for (const reg of regulations) {
+    // eff 匹配：已知 facts 中有多少匹配 regulation 的 eff
+    let effOverlap = 0;
+    for (const eff of reg.eff) {
+      if (obsSigs.has(`${eff.pred}|${JSON.stringify(eff.value)}`)) effOverlap++;
+      else if (obsPreds.has(eff.pred)) effOverlap += 0.5; // pred 相同值不同：半分
+    }
+
+    // pre 匹配：已知 facts 中有多少匹配 regulation 的 pre
+    let preOverlap = 0;
+    const matchedPreds: string[] = [];
+    const missingPreds: string[] = [];
+    for (const pre of reg.pre) {
+      if (obsSigs.has(`${pre.pred}|${JSON.stringify(pre.value)}`)) {
+        preOverlap++;
+        matchedPreds.push(pre.pred);
+      } else if (obsPreds.has(pre.pred)) {
+        preOverlap += 0.3;
+        matchedPreds.push(`~${pre.pred}`);
+      } else {
+        missingPreds.push(pre.pred);
+      }
+    }
+
+    const totalFields = (reg.eff.length + reg.pre.length) || 1;
+    const overlapScore = (effOverlap + preOverlap) / totalFields;
+
+    // 至少有一个字段匹配才纳入候选
+    if (overlapScore > 0) {
+      const regCredibility = (reg.supportN ?? 0) / ((reg.supportN ?? 0) + (reg.counterexampleN ?? 0) + 1);
+      const score = overlapScore * regCredibility;
+
+      let confidence: 'high' | 'medium' | 'low' = 'low';
+      if (overlapScore > 0.6) confidence = 'high';
+      else if (overlapScore > 0.3) confidence = 'medium';
+
+      // 构造修复建议
+      let suggestedFix: string | undefined;
+      const rootCause = reg.eff.find(e => e.pred === 'root_cause');
+      if (rootCause) suggestedFix = `根因: ${rootCause.value}`;
+
+      suggestions.push({
+        regulationId: reg.regulationId,
+        description: reg.description + (missingPreds.length > 0
+          ? ` [需确认: ${missingPreds.join(', ')}]`
+          : ''),
+        score,
+        matchedPredicates: matchedPreds,
+        suggestedFix,
+        confidence,
+      });
+    }
+  }
+
+  // === 原有逻辑：精确 backward chaining（作为补充） ===
+  const stories = explainObservation(obs, regulations, {
+    topK: 10, beamSize: 30, maxDepth: 5, maxAssumptions: 5,
+  });
 
   // Convert stories to suggestions
   for (const story of stories) {
