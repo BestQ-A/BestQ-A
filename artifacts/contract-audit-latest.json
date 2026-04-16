@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-04-16T13:30:58.092Z",
-  "files_scanned": 711,
+  "timestamp": "2026-04-16T13:53:02.239Z",
+  "files_scanned": 714,
   "errors": [],
   "warnings": [
     {
@@ -53,11 +53,25 @@
       "msg": "describes 超过 20 字：54 字"
     },
     {
+      "file": "docs/current/historical-compression-record-contract.md",
+      "line": 1,
+      "code": "describes-too-long",
+      "level": "warning",
+      "msg": "describes 超过 20 字：27 字"
+    },
+    {
       "file": "docs/current/intent-alignment-audit-contract.md",
       "line": 1,
       "code": "describes-too-long",
       "level": "warning",
       "msg": "describes 超过 20 字：27 字"
+    },
+    {
+      "file": "docs/current/lineage-compile-proposal-contract.md",
+      "line": 1,
+      "code": "describes-too-long",
+      "level": "warning",
+      "msg": "describes 超过 20 字：22 字"
     },
     {
       "file": "docs/current/ontology-federation-contract.md",
@@ -278,12 +292,12 @@
     }
   ],
   "summary": {
-    "ok": 694,
-    "warn": 17,
+    "ok": 695,
+    "warn": 19,
     "err": 0
   },
   "kind_distribution": {
-    "contract": 54,
+    "contract": 57,
     "instance": 641,
     "record": 2,
     "code": 12,
@@ -451,6 +465,11 @@
       "density": 0.0297
     },
     {
+      "file": "docs/current/historical-compression-record-contract.md",
+      "kind": "contract",
+      "density": 0.0432
+    },
+    {
       "file": "docs/current/hypothesis-contract.md",
       "kind": "contract",
       "density": 0
@@ -474,6 +493,11 @@
       "file": "docs/current/legacy-scaffolds-contract.md",
       "kind": "contract",
       "density": 0.1053
+    },
+    {
+      "file": "docs/current/lineage-compile-proposal-contract.md",
+      "kind": "contract",
+      "density": 0.043
     },
     {
       "file": "docs/current/mechanism-class-contract.md",
@@ -554,6 +578,11 @@
       "file": "docs/current/prediction-error-contract.md",
       "kind": "contract",
       "density": 0
+    },
+    {
+      "file": "docs/current/present-slice-contract.md",
+      "kind": "contract",
+      "density": 0.0779
     },
     {
       "file": "docs/current/program-revision-proposal-contract.md",
@@ -8002,6 +8031,17 @@
       "warnings": 0
     },
     {
+      "file": "docs/current/historical-compression-record-contract.md",
+      "format": "md",
+      "status": "current",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "HistoricalCompressionRecord",
+      "density": 0.0432,
+      "errors": 0,
+      "warnings": 1
+    },
+    {
       "file": "docs/current/hypothesis-contract.md",
       "format": "md",
       "status": "current",
@@ -8055,6 +8095,17 @@
       "density": 0.1053,
       "errors": 0,
       "warnings": 0
+    },
+    {
+      "file": "docs/current/lineage-compile-proposal-contract.md",
+      "format": "md",
+      "status": "current",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "LineageCompileProposal",
+      "density": 0.043,
+      "errors": 0,
+      "warnings": 1
     },
     {
       "file": "docs/current/mechanism-class-contract.md",
@@ -8231,6 +8282,17 @@
       "density": 0,
       "errors": 0,
       "warnings": 6
+    },
+    {
+      "file": "docs/current/present-slice-contract.md",
+      "format": "md",
+      "status": "current",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "PresentSlice",
+      "density": 0.0779,
+      "errors": 0,
+      "warnings": 0
     },
     {
       "file": "docs/current/program-revision-proposal-contract.md",
