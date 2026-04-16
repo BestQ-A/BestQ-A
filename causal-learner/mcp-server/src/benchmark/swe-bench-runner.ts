@@ -25,6 +25,8 @@ import type { SweIssue } from '../tools/swebench.js';
 import type { Observation, Regulation } from '../core/types.js';
 import { loadSWEBenchLite } from './swe-bench-data.js';
 import type { LabeledIssue } from './swe-bench-data.js';
+import { extractFactsWithLLM, extractedToFacts } from './llm-fact-extractor.js';
+import type { Fact } from '../core/types.js';
 
 // =============================================================================
 // 数据集：按 category 分组，每类 5 个，共 6 类 30 issue
@@ -160,8 +162,18 @@ function splitTrainTest(issues: LabeledIssue[], trainRatio: number): {
   return { train, test };
 }
 
-/** 从 regulation 的 eff/pre 中查找 error_category（eff 优先） */
+/** 从 regulation 的 eff 中提取 category（repo 优先，error_category 兜底） */
 function regulationCategory(reg: Regulation): string | null {
+  // LLM 模式：bug_category
+  const bugCat = reg.eff.find(f => f.pred === 'bug_category');
+  if (bugCat) return String(bugCat.value);
+  // repo 级 category：eff 中的 repo fact → 提取 repo 短名
+  const repoEff = reg.eff.find(f => f.pred === 'repo');
+  if (repoEff) {
+    const val = String(repoEff.value);
+    return val.includes('/') ? val.split('/')[1] : val;
+  }
+  // 兜底：error_category
   const effCat = reg.eff.find(f => f.pred === 'error_category');
   if (effCat) return String(effCat.value);
   const preCat = reg.pre.find(f => f.pred === 'error_category');
@@ -171,6 +183,7 @@ function regulationCategory(reg: Regulation): string | null {
 export async function runBenchmark(options: {
   issues?: LabeledIssue[];
   trainRatio?: number;
+  useLLM?: boolean;
 } = {}): Promise<BenchmarkResult> {
   const issues = options.issues ?? DATASET;
   const trainRatio = options.trainRatio ?? 0.7;
@@ -178,28 +191,55 @@ export async function runBenchmark(options: {
 
   const storage = createStorage(':memory:');
   const pipeline = new CausalPipeline({ seedDefaults: false });
-  const { train, test } = splitTrainTest(issues, trainRatio);
+  let processedIssues = issues;
+  const useLLM = options.useLLM ?? false;
+
+  // LLM 模式：用 LLM 蒸馏的 bug_category 覆盖 expectedCategory（对齐分类体系）
+  if (useLLM) {
+    console.log('[benchmark] LLM 模式：用 LLM bug_category 作为 ground truth');
+    processedIssues = [];
+    for (const issue of issues) {
+      const extracted = await extractFactsWithLLM(issue.issueId, issue.description);
+      processedIssues.push({
+        ...issue,
+        expectedCategory: extracted.bug_category !== 'other' ? extracted.bug_category : issue.expectedCategory,
+      });
+    }
+  }
+
+  const { train, test } = splitTrainTest(processedIssues, trainRatio);
 
   // Phase 1: 训练
-  // 关键：importSweIssueTool 用 has_issue=true 作为 focusFacts，所有 issue 聚为一类
-  // 改用 error_category 作为 focusFact，让归纳按 category 分桶产生差异化 regulation
+  if (useLLM) console.log('[benchmark] LLM 蒸馏模式：使用 LLM 提取的结构化因果 facts');
+
   for (const issue of train) {
-    const obs = importSweIssueTool(storage, issue);
-    // 覆盖 focusFacts：用 error_category 替代通用 has_issue
-    // 多维 focusFacts：error_category + module label，让聚类按多维度分桶
-    const focusCandidates = obs.facts.filter(f =>
-      f.pred === 'error_category' ||
-      (f.pred === 'issue_label' && typeof f.value === 'string' && f.value.startsWith('module:'))
-    );
-    if (focusCandidates.length > 0) {
-      obs.focusFacts = focusCandidates;
+    let facts: Fact[];
+    let focusFacts: Fact[];
+
+    if (useLLM) {
+      // LLM 蒸馏：从缓存或 LLM API 获取结构化因果 facts
+      const extracted = await extractFactsWithLLM(issue.issueId, issue.description);
+      facts = extractedToFacts(extracted, issue.repo);
+      // focusFacts = bug_category（LLM 判断的分类，比 repo 更精准）
+      const catFact = facts.find(f => f.pred === 'bug_category');
+      focusFacts = catFact ? [catFact] : [{ pred: 'repo', value: issue.repo }];
+    } else {
+      // regex 模式：沿用 importSweIssueTool
+      const obs = importSweIssueTool(storage, issue);
+      facts = obs.facts;
+      const repoFact = facts.find(f => f.pred === 'repo');
+      focusFacts = repoFact ? [repoFact] : [{ pred: 'has_issue', value: true }];
     }
+
+    // 构造观测并写入 v7-v8
+    const obs: Observation = {
+      observationId: `bench_train_${issue.issueId}`,
+      timestamp: new Date().toISOString(),
+      facts,
+      focusFacts,
+      context: { repo: issue.repo },
+    };
     submitObservationTool(storage, obs);
-    pipeline.submitObservation({
-      rawInput: `[${issue.repo}] ${issue.title}`,
-      facts: obs.facts,
-      context: { custom: { repo: issue.repo, issueId: issue.issueId, expectedCategory: issue.expectedCategory } },
-    });
   }
 
   const uniqueCategoriesInTrain = new Set(train.map(i => i.expectedCategory)).size;
@@ -212,17 +252,27 @@ export async function runBenchmark(options: {
   // Phase 3: 预测
   const predictions: Prediction[] = [];
   for (const issue of test) {
-    const tmpStorage = createStorage(':memory:');
-    const obsFull = importSweIssueTool(tmpStorage, issue);
-    const testFocus = obsFull.facts.filter(f =>
-      f.pred === 'error_category' ||
-      (f.pred === 'issue_label' && typeof f.value === 'string' && f.value.startsWith('module:'))
-    );
+    let testFacts: Fact[];
+    let testFocus: Fact[];
+
+    if (useLLM) {
+      const extracted = await extractFactsWithLLM(issue.issueId, issue.description);
+      testFacts = extractedToFacts(extracted, issue.repo);
+      const catFact = testFacts.find(f => f.pred === 'bug_category');
+      testFocus = catFact ? [catFact] : [{ pred: 'repo', value: issue.repo }];
+    } else {
+      const tmpStorage = createStorage(':memory:');
+      const obsFull = importSweIssueTool(tmpStorage, issue);
+      testFacts = obsFull.facts;
+      const repoFact = testFacts.find(f => f.pred === 'repo');
+      testFocus = repoFact ? [repoFact] : [{ pred: 'has_issue', value: true }];
+    }
+
     const testObs: Observation = {
       observationId: `bench_test_${issue.issueId}`,
       timestamp: new Date().toISOString(),
-      facts: obsFull.facts,
-      focusFacts: testFocus.length > 0 ? testFocus : obsFull.focusFacts,
+      facts: testFacts,
+      focusFacts: testFocus,
       context: { repo: issue.repo },
     };
 
@@ -283,6 +333,7 @@ if (process.argv[1]?.includes('swe-bench-runner')) {
   const splitIdx = process.argv.indexOf('--split');
   const trainRatio = splitIdx >= 0 ? parseFloat(process.argv[splitIdx + 1]) : 0.7;
   const useReal = process.argv.includes('--real');
+  const useLLM = process.argv.includes('--llm');
 
   /** 加载数据集：--real 时尝试真实数据，失败则降级到内置 */
   async function resolveDataset(): Promise<{ issues: LabeledIssue[]; source: string }> {
@@ -305,7 +356,7 @@ if (process.argv[1]?.includes('swe-bench-runner')) {
   }
 
   resolveDataset().then(({ issues, source }) =>
-    runBenchmark({ issues, trainRatio }).then(r => {
+    runBenchmark({ issues, trainRatio, useLLM }).then(r => {
       console.log('\n=== SWE-bench Causal Learning Benchmark ===\n');
       console.log(`数据集：${source}`);
       console.log(`训练集：${r.trainSize}  测试集：${r.testSize}  split=${trainRatio}`);
