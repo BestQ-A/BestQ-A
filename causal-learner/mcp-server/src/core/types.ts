@@ -383,6 +383,10 @@ export interface Regulation {
   nextTests?: Record<string, unknown>[];
   tags?: string[];
   metadata?: Record<string, unknown>;
+  /** 知识层级：0=公理（基本事实），1+=定理（从更基本的知识组合派生） */
+  level?: number;
+  /** 本条知识从哪些更基本的 regulation 组合派生（引用链） */
+  derivedFrom?: string[];
 }
 
 /**
