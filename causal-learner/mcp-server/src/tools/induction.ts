@@ -490,8 +490,8 @@ export function triggerInductionTool(
   for (const cluster of eventClusters) {
     const clusterId = newClusterId();
 
-    // Directly induce regulation from this already-clustered events
-    const reg = coreInduceRegulation(cluster, coreOptions);
+    // P3: 传递 allOpenEvents 启用 discriminative pattern mining
+    const reg = coreInduceRegulation(cluster, coreOptions, openEvents);
 
     // Skip if no valid effect produced
     if (!reg || reg.eff.length === 0) continue;
