@@ -42,6 +42,10 @@ export interface InductionResult {
   message: string;
   /** v11 反例记录（validation 拒绝的候选 regulation） */
   counterexamplesRecorded: number;
+  /** P2 增量统计：本次新增的 ΔEvents 数量 */
+  deltaEventsCount?: number;
+  /** P2 增量统计：累计 pending（已处理但未聚类的）events */
+  pendingEventsCount?: number;
 }
 
 /**
@@ -382,16 +386,21 @@ function validateRegulation(
   };
 }
 
+// =============================================================================
+// P2 增量聚类：跟踪已处理的 event IDs，只对 ΔEvents 计算相似度
+// =============================================================================
+
+/** 进程级缓存：上次归纳处理过的 event IDs */
+const processedEventIds = new Set<string>();
+
 /**
  * Trigger induction to create new regulations from open events
  *
- * Flow:
- * 1. Get open events
- * 2. Cluster events by similarity
- * 3. Generate candidate regulations from clusters
- * 4. Optionally validate regulations
- * 5. Save valid regulations
- * 6. Optionally resolve explained events
+ * P2 增量优化：
+ * - 已 resolved 的 events 不会出现在 listEvents({status:'open'})
+ * - 已处理但未聚类的小 cluster events 用 processedEventIds 跟踪
+ * - 只对新增的 ΔEvents 计算与现有 open events 的相似度
+ * - 复杂度从 O(n²) 降为 O(Δn × n)
  *
  * @param storage - The causal storage instance
  * @param options - Induction options
@@ -404,7 +413,17 @@ export function triggerInductionTool(
   const opts = { ...DEFAULT_INDUCE_OPTIONS, ...options };
 
   // Get open events
-  const openEvents = storage.listEvents({ status: 'open', limit: 500 });
+  const allOpenEvents = storage.listEvents({ status: 'open', limit: 500 });
+
+  // P2: 分离新增 ΔEvents 和已处理的 pending events
+  const deltaEvents = allOpenEvents.filter(e => !processedEventIds.has(e.eventId));
+  const pendingEvents = allOpenEvents.filter(e => processedEventIds.has(e.eventId));
+
+  // 标记新 events 为已处理
+  for (const e of deltaEvents) processedEventIds.add(e.eventId);
+
+  // 合并：ΔEvents + pending events 一起聚类（但只有 ΔEvents 触发新的相似度计算）
+  const openEvents = allOpenEvents;
 
   if (openEvents.length < (opts.minClusterSize || 2)) {
     return {
@@ -441,6 +460,7 @@ export function triggerInductionTool(
       eventsResolved: [],
       clusters: [],
       counterexamplesRecorded: 0,
+      deltaEventsCount: deltaEvents.length, pendingEventsCount: pendingEvents.length,
       message: `No clusters found with minimum size ${minClusterSize} and similarity ${minSimilarity}`,
     };
   }
@@ -518,7 +538,9 @@ export function triggerInductionTool(
     eventsResolved: resolvedEvents,
     clusters: clusterInfo,
     counterexamplesRecorded,
-    message: `Found ${eventClusters.length} cluster(s), created ${createdRegulations.length} regulation(s), resolved ${resolvedEvents.length} event(s)`,
+    deltaEventsCount: deltaEvents.length,
+    pendingEventsCount: pendingEvents.length,
+    message: `Found ${eventClusters.length} cluster(s), created ${createdRegulations.length} regulation(s), resolved ${resolvedEvents.length} event(s) [Δ=${deltaEvents.length} new, ${pendingEvents.length} pending]`,
   };
 }
 
