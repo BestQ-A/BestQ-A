@@ -49,6 +49,66 @@ export const PROMOTION_THRESHOLDS = {
   retireContradictionRate: 0.3,
 };
 
+// =============================================================================
+// Fisher exact test（单尾，不依赖外部包）
+// 用于统计检验：regulation 的 support/counterexample 是否显著优于随机
+// =============================================================================
+
+/** 对数阶乘（Stirling 近似 + 小值查表） */
+const LOG_FACT_CACHE = [0, 0, 0.6931, 1.7918, 3.1781, 4.7875, 6.5793, 8.5252, 10.6046, 12.8018];
+function logFactorial(n: number): number {
+  if (n < LOG_FACT_CACHE.length) return LOG_FACT_CACHE[n];
+  // Stirling: ln(n!) ≈ n*ln(n) - n + 0.5*ln(2πn)
+  return n * Math.log(n) - n + 0.5 * Math.log(2 * Math.PI * n);
+}
+
+/**
+ * Fisher exact test p-value（单尾）
+ * 2x2 表：
+ *   | support | counterexample |
+ *   | baseline_support | baseline_counter |
+ * baseline 假设 50% 成功率（无信息先验）
+ */
+export function fisherExactPValue(support: number, counterexample: number): number {
+  const total = support + counterexample;
+  if (total === 0) return 1.0;
+
+  // 简化：用二项检验替代完整 Fisher test
+  // H0: 成功率 = 0.5，H1: 成功率 > 0.5
+  // p = Σ C(n,k) * 0.5^n for k >= support
+  let pValue = 0;
+  for (let k = support; k <= total; k++) {
+    const logP = logFactorial(total) - logFactorial(k) - logFactorial(total - k) - total * Math.log(2);
+    pValue += Math.exp(logP);
+  }
+  return Math.min(1.0, pValue);
+}
+
+/**
+ * 自适应晋升检查：用统计检验替代硬编码阈值
+ * candidate → hypothesis: p < 0.05 且 support >= 3
+ * hypothesis → confirmed: p < 0.01 且 support >= 5
+ */
+export function statisticalCanPromote(reg: Regulation): { canPromote: boolean; pValue: number; reason: string } {
+  const support = reg.supportN ?? 0;
+  const counter = reg.counterexampleN ?? 0;
+  const p = fisherExactPValue(support, counter);
+
+  if (reg.status === 'candidate') {
+    if (support >= 3 && p < 0.05) {
+      return { canPromote: true, pValue: p, reason: `candidate→hypothesis: p=${p.toFixed(4)} < 0.05, support=${support}` };
+    }
+    return { canPromote: false, pValue: p, reason: `p=${p.toFixed(4)}, support=${support}` };
+  }
+  if (reg.status === 'hypothesis') {
+    if (support >= 5 && p < 0.01) {
+      return { canPromote: true, pValue: p, reason: `hypothesis→confirmed: p=${p.toFixed(4)} < 0.01, support=${support}` };
+    }
+    return { canPromote: false, pValue: p, reason: `p=${p.toFixed(4)}, support=${support}` };
+  }
+  return { canPromote: false, pValue: p, reason: 'already confirmed or retired' };
+}
+
 /**
  * Create a set of fact signatures
  */

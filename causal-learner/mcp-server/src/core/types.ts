@@ -450,6 +450,8 @@ export interface Story {
   assumptions?: Fact[];
   score?: number;
   notes?: string;
+  /** how-provenance：推导链的每步细节 */
+  provenance?: import('./explainer.js').ProvenanceStep[];
 }
 
 /**
