@@ -93,6 +93,15 @@ import { suggestNextExperiment } from './tools/experiment-advisor.js';
 // 诊断推理工具
 import { diagnose, updateDiagnosis } from './tools/diagnostic-reasoning.js';
 
+// 知识组合引擎
+import {
+  discoverCompositions,
+  traceKnowledge,
+  renderKnowledgeTrace,
+  stratifyByTrust,
+  computeTrust,
+} from './core/knowledge-composition.js';
+
 // 自然语言解析工具
 import {
   parseNaturalLanguage,
@@ -762,6 +771,38 @@ const TOOLS: Tool[] = [
       required: ['previousFacts', 'newFacts'],
     },
   },
+  // 知识组合引擎工具
+  {
+    name: 'discover_compositions',
+    description: 'Scan all regulations and automatically discover chain/condition compositions. Returns newly derived regulations (not yet in storage). Optionally saves them.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        maxNew: { type: 'number', description: 'Max new compositions to discover (default 20)' },
+        save: { type: 'boolean', description: 'If true, save discovered regulations to storage (default false)' },
+      },
+    },
+  },
+  {
+    name: 'trace_knowledge',
+    description: 'Trace the knowledge provenance of a regulation back to its axiom sources. Returns a tree showing how high-level theorems derive from base observations.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        regulationId: { type: 'string', description: 'ID of the regulation to trace' },
+        maxDepth: { type: 'number', description: 'Maximum depth to trace (default 10)' },
+      },
+      required: ['regulationId'],
+    },
+  },
+  {
+    name: 'stratify_trust',
+    description: 'Stratify all regulations by computed trust level into axioms (trust>0.8), theorems (0.3-0.8), and hypotheses (<0.3). Shows the knowledge hierarchy.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
 ];
 
 // Generate unique observation ID
@@ -1394,6 +1435,66 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const ctx2 = args?.context as Record<string, unknown> | undefined;
         const result = updateDiagnosis(storage, prevFacts, newFacts, ctx2);
         return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+      }
+
+      // 知识组合引擎
+      case 'discover_compositions': {
+        const maxNew = (args?.maxNew as number) ?? 20;
+        const save = (args?.save as boolean) ?? false;
+        const regs = storage.listRegulations({ limit: 1000 }).filter((r: Regulation) => r.status !== 'retired');
+        const discovered = discoverCompositions(regs, maxNew);
+        if (save && discovered.length > 0) {
+          for (const reg of discovered) storage.saveRegulation(reg);
+        }
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify({
+              discovered: discovered.length,
+              saved: save ? discovered.length : 0,
+              regulations: discovered.map(r => ({
+                regulationId: r.regulationId,
+                level: r.level,
+                description: r.description,
+                derivedFrom: r.derivedFrom,
+                pre: r.pre.map(f => `${f.pred}=${JSON.stringify(f.value)}`),
+                eff: r.eff.map(f => `${f.pred}=${JSON.stringify(f.value)}`),
+              })),
+            }, null, 2),
+          }],
+        };
+      }
+
+      case 'trace_knowledge': {
+        const regId = args?.regulationId as string;
+        const maxDepth = (args?.maxDepth as number) ?? 10;
+        if (!regId) return { content: [{ type: 'text', text: JSON.stringify({ error: 'regulationId required' }) }], isError: true };
+        const lookup = (id: string) => storage.getRegulation(id) ?? null;
+        const trace = traceKnowledge(regId, lookup, maxDepth);
+        if (!trace) return { content: [{ type: 'text', text: JSON.stringify({ error: `regulation ${regId} not found` }) }], isError: true };
+        const rendered = renderKnowledgeTrace(trace);
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify({ trace, rendered }, null, 2),
+          }],
+        };
+      }
+
+      case 'stratify_trust': {
+        const regs = storage.listRegulations({ limit: 1000 }).filter((r: Regulation) => r.status !== 'retired');
+        const { axioms, theorems, hypotheses } = stratifyByTrust(regs);
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify({
+              axioms: axioms.map(r => ({ regulationId: r.regulationId, trust: computeTrust(r), description: r.description, level: r.level })),
+              theorems: theorems.map(r => ({ regulationId: r.regulationId, trust: computeTrust(r), description: r.description, level: r.level })),
+              hypotheses: hypotheses.map(r => ({ regulationId: r.regulationId, trust: computeTrust(r), description: r.description, level: r.level })),
+              summary: { axioms: axioms.length, theorems: theorems.length, hypotheses: hypotheses.length },
+            }, null, 2),
+          }],
+        };
       }
 
       // 自然语言解析 + 提交
