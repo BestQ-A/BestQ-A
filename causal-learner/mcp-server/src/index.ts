@@ -90,6 +90,9 @@ import { discoverPatterns } from './tools/pattern-discovery.js';
 // 实验建议工具
 import { suggestNextExperiment } from './tools/experiment-advisor.js';
 
+// 诊断推理工具
+import { diagnose, updateDiagnosis } from './tools/diagnostic-reasoning.js';
+
 // 自然语言解析工具
 import {
   parseNaturalLanguage,
@@ -733,6 +736,7 @@ const TOOLS: Tool[] = [
       required: ['text'],
     },
   },
+// 诊断推理工具  {    name: 'diagnose_problem',    description: 'Diagnostic reasoning: given incomplete facts about a problem, identify candidate explanations, generate targeted questions for missing info, and provide recommendations once converged.',    inputSchema: {      type: 'object',      properties: {        facts: { type: 'array', items: { type: 'object' }, description: 'Known facts about the problem' },        context: { type: 'object', description: 'Optional context (project, env, etc.)' },      },      required: ['facts'],    },  },  {    name: 'update_diagnosis',    description: 'Update a diagnosis with new facts (answers to previous questions). Re-runs diagnostic reasoning with combined old+new facts.',    inputSchema: {      type: 'object',      properties: {        previousFacts: { type: 'array', items: { type: 'object' }, description: 'Facts from previous diagnosis' },        newFacts: { type: 'array', items: { type: 'object' }, description: 'Newly provided facts (answers to questions)' },        context: { type: 'object' },      },      required: ['previousFacts', 'newFacts'],    },  },
 ];
 
 // Generate unique observation ID
@@ -1338,6 +1342,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       // 自然语言解析 + 提交
+// 诊断推理      case 'diagnose_problem': {        const facts = (args?.facts as Fact[]) || [];        const ctx = args?.context as Record<string, unknown> | undefined;        const result = diagnose(storage, facts, ctx);        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };      }      case 'update_diagnosis': {        const prevFacts = (args?.previousFacts as Fact[]) || [];        const newFacts = (args?.newFacts as Fact[]) || [];        const ctx2 = args?.context as Record<string, unknown> | undefined;        const result = updateDiagnosis(storage, prevFacts, newFacts, ctx2);        return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };      }
       case 'parse_and_submit': {
         const text = args?.text as string;
         if (!text || typeof text !== 'string') {
