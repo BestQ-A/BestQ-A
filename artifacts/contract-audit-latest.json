@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-04-15T15:34:13.325Z",
-  "files_scanned": 709,
+  "timestamp": "2026-04-16T13:30:58.092Z",
+  "files_scanned": 711,
   "errors": [],
   "warnings": [
     {
@@ -37,6 +37,13 @@
       "code": "duplicate-truth",
       "level": "warning",
       "msg": "describes 与 docs/current/transition-contract.md 相似（Jaccard=0.60）"
+    },
+    {
+      "file": "docs/current/branch-point-contract.md",
+      "line": 1,
+      "code": "missing-schema-version",
+      "level": "warning",
+      "msg": "kind: contract 建议有 `schema_version:` 字段（int）"
     },
     {
       "file": "docs/current/civilization-memory-contract.md",
@@ -149,6 +156,13 @@
       "code": "describes-too-long",
       "level": "warning",
       "msg": "describes 超过 20 字：27 字"
+    },
+    {
+      "file": "docs/current/reconstruction-store-contract.md",
+      "line": 1,
+      "code": "missing-schema-version",
+      "level": "warning",
+      "msg": "kind: contract 建议有 `schema_version:` 字段（int）"
     },
     {
       "file": "docs/current/review-decision-contract.md",
@@ -265,11 +279,11 @@
   ],
   "summary": {
     "ok": 694,
-    "warn": 15,
+    "warn": 17,
     "err": 0
   },
   "kind_distribution": {
-    "contract": 52,
+    "contract": 54,
     "instance": 641,
     "record": 2,
     "code": 12,
@@ -293,7 +307,10 @@
     "missing_implements": [],
     "bad_implements_target": [],
     "implements_wrong_kind": [],
-    "missing_schema_version": [],
+    "missing_schema_version": [
+      "docs/current/branch-point-contract.md",
+      "docs/current/reconstruction-store-contract.md"
+    ],
     "bad_mechanism_instance_ref": [],
     "bad_ontology_delta_ref": [],
     "trace_reconstruction_mismatch": [],
@@ -372,6 +389,11 @@
       "file": "docs/current/artifact-contract.md",
       "kind": "contract",
       "density": 0.069
+    },
+    {
+      "file": "docs/current/branch-point-contract.md",
+      "kind": "contract",
+      "density": 0.0292
     },
     {
       "file": "docs/current/civilization-memory-contract.md",
@@ -542,6 +564,11 @@
       "file": "docs/current/reconstruction-contract.md",
       "kind": "contract",
       "density": 0.0454
+    },
+    {
+      "file": "docs/current/reconstruction-store-contract.md",
+      "kind": "contract",
+      "density": 0.063
     },
     {
       "file": "docs/current/ref-algebra-contract.md",
@@ -7843,6 +7870,17 @@
       "warnings": 0
     },
     {
+      "file": "docs/current/branch-point-contract.md",
+      "format": "md",
+      "status": "current",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "BranchPointStore",
+      "density": 0.0292,
+      "errors": 0,
+      "warnings": 1
+    },
+    {
       "file": "docs/current/civilization-memory-contract.md",
       "format": "md",
       "status": "draft",
@@ -8215,6 +8253,17 @@
       "density": 0.0454,
       "errors": 0,
       "warnings": 0
+    },
+    {
+      "file": "docs/current/reconstruction-store-contract.md",
+      "format": "md",
+      "status": "current",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "ReconstructionStore",
+      "density": 0.063,
+      "errors": 0,
+      "warnings": 1
     },
     {
       "file": "docs/current/ref-algebra-contract.md",

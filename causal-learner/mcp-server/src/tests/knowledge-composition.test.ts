@@ -9,6 +9,7 @@ import {
   isAxiom, getLevel, canChain, chainCompose,
   canMergeConditions, mergeConditions,
   traceKnowledge, renderKnowledgeTrace, discoverCompositions,
+  computeTrust, stratifyByTrust,
 } from '../core/knowledge-composition.js';
 
 // 构造公理
@@ -148,6 +149,107 @@ describe('知识组合引擎', () => {
     console.log(`\n自动发现 ${discovered.length} 条组合知识:`);
     for (const d of discovered) {
       console.log(`  ${d.description} (level=${d.level})`);
+    }
+  });
+
+  it('computeTrust 消费 confirmedByEvents — 事件证据链提升信任度', () => {
+    const withEvents: Regulation = {
+      ...axiom1,
+      regulationId: 'test_with_events',
+      supportN: 10,
+      confirmedByEvents: ['e1', 'e2', 'e3'],
+      challengedByEvents: [],
+      status: 'confirmed',
+    };
+    const withoutEvents: Regulation = {
+      ...axiom1,
+      regulationId: 'test_without_events',
+      supportN: 3,
+      confirmedByEvents: [],
+      challengedByEvents: [],
+      status: 'confirmed',
+    };
+    const noData: Regulation = {
+      ...axiom1,
+      regulationId: 'test_no_data',
+      supportN: 0,
+      confirmedByEvents: [],
+      challengedByEvents: [],
+      status: 'confirmed',
+    };
+
+    const trustWith = computeTrust(withEvents);
+    const trustWithout = computeTrust(withoutEvents);
+    const trustNone = computeTrust(noData);
+
+    // 事件越多支撑越强，信任度越高
+    assert.ok(trustWith > trustWithout, `有事件证据(${trustWith.toFixed(3)}) 应 > 无事件证据(${trustWithout.toFixed(3)})`);
+    assert.ok(trustWithout > trustNone, `有 support(${trustWithout.toFixed(3)}) 应 > 无数据(${trustNone.toFixed(3)})`);
+    // 无数据退化为最低猜测值 0.05
+    assert.strictEqual(trustNone, 0.05);
+    // 有反例会压低信任度
+    const withChallenge: Regulation = {
+      ...withEvents,
+      regulationId: 'test_with_challenge',
+      challengedByEvents: ['c1', 'c2', 'c3', 'c4', 'c5'],
+    };
+    assert.ok(computeTrust(withChallenge) < trustWith, '有挑战事件应降低信任度');
+
+    console.log(`\ncomputeTrust 结果:`);
+    console.log(`  有事件(support=10, confirmed=3): ${trustWith.toFixed(3)}`);
+    console.log(`  无事件(support=3): ${trustWithout.toFixed(3)}`);
+    console.log(`  无数据(support=0): ${trustNone.toFixed(3)}`);
+    console.log(`  有挑战事件(confirmed=3, challenged=5): ${computeTrust(withChallenge).toFixed(3)}`);
+  });
+
+  it('stratifyByTrust 正确分层', () => {
+    // 高信任度：support 极大 + 大量 confirmedByEvents（需 total>=255 才能 >=0.8）
+    const highTrust: Regulation = {
+      ...axiom1,
+      regulationId: 'high_trust',
+      supportN: 200,
+      confirmedByEvents: Array.from({ length: 100 }, (_, i) => `e${i}`),
+      challengedByEvents: [],
+      status: 'confirmed',
+    };
+    // 中等信任度：axiom1～axiom4 的 supportN=20-50，无 confirmedByEvents → trust ∈ [0.3,0.8)
+    // 低信任度：无数据
+    const zeroTrust: Regulation = {
+      ...axiom1,
+      regulationId: 'zero_trust',
+      supportN: 0,
+      confirmedByEvents: [],
+      challengedByEvents: [],
+      status: 'confirmed',
+    };
+
+    const allRegs = [axiom1, axiom2, axiom3, axiom4, highTrust, zeroTrust];
+    const { axioms, theorems, hypotheses } = stratifyByTrust(allRegs);
+
+    // 总数守恒
+    assert.strictEqual(axioms.length + theorems.length + hypotheses.length, allRegs.length);
+
+    // zeroTrust 信任度=0.05 → hypotheses
+    assert.ok(hypotheses.some(r => r.regulationId === 'zero_trust'), 'zeroTrust 应在 hypotheses');
+
+    // highTrust 信任度应为最高层（axioms 或 theorems 均可接受，取决于样本量阈值）
+    const highTrustVal = computeTrust(highTrust);
+    assert.ok(highTrustVal >= 0.3, `highTrust 信任度 ${highTrustVal.toFixed(3)} 应 >= 0.3`);
+
+    // axiom1～4 有 supportN，信任度 > 0.05 → 不在 hypotheses
+    for (const ax of [axiom1, axiom2, axiom3, axiom4]) {
+      assert.ok(
+        !hypotheses.some(r => r.regulationId === ax.regulationId),
+        `${ax.regulationId} 有 support，不应在 hypotheses`
+      );
+    }
+
+    console.log('\nstratifyByTrust 分层结果:');
+    console.log(`  axioms (trust>=0.8): ${axioms.map(r => r.regulationId).join(', ') || '无'}`);
+    console.log(`  theorems (0.3-0.8): ${theorems.map(r => r.regulationId).join(', ') || '无'}`);
+    console.log(`  hypotheses (<0.3): ${hypotheses.map(r => r.regulationId).join(', ') || '无'}`);
+    for (const r of allRegs) {
+      console.log(`    ${r.regulationId}: trust=${computeTrust(r).toFixed(3)}`);
     }
   });
 });
