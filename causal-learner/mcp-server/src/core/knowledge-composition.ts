@@ -53,12 +53,21 @@ export function getLevel(reg: Regulation): number {
 export function computeTrust(reg: Regulation): number {
   const support = reg.supportN ?? 0;
   const counter = reg.counterexampleN ?? 0;
-  const total = support + counter;
 
-  if (total === 0) return 0.1; // 无证据时给最低信任
+  // event 证据链：真实的历史观测支撑
+  const confirmedEvents = reg.confirmedByEvents?.length ?? 0;
+  const challengedEvents = reg.challengedByEvents?.length ?? 0;
 
-  // 基础信任：support 比例
-  const successRate = support / total;
+  // 合并：统计 support + event 确认
+  const totalSupport = support + confirmedEvents;
+  const totalChallenge = counter + challengedEvents;
+  const total = totalSupport + totalChallenge;
+
+  // 无任何 event 支撑 = 猜测，不是知识
+  if (total === 0) return 0.05;
+
+  // 基础信任：成功率
+  const successRate = totalSupport / total;
 
   // 样本量加权：样本越多越可信（对数增长，避免大数垄断）
   const sampleWeight = Math.min(1.0, Math.log2(total + 1) / 10);
