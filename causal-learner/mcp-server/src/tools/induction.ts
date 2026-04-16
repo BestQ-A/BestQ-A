@@ -69,14 +69,28 @@ function newRegulationId(): string {
 }
 
 /**
- * Extract predicate signatures from facts
+ * 从 facts 中提取精确签名和宽松签名（pred-only）
+ * - exact: `pred|value` 精确匹配
+ * - loose: `pred` 只看谓词名，忽略值差异
  */
+interface PredicateSignatures {
+  exact: Set<string>;
+  loose: Set<string>;
+}
+
 function extractPredicates(facts: Fact[]): Set<string> {
   return new Set(facts.map(f => `${f.pred}|${JSON.stringify(f.value)}`));
 }
 
+function extractPredicatesWithFallback(facts: Fact[]): PredicateSignatures {
+  return {
+    exact: new Set(facts.map(f => `${f.pred}|${JSON.stringify(f.value)}`)),
+    loose: new Set(facts.map(f => f.pred)),
+  };
+}
+
 /**
- * Calculate Jaccard similarity between two fact sets
+ * 计算两个集合的 Jaccard 相似度
  */
 function jaccardSimilarity(set1: Set<string>, set2: Set<string>): number {
   const intersection = new Set([...set1].filter(x => set2.has(x)));
@@ -86,23 +100,38 @@ function jaccardSimilarity(set1: Set<string>, set2: Set<string>): number {
 }
 
 /**
- * Cluster events by similarity of their unexplained aspects
+ * 加权 Jaccard 相似度：精确匹配权重 0.7 + pred-only 宽松匹配权重 0.3
+ * 当精确匹配不足以聚类时，宽松匹配提供语义相似的兜底
  */
-function clusterEvents(
+const EXACT_WEIGHT = 0.7;
+const LOOSE_WEIGHT = 0.3;
+
+function weightedJaccardSimilarity(
+  sigs1: PredicateSignatures,
+  sigs2: PredicateSignatures
+): number {
+  const exactSim = jaccardSimilarity(sigs1.exact, sigs2.exact);
+  const looseSim = jaccardSimilarity(sigs1.loose, sigs2.loose);
+  return EXACT_WEIGHT * exactSim + LOOSE_WEIGHT * looseSim;
+}
+
+/**
+ * 单轮贪心聚类（内部辅助）
+ * @param events 待聚类事件列表
+ * @param assigned 已分配集合（会被就地修改）
+ * @param eventPredicates 精确签名缓存
+ * @param simFn 相似度计算函数
+ * @param minSimilarity 聚类阈值
+ */
+function greedyClusterPass(
   events: Event[],
-  minSimilarity: number
+  assigned: Set<string>,
+  eventPredicates: Map<string, Set<string>>,
+  simFn: (a: string, b: string) => number,
+  minSimilarity: number,
 ): EventCluster[] {
   const clusters: EventCluster[] = [];
-  const assigned = new Set<string>();
 
-  // Extract predicates for each event
-  const eventPredicates = new Map<string, Set<string>>();
-  for (const event of events) {
-    const preds = extractPredicates(event.unexplainedAspects);
-    eventPredicates.set(event.eventId, preds);
-  }
-
-  // Simple greedy clustering
   for (const event of events) {
     if (assigned.has(event.eventId)) continue;
 
@@ -113,42 +142,72 @@ function clusterEvents(
       similarity: 1.0,
     };
 
-    const eventPreds = eventPredicates.get(event.eventId)!;
-
-    // Find similar events
     for (const other of events) {
       if (other.eventId === event.eventId || assigned.has(other.eventId)) continue;
 
-      const otherPreds = eventPredicates.get(other.eventId)!;
-      const similarity = jaccardSimilarity(eventPreds, otherPreds);
-
+      const similarity = simFn(event.eventId, other.eventId);
       if (similarity >= minSimilarity) {
         cluster.eventIds.push(other.eventId);
         cluster.similarity = Math.min(cluster.similarity, similarity);
       }
     }
 
-    if (cluster.eventIds.length > 0) {
-      // Mark all events in cluster as assigned
+    if (cluster.eventIds.length > 1) {
       for (const eid of cluster.eventIds) {
         assigned.add(eid);
       }
 
-      // Find common predicates
-      if (cluster.eventIds.length > 1) {
-        let common = eventPredicates.get(cluster.eventIds[0])!;
-        for (let i = 1; i < cluster.eventIds.length; i++) {
-          const other = eventPredicates.get(cluster.eventIds[i])!;
-          common = new Set([...common].filter(x => other.has(x)));
-        }
-        cluster.commonPredicates = [...common];
+      // 计算精确匹配的公共谓词
+      let common = eventPredicates.get(cluster.eventIds[0])!;
+      for (let i = 1; i < cluster.eventIds.length; i++) {
+        const other = eventPredicates.get(cluster.eventIds[i])!;
+        common = new Set([...common].filter(x => other.has(x)));
       }
+      cluster.commonPredicates = [...common];
 
       clusters.push(cluster);
     }
   }
 
   return clusters;
+}
+
+/**
+ * 二级聚类：先精确匹配，再对剩余未聚类 events 用 pred-only 宽松匹配做二次聚类
+ *
+ * Pass 1（精确）：使用原始 `pred|value` Jaccard，保持向后兼容
+ * Pass 2（宽松）：对 Pass 1 剩余的 events，使用加权 Jaccard（精确 0.7 + pred-only 0.3）
+ *                 宽松聚类的阈值提高到 minSimilarity + 0.1，避免过度合并
+ */
+function clusterEvents(
+  events: Event[],
+  minSimilarity: number
+): EventCluster[] {
+  const assigned = new Set<string>();
+
+  // 预计算每个 event 的精确签名和宽松签名
+  const eventPredicates = new Map<string, Set<string>>();
+  const eventSigs = new Map<string, PredicateSignatures>();
+  for (const event of events) {
+    const sigs = extractPredicatesWithFallback(event.unexplainedAspects);
+    eventPredicates.set(event.eventId, sigs.exact);
+    eventSigs.set(event.eventId, sigs);
+  }
+
+  // --- Pass 1：精确 Jaccard 聚类（原始行为） ---
+  const exactSimFn = (a: string, b: string) =>
+    jaccardSimilarity(eventPredicates.get(a)!, eventPredicates.get(b)!);
+  const pass1 = greedyClusterPass(events, assigned, eventPredicates, exactSimFn, minSimilarity);
+
+  // --- Pass 2：加权 Jaccard 宽松聚类（对剩余未分配 events） ---
+  const remainingEvents = events.filter(e => !assigned.has(e.eventId));
+  const looseThreshold = Math.min(minSimilarity + 0.1, 0.9);
+  const weightedSimFn = (a: string, b: string) =>
+    weightedJaccardSimilarity(eventSigs.get(a)!, eventSigs.get(b)!);
+  const pass2 = greedyClusterPass(remainingEvents, assigned, eventPredicates, weightedSimFn, looseThreshold);
+
+  // 单 event 的不形成聚类，和原始行为一致
+  return [...pass1, ...pass2];
 }
 
 /**

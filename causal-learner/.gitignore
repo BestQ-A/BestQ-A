@@ -25,3 +25,6 @@ Thumbs.db
 # Temp files
 *.tmp
 *.temp
+
+# Benchmark 数据缓存（大文件，不提交）
+**/benchmark/data/*.json
