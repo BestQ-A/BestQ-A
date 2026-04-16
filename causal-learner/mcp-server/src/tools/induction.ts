@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createCounterexampleCommons, appendCounterexample, type CounterexampleCommons } from '../core/counterexample-commons.js';
 import type { Event, Regulation, Fact } from '../core/index.js';
 import { factSignature, dedupFacts, induceRegulation as coreInduceRegulation, clusterEvents as coreClusterEvents, validateCandidate } from '../core/index.js';
+import { refuteRegulation } from '../core/refutation.js';
 import type { CausalStorage } from '../core/index.js';
 
 /**
@@ -42,6 +43,8 @@ export interface InductionResult {
   message: string;
   /** v11 反例记录（validation 拒绝的候选 regulation） */
   counterexamplesRecorded: number;
+  /** 被反驳测试淘汰的 regulation 数量 */
+  refutedCount: number;
   /** P2 增量统计：本次新增的 ΔEvents 数量 */
   deltaEventsCount?: number;
   /** P2 增量统计：累计 pending（已处理但未聚类的）events */
@@ -432,6 +435,7 @@ export function triggerInductionTool(
       eventsResolved: [],
       clusters: [],
       counterexamplesRecorded: 0,
+      refutedCount: 0,
       message: `Not enough open events for induction (found ${openEvents.length}, need at least ${opts.minClusterSize})`,
     };
   }
@@ -460,6 +464,7 @@ export function triggerInductionTool(
       eventsResolved: [],
       clusters: [],
       counterexamplesRecorded: 0,
+      refutedCount: 0,
       deltaEventsCount: deltaEvents.length, pendingEventsCount: pendingEvents.length,
       message: `No clusters found with minimum size ${minClusterSize} and similarity ${minSimilarity}`,
     };
@@ -484,8 +489,12 @@ export function triggerInductionTool(
   // Induce regulations from each cluster
   const createdRegulations: Regulation[] = [];
   let counterexamplesRecorded = 0;
+  let refutedCount = 0;
   const resolvedEvents: string[] = [];
   const clusterInfo: EventCluster[] = [];
+
+  // 预取观测数据供反驳测试使用
+  const allObservations = storage.listObservations(500);
 
   for (const cluster of eventClusters) {
     const clusterId = newClusterId();
@@ -508,6 +517,19 @@ export function triggerInductionTool(
           counterexamplesRecorded++;
           continue;
         }
+      }
+
+      // 反驳测试：归纳后、持久化前，自动验证 regulation 的可信度
+      try {
+        if (allObservations.length >= 2) {
+          const refResult = refuteRegulation(reg, allObservations);
+          if (!refResult.passed) {
+            reg.status = 'retired';
+            refutedCount++;
+          }
+        }
+      } catch (_e) {
+        // 反驳失败不阻塞归纳流程
       }
 
       // Save regulation
@@ -538,9 +560,10 @@ export function triggerInductionTool(
     eventsResolved: resolvedEvents,
     clusters: clusterInfo,
     counterexamplesRecorded,
+    refutedCount,
     deltaEventsCount: deltaEvents.length,
     pendingEventsCount: pendingEvents.length,
-    message: `Found ${eventClusters.length} cluster(s), created ${createdRegulations.length} regulation(s), resolved ${resolvedEvents.length} event(s) [Δ=${deltaEvents.length} new, ${pendingEvents.length} pending]`,
+    message: `Found ${eventClusters.length} cluster(s), created ${createdRegulations.length} regulation(s), resolved ${resolvedEvents.length} event(s), refuted ${refutedCount} [Δ=${deltaEvents.length} new, ${pendingEvents.length} pending]`,
   };
 }
 
