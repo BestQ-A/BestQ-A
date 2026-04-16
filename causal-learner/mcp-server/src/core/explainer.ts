@@ -110,6 +110,18 @@ class EffectIndex {
   }
 }
 
+/** how-provenance：记录每步推导的精确路径 */
+export interface ProvenanceStep {
+  /** 使用的 regulation ID */
+  regulationId: string;
+  /** 本步要解释的 goal fact */
+  matchedGoal: Fact;
+  /** regulation 的哪些 pre 被已知 facts 满足 */
+  satisfiedPre: Fact[];
+  /** regulation 的哪些 pre 变成新的子目标 */
+  newSubgoals: Fact[];
+}
+
 interface SearchNode {
   goals: Fact[];
   regulationIds: string[];
@@ -117,6 +129,8 @@ interface SearchNode {
   bindings: Bindings;
   scoreLog: number;
   used: Set<string>;
+  /** how-provenance 推导链 */
+  provenance: ProvenanceStep[];
 }
 
 function chooseGoal(
@@ -157,6 +171,7 @@ export function explainObservation(
     bindings: {},
     scoreLog: 0.0,
     used: new Set(),
+    provenance: [],
   };
 
   let beam: SearchNode[] = [init];
@@ -193,11 +208,13 @@ export function explainObservation(
           expanded = true;
 
           const newGoals: Fact[] = [];
+          const satisfiedPre: Fact[] = [];
           for (const p of r.pre) {
             const p2 = substituteFact(p, b2);
             const bKnown = factEntails(known, p2, b2);
             if (bKnown !== null) {
               b2 = bKnown;
+              satisfiedPre.push(p2);
               continue;
             }
             newGoals.push(p2);
@@ -207,6 +224,14 @@ export function explainObservation(
           const rs = ruleScore(r);
           const childScore = node.scoreLog + Math.log(rs) - opts.lengthPenalty;
 
+          // how-provenance：记录本步推导
+          const step: ProvenanceStep = {
+            regulationId: r.regulationId,
+            matchedGoal: g,
+            satisfiedPre,
+            newSubgoals: newGoals,
+          };
+
           newBeam.push({
             goals: merged,
             regulationIds: [...node.regulationIds, r.regulationId],
@@ -214,6 +239,7 @@ export function explainObservation(
             bindings: b2,
             scoreLog: childScore,
             used: new Set([...node.used, r.regulationId]),
+            provenance: [...node.provenance, step],
           });
         }
       }
@@ -230,6 +256,7 @@ export function explainObservation(
           bindings: { ...node.bindings },
           scoreLog: node.scoreLog - opts.assumptionPenalty,
           used: new Set(node.used),
+          provenance: [...node.provenance],
         });
       }
     }
@@ -242,6 +269,7 @@ export function explainObservation(
     regulationIds: [...n.regulationIds],
     assumptions: [...n.assumptions],
     score: n.scoreLog / Math.max(1, n.regulationIds.length),
+    provenance: [...n.provenance],
   }));
 
   stories.sort((a, b) => (b.score || 0) - (a.score || 0));
