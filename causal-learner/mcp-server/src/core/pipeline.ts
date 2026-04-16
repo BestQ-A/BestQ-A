@@ -119,6 +119,13 @@ import type { HistoricalCompressionRecordStoreStats } from './historical-compres
 import { createHistoricalCompressionRecord } from './historical-compression-record.js';
 import { LineageCompileProposalStore } from './lineage-compile-proposal-store.js';
 import type { LineageCompileProposalStoreStats } from './lineage-compile-proposal-store.js';
+import { PrunedBranchRecordStore } from './pruned-branch-record-store.js';
+import type { PrunedBranchRecordStoreStats } from './pruned-branch-record-store.js';
+import {
+  createPrunedBranchRecord,
+  type PrunedBranchRecord,
+  type CreatePrunedBranchRecordInput,
+} from './pruned-branch-record.js';
 import {
   createLineageCompileProposal,
   approveProposal as approveLineageProposal,
@@ -205,6 +212,8 @@ export interface PipelineConfig {
   historicalCompressionRecordDbPath: string;
   /** LineageCompileProposal 持久化数据库路径 */
   lineageCompileProposalDbPath: string;
+  /** PrunedBranchRecord 持久化数据库路径（v13 G5：被剪掉的真实分支） */
+  prunedBranchRecordDbPath: string;
 }
 
 /** 提交观测的输入 */
@@ -396,6 +405,8 @@ export class CausalPipeline {
   readonly historicalCompressionRecords: HistoricalCompressionRecordStore;
   /** v13 LineageCompileProposal 谱系编译提案存储 */
   readonly lineageCompileProposals: LineageCompileProposalStore;
+  /** v13 PrunedBranchRecord 被剪掉的真实分支记录（G5） */
+  readonly prunedBranchRecords: PrunedBranchRecordStore;
 
   private rvBuilder: RegulationViewBuilder;
   private config: PipelineConfig;
@@ -434,6 +445,7 @@ export class CausalPipeline {
       presentSliceDbPath:             config.presentSliceDbPath             ?? ':memory:',
       historicalCompressionRecordDbPath: config.historicalCompressionRecordDbPath ?? ':memory:',
       lineageCompileProposalDbPath:      config.lineageCompileProposalDbPath      ?? ':memory:',
+      prunedBranchRecordDbPath:          config.prunedBranchRecordDbPath          ?? ':memory:',
     };
     this.config = resolved;
 
@@ -493,6 +505,7 @@ export class CausalPipeline {
     this.presentSlices = new PresentSliceStore(resolved.presentSliceDbPath);
     this.historicalCompressionRecords = new HistoricalCompressionRecordStore(resolved.historicalCompressionRecordDbPath);
     this.lineageCompileProposals = new LineageCompileProposalStore(resolved.lineageCompileProposalDbPath);
+    this.prunedBranchRecords = new PrunedBranchRecordStore(resolved.prunedBranchRecordDbPath);
 
     if (resolved.seedDefaults) {
       this.problemClasses.seedDefaults();
@@ -1548,6 +1561,30 @@ export class CausalPipeline {
   }
 
   // ===========================================================================
+  // v13 G5: 记录被剪掉的真实分支
+  // ===========================================================================
+
+  /**
+   * 记录一条被剪掉的真实分支（PrunedBranchRecord）
+   *
+   * v13 G5：失败不是目的，而是被剪掉的可能性空间。
+   * 每当一条分支因 failure / institution / design / physics 被 possibility space
+   * 剪掉，调用方应显式登记一条 PBR，保留"它曾经真实存在"的审计痕迹。
+   *
+   * 最小上游依赖：必须绑定到剪枝发生时的 PresentSlice ID，保证 lineage 可追溯。
+   *
+   * @param input 分支描述 + 剪枝理由 + PresentSliceRef 等（见 CreatePrunedBranchRecordInput）
+   * @returns 已持久化的 PrunedBranchRecord
+   */
+  recordPrunedBranch(
+    input: CreatePrunedBranchRecordInput,
+  ): { prunedBranchRecord: PrunedBranchRecord } {
+    const record = createPrunedBranchRecord(input);
+    this.prunedBranchRecords.save(record);
+    return { prunedBranchRecord: record };
+  }
+
+  // ===========================================================================
   // close
   // ===========================================================================
 
@@ -1585,6 +1622,7 @@ export class CausalPipeline {
     this.presentSlices.close();
     this.historicalCompressionRecords.close();
     this.lineageCompileProposals.close();
+    this.prunedBranchRecords.close();
     // rvBuilder 不拥有独立 DB 连接，无需单独关闭
   }
 

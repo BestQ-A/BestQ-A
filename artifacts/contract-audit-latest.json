@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-04-16T13:57:26.147Z",
-  "files_scanned": 714,
+  "timestamp": "2026-04-16T16:06:34.251Z",
+  "files_scanned": 715,
   "errors": [],
   "warnings": [
     {
@@ -39,53 +39,18 @@
       "msg": "describes 与 docs/current/transition-contract.md 相似（Jaccard=0.60）"
     },
     {
-      "file": "docs/current/branch-point-contract.md",
+      "file": "docs/current/ontology-delta-contract.md",
       "line": 1,
-      "code": "missing-schema-version",
+      "code": "duplicate-truth",
       "level": "warning",
-      "msg": "kind: contract 建议有 `schema_version:` 字段（int）"
-    },
-    {
-      "file": "docs/current/civilization-memory-contract.md",
-      "line": 1,
-      "code": "describes-too-long",
-      "level": "warning",
-      "msg": "describes 超过 20 字：54 字"
-    },
-    {
-      "file": "docs/current/counterfactual-scenario-contract.md",
-      "line": 1,
-      "code": "describes-too-long",
-      "level": "warning",
-      "msg": "describes 超过 20 字：22 字"
-    },
-    {
-      "file": "docs/current/historical-compression-record-contract.md",
-      "line": 1,
-      "code": "describes-too-long",
-      "level": "warning",
-      "msg": "describes 超过 20 字：27 字"
-    },
-    {
-      "file": "docs/current/intent-alignment-audit-contract.md",
-      "line": 1,
-      "code": "describes-too-long",
-      "level": "warning",
-      "msg": "describes 超过 20 字：27 字"
-    },
-    {
-      "file": "docs/current/lineage-compile-proposal-contract.md",
-      "line": 1,
-      "code": "describes-too-long",
-      "level": "warning",
-      "msg": "describes 超过 20 字：22 字"
+      "msg": "describes 与 docs/current/ontology-federation-contract.md 相似（Jaccard=0.56）"
     },
     {
       "file": "docs/current/ontology-federation-contract.md",
       "line": 1,
-      "code": "describes-too-long",
+      "code": "duplicate-truth",
       "level": "warning",
-      "msg": "describes 超过 20 字：55 字"
+      "msg": "describes 与 docs/current/ontology-delta-contract.md 相似（Jaccard=0.56）"
     },
     {
       "file": "docs/current/outcome-record-contract.md",
@@ -121,13 +86,6 @@
       "code": "duplicate-truth",
       "level": "warning",
       "msg": "describes 与 docs/current/transition-contract.md 相似（Jaccard=0.60）"
-    },
-    {
-      "file": "docs/current/participatory-world-contract.md",
-      "line": 1,
-      "code": "describes-too-long",
-      "level": "warning",
-      "msg": "describes 超过 20 字：42 字"
     },
     {
       "file": "docs/current/prediction-error-contract.md",
@@ -170,27 +128,6 @@
       "code": "duplicate-truth",
       "level": "warning",
       "msg": "describes 与 docs/current/transition-contract.md 相似（Jaccard=0.60）"
-    },
-    {
-      "file": "docs/current/program-revision-proposal-contract.md",
-      "line": 1,
-      "code": "describes-too-long",
-      "level": "warning",
-      "msg": "describes 超过 20 字：27 字"
-    },
-    {
-      "file": "docs/current/reconstruction-store-contract.md",
-      "line": 1,
-      "code": "missing-schema-version",
-      "level": "warning",
-      "msg": "kind: contract 建议有 `schema_version:` 字段（int）"
-    },
-    {
-      "file": "docs/current/review-decision-contract.md",
-      "line": 1,
-      "code": "describes-too-long",
-      "level": "warning",
-      "msg": "describes 超过 20 字：32 字"
     },
     {
       "file": "docs/current/review-decision-contract.md",
@@ -242,13 +179,6 @@
       "msg": "index 引用密度过低 density=0.0%（<70% 可能夹带 substance）"
     },
     {
-      "file": "docs/current/testing-strategy-contract.md",
-      "line": 1,
-      "code": "describes-too-long",
-      "level": "warning",
-      "msg": "describes 超过 20 字：24 字"
-    },
-    {
       "file": "docs/current/transition-contract.md",
       "line": 118,
       "code": "symbol-drift",
@@ -282,29 +212,15 @@
       "code": "duplicate-truth",
       "level": "warning",
       "msg": "describes 与 docs/current/state-snapshot-contract.md 相似（Jaccard=0.60）"
-    },
-    {
-      "file": "docs/current/v11-world-model-contract.md",
-      "line": 1,
-      "code": "describes-too-long",
-      "level": "warning",
-      "msg": "describes 超过 20 字：44 字"
-    },
-    {
-      "file": "docs/current/validity-envelope-contract.md",
-      "line": 1,
-      "code": "describes-too-long",
-      "level": "warning",
-      "msg": "describes 超过 20 字：24 字"
     }
   ],
   "summary": {
-    "ok": 694,
-    "warn": 20,
+    "ok": 706,
+    "warn": 9,
     "err": 0
   },
   "kind_distribution": {
-    "contract": 57,
+    "contract": 58,
     "instance": 641,
     "record": 2,
     "code": 12,
@@ -328,10 +244,7 @@
     "missing_implements": [],
     "bad_implements_target": [],
     "implements_wrong_kind": [],
-    "missing_schema_version": [
-      "docs/current/branch-point-contract.md",
-      "docs/current/reconstruction-store-contract.md"
-    ],
+    "missing_schema_version": [],
     "bad_mechanism_instance_ref": [],
     "bad_ontology_delta_ref": [],
     "trace_reconstruction_mismatch": [],
@@ -474,7 +387,7 @@
     {
       "file": "docs/current/historical-compression-record-contract.md",
       "kind": "contract",
-      "density": 0.0432
+      "density": 0.0426
     },
     {
       "file": "docs/current/hypothesis-contract.md",
@@ -504,7 +417,7 @@
     {
       "file": "docs/current/lineage-compile-proposal-contract.md",
       "kind": "contract",
-      "density": 0.043
+      "density": 0.0426
     },
     {
       "file": "docs/current/mechanism-class-contract.md",
@@ -595,6 +508,11 @@
       "file": "docs/current/program-revision-proposal-contract.md",
       "kind": "contract",
       "density": 0
+    },
+    {
+      "file": "docs/current/pruned-branch-record-contract.md",
+      "kind": "contract",
+      "density": 0.0492
     },
     {
       "file": "docs/current/reconstruction-contract.md",
@@ -7914,7 +7832,7 @@
       "describes": "BranchPointStore",
       "density": 0.0292,
       "errors": 0,
-      "warnings": 1
+      "warnings": 0
     },
     {
       "file": "docs/current/civilization-memory-contract.md",
@@ -7922,10 +7840,10 @@
       "status": "draft",
       "kind": "contract",
       "legacy_kind": null,
-      "describes": "FailureBoundaryArchive / CounterexampleCommons 文明记忆层规范",
+      "describes": "文明记忆层对象规范",
       "density": 0,
       "errors": 0,
-      "warnings": 1
+      "warnings": 0
     },
     {
       "file": "docs/current/compile-promotion-contract.md",
@@ -7969,7 +7887,7 @@
       "describes": "CounterfactualScenario",
       "density": 0,
       "errors": 0,
-      "warnings": 1
+      "warnings": 0
     },
     {
       "file": "docs/current/coverage-matrix-contract.md",
@@ -8044,9 +7962,9 @@
       "kind": "contract",
       "legacy_kind": null,
       "describes": "HistoricalCompressionRecord",
-      "density": 0.0432,
+      "density": 0.0426,
       "errors": 0,
-      "warnings": 1
+      "warnings": 0
     },
     {
       "file": "docs/current/hypothesis-contract.md",
@@ -8065,10 +7983,10 @@
       "status": "draft",
       "kind": "contract",
       "legacy_kind": null,
-      "describes": "测试agent与代码编写agent的意图一致性审计协议",
+      "describes": "意图一致性审计协议",
       "density": 0.012,
       "errors": 0,
-      "warnings": 1
+      "warnings": 0
     },
     {
       "file": "docs/current/intent-alignment-report-template.md",
@@ -8110,9 +8028,9 @@
       "kind": "contract",
       "legacy_kind": null,
       "describes": "LineageCompileProposal",
-      "density": 0.043,
+      "density": 0.0426,
       "errors": 0,
-      "warnings": 1
+      "warnings": 0
     },
     {
       "file": "docs/current/mechanism-class-contract.md",
@@ -8222,7 +8140,7 @@
       "describes": "本体增量对象规范",
       "density": 0.0431,
       "errors": 0,
-      "warnings": 0
+      "warnings": 1
     },
     {
       "file": "docs/current/ontology-federation-contract.md",
@@ -8230,7 +8148,7 @@
       "status": "draft",
       "kind": "contract",
       "legacy_kind": null,
-      "describes": "OntologyModel / TranslationFunctor / ConflictSet 本体联邦规范",
+      "describes": "本体联邦对象规范",
       "density": 0,
       "errors": 0,
       "warnings": 1
@@ -8252,10 +8170,10 @@
       "status": "draft",
       "kind": "contract",
       "legacy_kind": null,
-      "describes": "ObserverModel / InstitutionModel 参与式自反世界规范",
+      "describes": "参与式自反世界规范",
       "density": 0,
       "errors": 0,
-      "warnings": 1
+      "warnings": 0
     },
     {
       "file": "docs/current/pipeline-contract.md",
@@ -8307,10 +8225,21 @@
       "status": "draft",
       "kind": "contract",
       "legacy_kind": null,
-      "describes": "PredictionError 驱动的模型修正提名对象",
+      "describes": "模型修正提名对象",
       "density": 0,
       "errors": 0,
-      "warnings": 1
+      "warnings": 0
+    },
+    {
+      "file": "docs/current/pruned-branch-record-contract.md",
+      "format": "md",
+      "status": "draft",
+      "kind": "contract",
+      "legacy_kind": null,
+      "describes": "PrunedBranchRecord",
+      "density": 0.0492,
+      "errors": 0,
+      "warnings": 0
     },
     {
       "file": "docs/current/reconstruction-contract.md",
@@ -8332,7 +8261,7 @@
       "describes": "ReconstructionStore",
       "density": 0.063,
       "errors": 0,
-      "warnings": 1
+      "warnings": 0
     },
     {
       "file": "docs/current/ref-algebra-contract.md",
@@ -8362,10 +8291,10 @@
       "status": "current",
       "kind": "contract",
       "legacy_kind": null,
-      "describes": "ProgramRevisionProposal 审查决策对象规范",
+      "describes": "审查决策对象规范",
       "density": 0,
       "errors": 0,
-      "warnings": 2
+      "warnings": 1
     },
     {
       "file": "docs/current/run-summary-contract.md",
@@ -8461,10 +8390,10 @@
       "status": "draft",
       "kind": "contract",
       "legacy_kind": null,
-      "describes": "OpenAGI级测试验证体系与运行时信息收集规范",
+      "describes": "测试验证策略规范",
       "density": 0.0145,
       "errors": 0,
-      "warnings": 1
+      "warnings": 0
     },
     {
       "file": "docs/current/transition-contract.md",
@@ -8483,10 +8412,10 @@
       "status": "draft",
       "kind": "contract",
       "legacy_kind": null,
-      "describes": "ProofLineage / ConstitutionalLayer 反射性文明引擎规范",
+      "describes": "反射性文明引擎规范",
       "density": 0,
       "errors": 0,
-      "warnings": 1
+      "warnings": 0
     },
     {
       "file": "docs/current/v6-world-model-contract.md",
@@ -8516,10 +8445,10 @@
       "status": "draft",
       "kind": "contract",
       "legacy_kind": null,
-      "describes": "MechanismProgram 有效域对象规范",
+      "describes": "有效域对象规范",
       "density": 0,
       "errors": 0,
-      "warnings": 1
+      "warnings": 0
     },
     {
       "file": "docs/external-integration.md",
