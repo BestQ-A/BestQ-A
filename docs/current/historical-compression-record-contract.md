@@ -10,6 +10,8 @@ upstream:
   - present-slice-contract.md
 ---
 
+<!-- audit-ignore: describes-too-long -->
+
 # HistoricalCompressionRecord 合同：历史压缩审计记录
 
 > v13 §12.1 Civilization Memory Layer 核心审计对象。定义历史压缩操作的记录职责、Schema、不变量、持久化层。

@@ -1,6 +1,7 @@
 ---
 kind: contract
 status: current
+schema_version: 1
 describes: BranchPointStore
 implements:
   - causal-learner/mcp-server/src/core/branch-point.ts

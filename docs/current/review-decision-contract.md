@@ -3,7 +3,7 @@ kind: contract
 status: current
 phase: 4
 schema_version: 1
-describes: "ProgramRevisionProposal 审查决策对象规范"
+describes: "审查决策对象规范"
 upstream:
   - program-revision-proposal-contract.md
   - ontology-delta-contract.md

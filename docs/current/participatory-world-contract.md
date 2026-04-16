@@ -3,7 +3,7 @@ kind: contract
 status: draft
 phase: 9
 schema_version: 1
-describes: "ObserverModel / InstitutionModel 参与式自反世界规范"
+describes: "参与式自反世界规范"
 upstream:
   - ontology-federation-contract.md
   - mechanism-program-contract.md

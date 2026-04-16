@@ -3,7 +3,7 @@ kind: contract
 status: draft
 phase: 1
 schema_version: 1
-describes: "OpenAGI级测试验证体系与运行时信息收集规范"
+describes: "测试验证策略规范"
 ---
 
 # 测试验证策略合同：为80亿人类服务的OpenAGI项目的质量保证体系
