@@ -340,6 +340,8 @@ function generateRegulationsFromCluster(
         eventIds: cluster.eventIds,
         created: new Date().toISOString(),
       },
+      // event 证据链：归纳来源的 events 即初始确认证据
+      confirmedByEvents: [...cluster.eventIds],
       tags: ['induced'],
     };
 

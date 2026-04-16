@@ -293,6 +293,8 @@ export function induceRegulation(
       inducedAt: nowIso(),
       inducedMethod: 'cluster_intersection+missing_pre+common_context',
     },
+    // event 证据链：归纳来源的 events 即初始确认证据
+    confirmedByEvents: cluster.map((e) => e.eventId),
     nextTests: [],
     tags: ['induced'],
   };

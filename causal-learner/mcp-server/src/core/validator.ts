@@ -258,7 +258,8 @@ function effectsPresent(reg: Regulation, obs: Observation): boolean {
 export function validateWithObservation(
   reg: Regulation,
   obs: Observation,
-  actualOutcome: boolean
+  actualOutcome: boolean,
+  eventId?: string
 ): void {
   // Check if preconditions are satisfied
   const preSatisfied = preSatisfiedInObservation(reg, obs);
@@ -275,10 +276,18 @@ export function validateWithObservation(
     // Supporting evidence
     reg.supportN = (reg.supportN || 0) + 1;
     reg.explainedCount = (reg.explainedCount || 0) + 1;
+    // event 证据链：追加确认 event
+    if (eventId) {
+      reg.confirmedByEvents = [...(reg.confirmedByEvents ?? []), eventId];
+    }
   } else {
     // Contradicting evidence
     reg.counterexampleN = (reg.counterexampleN || 0) + 1;
     reg.failedPredictions = (reg.failedPredictions || 0) + 1;
+    // event 证据链：追加挑战 event
+    if (eventId) {
+      reg.challengedByEvents = [...(reg.challengedByEvents ?? []), eventId];
+    }
   }
 
   // Update last used timestamp
