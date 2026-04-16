@@ -227,8 +227,13 @@ export async function runBenchmark(options: {
       // regex 模式：沿用 importSweIssueTool
       const obs = importSweIssueTool(storage, issue);
       facts = obs.facts;
+      // 优先用 error_category 作为 focusFact（归纳引擎据此学 eff=error_category）
+      // error_category 由 errorLog 正则派生，不是人工标注，无泄漏
+      const errorCatFact = facts.find(f => f.pred === 'error_category');
       const repoFact = facts.find(f => f.pred === 'repo');
-      focusFacts = repoFact ? [repoFact] : [{ pred: 'has_issue', value: true }];
+      focusFacts = errorCatFact ? [errorCatFact]
+                 : repoFact     ? [repoFact]
+                 : [{ pred: 'has_issue', value: true }];
     }
 
     // 构造观测并写入 v7-v8
@@ -264,8 +269,11 @@ export async function runBenchmark(options: {
       const tmpStorage = createStorage(':memory:');
       const obsFull = importSweIssueTool(tmpStorage, issue);
       testFacts = obsFull.facts;
+      const errorCatFact = testFacts.find(f => f.pred === 'error_category');
       const repoFact = testFacts.find(f => f.pred === 'repo');
-      testFocus = repoFact ? [repoFact] : [{ pred: 'has_issue', value: true }];
+      testFocus = errorCatFact ? [errorCatFact]
+                : repoFact     ? [repoFact]
+                : [{ pred: 'has_issue', value: true }];
     }
 
     const testObs: Observation = {

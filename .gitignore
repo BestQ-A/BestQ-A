@@ -66,3 +66,4 @@ claudecode-swebench-mcp/
 
 # --- 外部参考仓库（不纳入版本控制，来源与接入点见 docs/external-integration.md） ---
 external/
+.env
