@@ -45,7 +45,10 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
+    "@types/diff": "^7.0.2",
     "better-sqlite3": "^11.7.0",
+    "diff": "^9.0.0",
+    "openai": "^6.34.0",
     "uuid": "^9.0.0",
     "zod": "^3.22.0"
   },
