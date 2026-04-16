@@ -26,6 +26,13 @@ export interface Fact {
   pred: string;
   value: unknown;
   args?: Record<string, unknown>;
+  // bitemporal 时间维度（借鉴 Graphiti）
+  /** 事实在真实世界中生效的时间（ISO timestamp） */
+  validFrom?: string;
+  /** 事实在真实世界中失效的时间（ISO timestamp，undefined = 当前有效） */
+  validTo?: string;
+  /** 事实被录入系统的时间（ISO timestamp） */
+  recordedAt?: string;
 }
 
 /**
@@ -50,6 +57,10 @@ export function factToDict(f: Fact): Json {
   if (f.args && Object.keys(f.args).length > 0) {
     d.args = { ...f.args };
   }
+  // bitemporal 字段序列化
+  if (f.validFrom) d.valid_from = f.validFrom;
+  if (f.validTo) d.valid_to = f.validTo;
+  if (f.recordedAt) d.recorded_at = f.recordedAt;
   return d;
 }
 
@@ -57,11 +68,16 @@ export function factToDict(f: Fact): Json {
  * Create a Fact from a dict
  */
 export function factFromDict(d: Json): Fact {
-  return {
+  const f: Fact = {
     pred: d.pred as string,
     value: d.value,
     args: { ...((d.args as Record<string, unknown>) || {}) },
   };
+  // bitemporal 字段反序列化
+  if (d.valid_from) f.validFrom = d.valid_from as string;
+  if (d.valid_to) f.validTo = d.valid_to as string;
+  if (d.recorded_at) f.recordedAt = d.recorded_at as string;
+  return f;
 }
 
 // =============================================================================
