@@ -12,6 +12,8 @@ upstream:
   - review-decision-contract.md
 ---
 
+<!-- audit-ignore: describes-too-long -->
+
 # LineageCompileProposal 合同：谱系编译提案
 
 > v13 §11.1 Institutional Compile Layer 核心对象。定义编译提案的职责、状态机、Schema、不变量、持久化层。

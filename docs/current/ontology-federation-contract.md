@@ -3,7 +3,7 @@ kind: contract
 status: draft
 phase: 7
 schema_version: 1
-describes: "OntologyModel / TranslationFunctor / ConflictSet 本体联邦规范"
+describes: "本体联邦对象规范"
 upstream:
   - v7-world-model-contract.md
   - mechanism-program-contract.md

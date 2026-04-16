@@ -3,7 +3,7 @@ kind: contract
 status: draft
 phase: 4
 schema_version: 1
-describes: "MechanismProgram 有效域对象规范"
+describes: "有效域对象规范"
 upstream:
   - mechanism-program-contract.md
   - prediction-error-contract.md

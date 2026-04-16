@@ -3,7 +3,7 @@ kind: contract
 status: draft
 phase: 10
 schema_version: 1
-describes: "FailureBoundaryArchive / CounterexampleCommons 文明记忆层规范"
+describes: "文明记忆层对象规范"
 upstream:
   - participatory-world-contract.md
   - ontology-federation-contract.md

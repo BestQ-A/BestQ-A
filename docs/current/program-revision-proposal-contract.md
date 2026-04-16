@@ -3,7 +3,7 @@ kind: contract
 status: draft
 phase: 4
 schema_version: 1
-describes: "PredictionError 驱动的模型修正提名对象"
+describes: "模型修正提名对象"
 upstream:
   - prediction-error-contract.md
   - mechanism-program-contract.md

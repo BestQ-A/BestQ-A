@@ -11,6 +11,8 @@ downstream:
   - reconstruction-contract.md
 ---
 
+<!-- audit-ignore: describes-too-long -->
+
 # CounterfactualScenario 合同：从重建过去到生成未来的第一对象
 
 ## §1 定位

@@ -3,7 +3,7 @@ kind: contract
 status: draft
 phase: 1
 schema_version: 1
-describes: "测试agent与代码编写agent的意图一致性审计协议"
+describes: "意图一致性审计协议"
 ---
 
 # 意图一致性审计合同：测试工程师作为编写者的对话者
