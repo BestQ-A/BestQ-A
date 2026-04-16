@@ -115,12 +115,59 @@ function parseTestList(jsonStr: string): string[] {
 // 核心转换
 // =============================================================================
 
-/** 将 SWE-bench 原始实例转为 LabeledIssue */
+/**
+ * 从 FAIL_TO_PASS test 路径提取模块名（最有区分力的特征）
+ * 例如 "astropy/modeling/tests/test_separable.py::test_separable" → "modeling"
+ */
+function extractModuleFromTests(tests: string[]): string | undefined {
+  if (tests.length === 0) return undefined;
+  const first = tests[0];
+  // 匹配 repo/module/tests/ 或 repo/module/子模块/tests/ 模式
+  const match = first.match(/^[\w-]+\/([\w-]+)\//);
+  if (match) return match[1];
+  // 匹配 tests/module/ 模式
+  const match2 = first.match(/^tests?\/([\w-]+)\//);
+  if (match2) return match2[1];
+  return undefined;
+}
+
+/**
+ * 从 problem_statement 提取关键动词/名词作为语义标签
+ * 用高频 SWE-bench 关键词匹配
+ */
+function extractSemanticTags(text: string): string[] {
+  const lower = text.toLowerCase();
+  const tags: string[] = [];
+  const patterns: [string, RegExp][] = [
+    ['regression', /regress/],
+    ['crash', /crash|segfault|core dump/],
+    ['hang', /hang|infinite loop|deadlock/],
+    ['wrong_result', /wrong|incorrect|unexpected result/],
+    ['missing_feature', /missing|not supported|not implemented/],
+    ['deprecation', /deprecat/],
+    ['performance', /slow|performance|timeout/],
+    ['compatibility', /compat|backward|breaking change/],
+    ['documentation', /doc|docstring|help text/],
+  ];
+  for (const [tag, re] of patterns) {
+    if (re.test(lower)) tags.push(tag);
+  }
+  return tags;
+}
+
+/** 将 SWE-bench 原始实例转为 LabeledIssue（增强特征提取） */
 export function convertToLabeledIssues(instances: SWEBenchInstance[]): LabeledIssue[] {
   return instances.map((inst): LabeledIssue => {
     const failingTests = parseTestList(inst.FAIL_TO_PASS);
     const category = deriveCategory(inst.repo, inst.problem_statement);
     const errorLog = extractErrorSnippet(inst.problem_statement);
+    const module = extractModuleFromTests(failingTests);
+    const semanticTags = extractSemanticTags(inst.problem_statement);
+
+    // 构造更丰富的 labels：swe-bench + category + module + semantic tags
+    const labels = ['swe-bench', category];
+    if (module) labels.push(`module:${module}`);
+    for (const tag of semanticTags) labels.push(`semantic:${tag}`);
 
     return {
       issueId: inst.instance_id,
@@ -129,7 +176,7 @@ export function convertToLabeledIssues(instances: SWEBenchInstance[]): LabeledIs
       description: inst.problem_statement.substring(0, 2000),
       errorLog,
       failingTests: failingTests.length > 0 ? failingTests : undefined,
-      labels: ['swe-bench', category],
+      labels,
       expectedCategory: category,
     };
   });
