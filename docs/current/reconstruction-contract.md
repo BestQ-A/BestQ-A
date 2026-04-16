@@ -1,6 +1,7 @@
 ---
 kind: contract
-status: draft
+status: current
+verified: 2026-04-17
 phase: 2
 schema_version: 3
 describes: "过程重建对象规范"

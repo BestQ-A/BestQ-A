@@ -1,6 +1,7 @@
 ---
 kind: contract
-status: draft
+status: current
+verified: 2026-04-17
 phase: 10
 schema_version: 1
 describes: "文明记忆层对象规范"
@@ -13,7 +14,7 @@ downstream:
 
 # CivilizationMemory Contract — v11
 
-**状态**: draft  
+**状态**: current  
 **版本**: v11.0  
 **依赖**: v10 participatory-world-contract, v9 ontology-federation-contract
 
