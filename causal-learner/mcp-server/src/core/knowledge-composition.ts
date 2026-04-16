@@ -27,14 +27,75 @@ import crypto from 'crypto';
 // 知识层级
 // =============================================================================
 
-/** 判断 regulation 是否为公理（level=0 或无 derivedFrom） */
+/**
+ * 判断 regulation 是否为"当前公理"（暂时最基本的知识）
+ * 公理 = 无 derivedFrom + 高信任度（support 多、无反例、存活时间长）
+ * 注意：公理是暂时的，新证据可以推翻
+ */
 export function isAxiom(reg: Regulation): boolean {
   return (reg.level ?? 0) === 0 && (!reg.derivedFrom || reg.derivedFrom.length === 0);
 }
 
-/** 获取 regulation 的层级（未设置默认为 0） */
+/** 获取 regulation 的组合层级（未设置默认为 0） */
 export function getLevel(reg: Regulation): number {
   return reg.level ?? 0;
+}
+
+/**
+ * 计算知识的"历史信任度"——公理不是永恒的，是历史积累的信任
+ *
+ * 信任度 = f(support, counterexamples, age, refutation_survival)
+ * 范围 [0, 1]，越高越接近"公理"状态
+ *
+ * 新发现的规律信任度低（~0.1），经过大量验证无反例的趋近 1.0
+ * 但永远不会等于 1.0——因为未来可能被推翻
+ */
+export function computeTrust(reg: Regulation): number {
+  const support = reg.supportN ?? 0;
+  const counter = reg.counterexampleN ?? 0;
+  const total = support + counter;
+
+  if (total === 0) return 0.1; // 无证据时给最低信任
+
+  // 基础信任：support 比例
+  const successRate = support / total;
+
+  // 样本量加权：样本越多越可信（对数增长，避免大数垄断）
+  const sampleWeight = Math.min(1.0, Math.log2(total + 1) / 10);
+
+  // 状态加权：confirmed > hypothesis > candidate
+  const statusWeight = reg.status === 'confirmed' ? 1.0
+    : reg.status === 'hypothesis' ? 0.7
+    : reg.status === 'candidate' ? 0.4
+    : 0.1; // retired
+
+  // 组合层级惩罚：派生知识的信任度受限于其来源
+  const levelPenalty = 1.0 / (1 + (reg.level ?? 0) * 0.1);
+
+  return Math.min(0.99, successRate * sampleWeight * statusWeight * levelPenalty);
+}
+
+/**
+ * 按信任度对 regulations 分层
+ * 返回：{ axioms（信任>0.8）, theorems（0.3-0.8）, hypotheses（<0.3）}
+ */
+export function stratifyByTrust(regulations: Regulation[]): {
+  axioms: Regulation[];
+  theorems: Regulation[];
+  hypotheses: Regulation[];
+} {
+  const axioms: Regulation[] = [];
+  const theorems: Regulation[] = [];
+  const hypotheses: Regulation[] = [];
+
+  for (const reg of regulations) {
+    const trust = computeTrust(reg);
+    if (trust >= 0.8) axioms.push(reg);
+    else if (trust >= 0.3) theorems.push(reg);
+    else hypotheses.push(reg);
+  }
+
+  return { axioms, theorems, hypotheses };
 }
 
 // =============================================================================
