@@ -186,9 +186,13 @@ export async function runBenchmark(options: {
   for (const issue of train) {
     const obs = importSweIssueTool(storage, issue);
     // 覆盖 focusFacts：用 error_category 替代通用 has_issue
-    const catFact = obs.facts.find(f => f.pred === 'error_category');
-    if (catFact) {
-      obs.focusFacts = [catFact];
+    // 多维 focusFacts：error_category + module label，让聚类按多维度分桶
+    const focusCandidates = obs.facts.filter(f =>
+      f.pred === 'error_category' ||
+      (f.pred === 'issue_label' && typeof f.value === 'string' && f.value.startsWith('module:'))
+    );
+    if (focusCandidates.length > 0) {
+      obs.focusFacts = focusCandidates;
     }
     submitObservationTool(storage, obs);
     pipeline.submitObservation({
@@ -210,12 +214,15 @@ export async function runBenchmark(options: {
   for (const issue of test) {
     const tmpStorage = createStorage(':memory:');
     const obsFull = importSweIssueTool(tmpStorage, issue);
-    const catFact = obsFull.facts.find(f => f.pred === 'error_category');
+    const testFocus = obsFull.facts.filter(f =>
+      f.pred === 'error_category' ||
+      (f.pred === 'issue_label' && typeof f.value === 'string' && f.value.startsWith('module:'))
+    );
     const testObs: Observation = {
       observationId: `bench_test_${issue.issueId}`,
       timestamp: new Date().toISOString(),
       facts: obsFull.facts,
-      focusFacts: catFact ? [catFact] : obsFull.focusFacts,
+      focusFacts: testFocus.length > 0 ? testFocus : obsFull.focusFacts,
       context: { repo: issue.repo },
     };
 
