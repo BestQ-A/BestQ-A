@@ -1,6 +1,7 @@
 ---
 kind: contract
 status: current
+describes: BranchPointStore
 implements:
   - causal-learner/mcp-server/src/core/branch-point.ts
   - causal-learner/mcp-server/src/core/branch-point-store.ts

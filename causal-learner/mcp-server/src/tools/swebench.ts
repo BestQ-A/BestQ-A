@@ -356,17 +356,22 @@ export function suggestCausesTool(
   const obsPreds = new Set(obs.facts.map(f => f.pred));
 
   for (const reg of regulations) {
-    // eff 匹配：已知 facts 中有多少匹配 regulation 的 eff
+    // eff 匹配：已知 facts 中有多少匹配 regulation 的 eff（反向推理：观测现象 → 匹配规律的结果集）
     let effOverlap = 0;
-    for (const eff of reg.eff) {
-      if (obsSigs.has(`${eff.pred}|${JSON.stringify(eff.value)}`)) effOverlap++;
-      else if (obsPreds.has(eff.pred)) effOverlap += 0.5; // pred 相同值不同：半分
-    }
-
-    // pre 匹配：已知 facts 中有多少匹配 regulation 的 pre
-    let preOverlap = 0;
     const matchedPreds: string[] = [];
     const missingPreds: string[] = [];
+    for (const eff of reg.eff) {
+      if (obsSigs.has(`${eff.pred}|${JSON.stringify(eff.value)}`)) {
+        effOverlap++;
+        matchedPreds.push(eff.pred);            // ← Bug1 修复：eff 命中也记录
+      } else if (obsPreds.has(eff.pred)) {
+        effOverlap += 0.5; // pred 相同值不同：半分
+        matchedPreds.push(`~${eff.pred}`);
+      }
+    }
+
+    // pre 匹配：已知 facts 中有多少匹配 regulation 的 pre（前提条件已确认）
+    let preOverlap = 0;
     for (const pre of reg.pre) {
       if (obsSigs.has(`${pre.pred}|${JSON.stringify(pre.value)}`)) {
         preOverlap++;
@@ -379,8 +384,13 @@ export function suggestCausesTool(
       }
     }
 
-    const totalFields = (reg.eff.length + reg.pre.length) || 1;
-    const overlapScore = (effOverlap + preOverlap) / totalFields;
+    const effLen = reg.eff.length || 1;
+    const preLen = reg.pre.length || 1;
+    // Bug2 修复：confidence 用 effMatchRatio（观测现象覆盖 eff 的比例）而非稀释后的 overlapScore
+    const effMatchRatio = effOverlap / effLen;
+    const preMatchRatio = preOverlap / preLen;
+    // 综合分：eff 覆盖度权重 0.7（诊断核心），pre 确认度权重 0.3
+    const overlapScore = effMatchRatio * 0.7 + preMatchRatio * 0.3;
 
     // 至少有一个字段匹配才纳入候选
     if (overlapScore > 0) {
@@ -388,8 +398,8 @@ export function suggestCausesTool(
       const score = overlapScore * regCredibility;
 
       let confidence: 'high' | 'medium' | 'low' = 'low';
-      if (overlapScore > 0.6) confidence = 'high';
-      else if (overlapScore > 0.3) confidence = 'medium';
+      if (effMatchRatio > 0.6) confidence = 'high';
+      else if (effMatchRatio > 0.3) confidence = 'medium';
 
       // 构造修复建议
       let suggestedFix: string | undefined;
