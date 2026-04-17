@@ -13,6 +13,7 @@ describes: "Phase 0-5 门控与产出合约"
 > 设计基底：[causal-learner-design.md](causal-learner-design.md)、[bestqa_benchmark_design.md](bestqa_benchmark_design.md)、[mcp_implementation_plan.md](mcp_implementation_plan.md)
 > 边界基底：[external-integration.md](external-integration.md)
 > 执行作业：[../.omx/plans/bestqa-roadmap-from-external-2026-04-13.md](../.omx/plans/bestqa-roadmap-from-external-2026-04-13.md)
+> 产品 MVP 访谈结论：[mvp-llm-reasoning-guard-plan.md](mvp-llm-reasoning-guard-plan.md)
 
 ---
 

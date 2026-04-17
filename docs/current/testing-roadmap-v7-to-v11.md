@@ -6,6 +6,7 @@ status: draft
 # 测试路线图：从 v7 实现到 v11 文明引擎
 
 > 文档定位：基于当前代码现实与最终设计目标，制定分版本、分环境、可落地的测试策略。
+> 补充场景池：[public-test-scenario-pool.md](public-test-scenario-pool.md)
 
 ---
 
