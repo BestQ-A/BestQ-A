@@ -15,7 +15,7 @@
  * 预期 resolve_rate：5-12%（MVP-2，无本地测试执行）
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, renameSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -35,8 +35,11 @@ const DATA_DIR = resolve(__dirname, 'data');
 const CACHE_PATH = resolve(DATA_DIR, 'llm-extraction-cache.json');
 const LITE_PATH  = resolve(DATA_DIR, 'swe-bench-lite.json');
 
-// GitHub API 每次请求间隔（避免 429）
-const GITHUB_DELAY_MS = 400;
+// GitHub API 每次请求间隔（有 token 时 100ms 足够）
+const GITHUB_DELAY_MS = GITHUB_TOKEN ? 80 : 400;
+
+// 并发处理的实例数
+const CONCURRENCY = 8;
 
 // =============================================================================
 // 类型
@@ -178,18 +181,20 @@ function extractCandidateFiles(inst: SWEBenchInstance): string[] {
 // GitHub API 文件获取
 // =============================================================================
 
-let lastGithubCall = 0;
+// 每个并发 worker 独立限速，用 per-worker 时间戳避免全局锁
+const workerLastCall = new Map<number, number>();
 
 async function fetchFileContent(
   repo: string,
   filePath: string,
   commit: string,
+  workerId = 0,
 ): Promise<string | null> {
-  // 限速
-  const now = Date.now();
-  const wait = GITHUB_DELAY_MS - (now - lastGithubCall);
+  // 限速（per-worker）
+  const last = workerLastCall.get(workerId) ?? 0;
+  const wait = GITHUB_DELAY_MS - (Date.now() - last);
   if (wait > 0) await sleep(wait);
-  lastGithubCall = Date.now();
+  workerLastCall.set(workerId, Date.now());
 
   const url = `https://api.github.com/repos/${repo}/contents/${filePath}?ref=${commit}`;
   const headers: Record<string, string> = {
@@ -326,16 +331,20 @@ async function generatePatchForInstance(
   inst: SWEBenchInstance,
   allInstances: SWEBenchInstance[],
   cache: Record<string, ExtractedFacts>,
+  options?: { workerId?: number },
 ): Promise<string> {
   const similarExamples = findSimilarInstances(inst, allInstances, cache, 2);
   const candidateFiles = extractCandidateFiles(inst);
 
-  // 预取文件内容（批量，静默失败）
+  // 预取文件内容（并行，静默失败）
+  const workerId = options?.workerId ?? 0;
   const prefetched = new Map<string, string>();
-  for (const f of candidateFiles.slice(0, 4)) {
-    const content = await fetchFileContent(inst.repo, f, inst.base_commit);
-    if (content) prefetched.set(f, content);
-  }
+  const fileResults = await Promise.all(
+    candidateFiles.slice(0, 4).map(f => fetchFileContent(inst.repo, f, inst.base_commit, workerId))
+  );
+  candidateFiles.slice(0, 4).forEach((f, i) => {
+    if (fileResults[i]) prefetched.set(f, fileResults[i]!);
+  });
 
   // 构造 similar examples context
   let examplesCtx = '';
@@ -426,6 +435,13 @@ function sleep(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms));
 }
 
+/** 原子写：先写 .tmp 再 rename，避免并发写入时读到损坏的 JSON */
+function atomicWrite(path: string, content: string): void {
+  const tmp = path + '.tmp';
+  writeFileSync(tmp, content);
+  renameSync(tmp, path);
+}
+
 // =============================================================================
 // 主流程
 // =============================================================================
@@ -477,40 +493,71 @@ export async function generateAllPatches(options: {
 
   let solved = 0;
   let failed = 0;
+  let processed = 0;
+  let savePending = false;
 
-  for (let i = 0; i < targets.length; i++) {
-    const inst = targets[i];
-
-    // 跳过已处理（续跑）
+  // 过滤已完成的
+  const pending = targets.filter(inst => {
     if (inst.instance_id in predictions) {
-      if (verbose) console.log(`[${i + 1}/${targets.length}] 跳过（已有）: ${inst.instance_id}`);
-      continue;
+      if (verbose) console.log(`跳过（已有）: ${inst.instance_id}`);
+      return false;
     }
+    return true;
+  });
 
-    if (verbose) {
-      process.stdout.write(`[${i + 1}/${targets.length}] 处理: ${inst.instance_id} ... `);
+  const total = targets.length;
+  const skipped = total - pending.length;
+  if (verbose && skipped > 0) console.log(`[solver] 跳过已有 ${skipped} 条，待处理 ${pending.length} 条`);
+
+  // 定期保存（每5条或每10秒）
+  const saveInterval = setInterval(() => {
+    if (savePending) {
+      atomicWrite(outputPath, JSON.stringify(predictions, null, 2));
+      savePending = false;
     }
+  }, 5000);
 
-    try {
-      const patch = await generatePatchForInstance(inst, allInstances, cache);
-      predictions[inst.instance_id] = patch;
+  // 并发池
+  const semaphore = Array.from({ length: CONCURRENCY }, (_, i) => i);
+  const queue = [...pending];
+  let qIdx = 0;
 
-      if (patch) {
-        solved++;
-        if (verbose) console.log(`✓ patch ${patch.split('\n').length} 行`);
-      } else {
+  async function worker(workerId: number): Promise<void> {
+    while (true) {
+      const myIdx = qIdx++;
+      if (myIdx >= queue.length) break;
+      const inst = queue[myIdx];
+      const displayIdx = skipped + myIdx + 1;
+
+      if (verbose) process.stdout.write(`[${displayIdx}/${total}] 处理: ${inst.instance_id} ... `);
+
+      try {
+        const patch = await generatePatchForInstance(inst, allInstances, cache, { workerId });
+        predictions[inst.instance_id] = patch;
+        savePending = true;
+
+        if (patch) {
+          solved++;
+          if (verbose) console.log(`✓ patch ${patch.split('\n').length} 行`);
+        } else {
+          failed++;
+          if (verbose) console.log(`✗ 空 patch`);
+        }
+      } catch (err) {
+        predictions[inst.instance_id] = '';
         failed++;
-        if (verbose) console.log(`✗ 空 patch`);
+        savePending = true;
+        if (verbose) console.log(`✗ 错误: ${String(err).substring(0, 100)}`);
       }
-    } catch (err) {
-      predictions[inst.instance_id] = '';
-      failed++;
-      if (verbose) console.log(`✗ 错误: ${err}`);
+      processed++;
     }
-
-    // 每条完成后立即保存（防崩溃丢数据）
-    writeFileSync(outputPath, JSON.stringify(predictions, null, 2));
   }
+
+  await Promise.all(semaphore.map(id => worker(id)));
+  clearInterval(saveInterval);
+
+  // 最终保存
+  atomicWrite(outputPath, JSON.stringify(predictions, null, 2));
 
   if (verbose) {
     console.log(`\n[solver] 完成：${solved} 有效 patch，${failed} 空 patch`);

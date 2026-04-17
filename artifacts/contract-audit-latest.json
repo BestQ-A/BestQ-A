@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-04-16T16:22:15.900Z",
+  "timestamp": "2026-04-17T04:50:06.133Z",
   "files_scanned": 715,
   "errors": [],
   "warnings": [
@@ -612,12 +612,12 @@
     {
       "file": "docs/bestqa-roadmap.md",
       "kind": "contract",
-      "density": 0.2651
+      "density": 0.2703
     },
     {
       "file": "docs/external-integration.md",
       "kind": "contract",
-      "density": 0.0458
+      "density": 0.051
     },
     {
       "file": "artifacts/20260413-001/summary.md",
@@ -7786,7 +7786,7 @@
       "kind": "contract",
       "legacy_kind": null,
       "describes": "Phase 0-5 门控与产出合约",
-      "density": 0.2651,
+      "density": 0.2703,
       "errors": 0,
       "warnings": 0
     },
@@ -8457,7 +8457,7 @@
       "kind": "contract",
       "legacy_kind": null,
       "describes": "外部仓库接入边界与 SSOT 裁决",
-      "density": 0.0458,
+      "density": 0.051,
       "errors": 0,
       "warnings": 0
     },
