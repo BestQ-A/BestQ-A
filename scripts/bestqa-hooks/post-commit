@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# bestqa post-commit hook
+#
+# 自动对刚提交的 commit 跑 bestqa check，非 block 静默通过，
+# block 则打印推理链卡片（commit 已落地，只做警示不阻止）。
+#
+# 安装：
+#   cp scripts/bestqa-hooks/post-commit .git/hooks/post-commit
+#   chmod +x .git/hooks/post-commit
+#
+# 跳过单次检查：
+#   BESTQA_SKIP=1 git commit ...
+#
+# 临时禁用：
+#   mv .git/hooks/post-commit .git/hooks/post-commit.off
+
+set -euo pipefail
+
+if [ "${BESTQA_SKIP:-}" = "1" ]; then
+  exit 0
+fi
+
+# 仓库根
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+# 最新 commit 的 diff
+PATCH_FILE="$(mktemp -t bestqa-patch.XXXXXX.diff)"
+trap 'rm -f "$PATCH_FILE"' EXIT
+git diff HEAD~1 HEAD > "$PATCH_FILE"
+
+# patch 过大 (>500 行) 跳过——MVP 阶段不打扰大重构
+LINES=$(wc -l < "$PATCH_FILE")
+if [ "$LINES" -gt 500 ]; then
+  echo "[bestqa] patch too large ($LINES lines), skipping check" >&2
+  exit 0
+fi
+
+# bestqa CLI：优先用已构建 dist，否则走 ts-node
+BESTQA_BIN="$ROOT/causal-learner/mcp-server/dist/cli/bestqa.js"
+if [ -f "$BESTQA_BIN" ]; then
+  CMD=(node "$BESTQA_BIN" check "$PATCH_FILE")
+else
+  CMD=(node --import tsx "$ROOT/causal-learner/mcp-server/src/cli/bestqa.ts" check "$PATCH_FILE")
+fi
+
+# 跑 check，捕获 exit code（0=pass/warn, 1=block, 其他=错）
+RESULT_FILE="$(mktemp -t bestqa-result.XXXXXX.json)"
+trap 'rm -f "$PATCH_FILE" "$RESULT_FILE"' EXIT
+
+set +e
+"${CMD[@]}" > "$RESULT_FILE" 2>&1
+CODE=$?
+set -e
+
+case $CODE in
+  0)
+    # pass/warn — 静默
+    ;;
+  1)
+    echo "" >&2
+    echo "=============================================================" >&2
+    echo "[bestqa] BLOCK — 推理链审查发现致命问题（commit 已落地）" >&2
+    echo "=============================================================" >&2
+    cat "$RESULT_FILE" >&2
+    echo "" >&2
+    echo "操作建议：" >&2
+    echo "  1. 查看上面的推理链卡片，确认是否真问题" >&2
+    echo "  2. 若 MiniMax 漏报/误报，记反馈：" >&2
+    echo "     bestqa feedback --type false_positive --argument '...' " >&2
+    echo "  3. 若需修补，新 commit 修正即可" >&2
+    ;;
+  *)
+    echo "[bestqa] check 失败 exit=$CODE（不影响 commit）" >&2
+    head -20 "$RESULT_FILE" >&2 || true
+    ;;
+esac
+
+exit 0

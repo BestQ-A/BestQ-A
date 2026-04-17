@@ -81,21 +81,23 @@ interface ChatResponse {
   choices: Array<{ message: { content: string; reasoning_content?: string } }>;
 }
 
-async function fetchWithRetry(url: string, init: RequestInit, attempts = 3): Promise<Response> {
+async function fetchWithRetry(url: string, init: RequestInit, attempts = 5): Promise<Response> {
   let lastErr: unknown;
   for (let i = 0; i < attempts; i++) {
     try {
       const r = await fetch(url, init);
-      // 5xx 也重试
-      if (r.status >= 500 && i < attempts - 1) {
+      // 5xx / 429 也重试
+      if ((r.status >= 500 || r.status === 429) && i < attempts - 1) {
         lastErr = new Error(`HTTP ${r.status}`);
       } else {
         return r;
       }
     } catch (err) {
       lastErr = err;
+      // 打到 stderr 供 agent-eval 排查瞬时抖动（Layer 2 S030 fetch failed 案例）
+      console.error(`[minimax-reviewer] attempt ${i + 1}/${attempts} failed: ${(err as Error).message}`);
     }
-    // 指数退避：1s、3s、7s
+    // 指数退避：1s, 3s, 7s, 15s, 31s（总耗 ~57s 覆盖常见瞬时抖动窗口）
     const delay = 1000 * (2 ** i + 1) - 1000;
     if (delay > 0) await new Promise((r) => setTimeout(r, delay));
   }
