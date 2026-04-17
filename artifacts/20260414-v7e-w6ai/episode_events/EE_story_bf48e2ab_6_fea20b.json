@@ -1,0 +1,16 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/episode-event-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T09:49:09.271Z",
+  "id": "EE_story_bf48e2ab_6_fea20b",
+  "episode_id": "story_bf48e2ab",
+  "seq": 6,
+  "kind": "outcome_recorded",
+  "ref_id": "story_bf48e2ab",
+  "payload": {
+    "outcome": "success",
+    "status": "resolved"
+  },
+  "created_at": "2026-04-14T09:49:09.260Z"
+}

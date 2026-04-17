@@ -1,0 +1,482 @@
+{
+  "generated_at": "2026-04-17T09:27:26.256Z",
+  "total_samples": 15,
+  "errors": 1,
+  "repo_distribution": {
+    "pytest-dev/pytest": 2,
+    "sphinx-doc/sphinx": 1,
+    "sympy/sympy": 3,
+    "matplotlib/matplotlib": 1,
+    "pallets/flask": 1,
+    "psf/requests": 1,
+    "scikit-learn/scikit-learn": 1,
+    "pylint-dev/pylint": 1,
+    "mwaskom/seaborn": 2,
+    "astropy/astropy": 1,
+    "django/django": 1
+  },
+  "repo_diversity": 11,
+  "durable_assets": {
+    "min_support_links_per_card": 3,
+    "derivation_traces_stored": 7,
+    "total_support_links": 21,
+    "total_nodes": 42
+  },
+  "metrics": {
+    "hit_rate": 0.833,
+    "hit_rate_target": 0.6,
+    "hit_rate_pass": true,
+    "false_positive_rate": 0,
+    "false_positive_target": 0.3,
+    "false_positive_pass": true,
+    "grading_accuracy": 0.909,
+    "grading_accuracy_target": 0.7,
+    "grading_accuracy_pass": true
+  },
+  "baseline_comparison": {
+    "hit_rate_drop": 0.167,
+    "false_positive_delta": 0,
+    "grading_accuracy_drop": 0.091
+  },
+  "verdict_distribution": {
+    "warn": 6,
+    "block": 7,
+    "pass": 1,
+    "error": 1
+  },
+  "results": [
+    {
+      "id": "S016",
+      "repo": "pytest-dev/pytest",
+      "instance_id": "pytest-dev__pytest-5227",
+      "expected": "wrong",
+      "verdict": "warn",
+      "issues": [
+        {
+          "severity": "warn",
+          "code": "COARSE_CHAIN"
+        },
+        {
+          "severity": "warn",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        },
+        {
+          "severity": "warn",
+          "code": "UNDECLARED_RISK"
+        }
+      ],
+      "goal": "Unify the logging format across all Python versions to include module name (name) instead of using version-specific formats with different fields",
+      "passExpectation": true,
+      "ingest": {
+        "derivationTraceId": "DT_RC_729a51dc92f9186b_S016",
+        "supportLinksAdded": 3,
+        "derivationTraceStored": true,
+        "causalLearnerNodesAdded": 6
+      },
+      "ms": 29596
+    },
+    {
+      "id": "S017",
+      "repo": "sphinx-doc/sphinx",
+      "instance_id": "sphinx-doc__sphinx-8474",
+      "expected": "wrong",
+      "verdict": "block",
+      "issues": [
+        {
+          "severity": "warn",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        },
+        {
+          "severity": "fatal",
+          "code": "PHANTOM_API"
+        },
+        {
+          "severity": "warn",
+          "code": "COARSE_CHAIN"
+        },
+        {
+          "severity": "warn",
+          "code": "NO_SUPPORT"
+        },
+        {
+          "severity": "fatal",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        }
+      ],
+      "goal": "Fix 'WARNING: no number is assigned for table' warnings in Sphinx 3.3 by ensuring cross-document table references are resolved correctly",
+      "passExpectation": true,
+      "ingest": {
+        "supportLinksAdded": 0,
+        "derivationTraceStored": false,
+        "causalLearnerNodesAdded": 0
+      },
+      "ms": 37429
+    },
+    {
+      "id": "S018",
+      "repo": "sympy/sympy",
+      "instance_id": "sympy__sympy-15346",
+      "expected": "wrong",
+      "verdict": "block",
+      "issues": [
+        {
+          "severity": "warn",
+          "code": "COARSE_CHAIN"
+        },
+        {
+          "severity": "warn",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        },
+        {
+          "severity": "fatal",
+          "code": "NO_SUPPORT"
+        }
+      ],
+      "goal": "Fix trigsimp to correctly simplify sin(a)*sin(b) + cos(a)*cos(b) to cos(a-b) when a and b are Rational values",
+      "passExpectation": true,
+      "ingest": {
+        "supportLinksAdded": 0,
+        "derivationTraceStored": false,
+        "causalLearnerNodesAdded": 0
+      },
+      "ms": 29017
+    },
+    {
+      "id": "S019",
+      "repo": "matplotlib/matplotlib",
+      "instance_id": "matplotlib__matplotlib-23987",
+      "expected": "wrong",
+      "verdict": "block",
+      "issues": [
+        {
+          "severity": "fatal",
+          "code": "NO_SUPPORT"
+        },
+        {
+          "severity": "fatal",
+          "code": "PHANTOM_API"
+        },
+        {
+          "severity": "fatal",
+          "code": "BROKEN_CHAIN"
+        },
+        {
+          "severity": "fatal",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        },
+        {
+          "severity": "warn",
+          "code": "COARSE_CHAIN"
+        }
+      ],
+      "goal": "Fix bug where UserWarning appears when calling subplots_adjust() with constrained_layout=False",
+      "passExpectation": true,
+      "ingest": {
+        "supportLinksAdded": 0,
+        "derivationTraceStored": false,
+        "causalLearnerNodesAdded": 0
+      },
+      "ms": 26867
+    },
+    {
+      "id": "S020",
+      "repo": "pallets/flask",
+      "instance_id": "pallets__flask-5063",
+      "expected": "wrong",
+      "verdict": "block",
+      "issues": [
+        {
+          "severity": "warn",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        },
+        {
+          "severity": "warn",
+          "code": "BROKEN_CHAIN"
+        },
+        {
+          "severity": "warn",
+          "code": "UNDECLARED_RISK"
+        },
+        {
+          "severity": "fatal",
+          "code": "NO_SUPPORT"
+        },
+        {
+          "severity": "warn",
+          "code": "COARSE_CHAIN"
+        }
+      ],
+      "goal": "Add subdomain/domain column to flask routes CLI output to show which routes belong to which subdomains",
+      "passExpectation": true,
+      "ingest": {
+        "supportLinksAdded": 0,
+        "derivationTraceStored": false,
+        "causalLearnerNodesAdded": 0
+      },
+      "ms": 26588
+    },
+    {
+      "id": "S021",
+      "repo": "psf/requests",
+      "instance_id": "psf__requests-2148",
+      "expected": "wrong",
+      "verdict": "warn",
+      "issues": [
+        {
+          "severity": "warn",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        },
+        {
+          "severity": "warn",
+          "code": "COARSE_CHAIN"
+        },
+        {
+          "severity": "warn",
+          "code": "UNDECLARED_RISK"
+        }
+      ],
+      "goal": "Wrap socket.error exceptions in ConnectionError during Response.iter_content streaming to prevent raw socket errors from leaking to users",
+      "passExpectation": true,
+      "ingest": {
+        "derivationTraceId": "DT_RC_851d0f8d883cfd97_S021",
+        "supportLinksAdded": 3,
+        "derivationTraceStored": true,
+        "causalLearnerNodesAdded": 6
+      },
+      "ms": 51015
+    },
+    {
+      "id": "S022",
+      "repo": "scikit-learn/scikit-learn",
+      "instance_id": "scikit-learn__scikit-learn-14092",
+      "expected": "wrong",
+      "verdict": "block",
+      "issues": [
+        {
+          "severity": "fatal",
+          "code": "BROKEN_CHAIN"
+        },
+        {
+          "severity": "fatal",
+          "code": "BROKEN_CHAIN"
+        },
+        {
+          "severity": "fatal",
+          "code": "BROKEN_CHAIN"
+        },
+        {
+          "severity": "fatal",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        },
+        {
+          "severity": "warn",
+          "code": "NO_SUPPORT"
+        }
+      ],
+      "goal": "Fix NCA parameter validation to accept numpy types (np.int64, np.float64) during GridSearchCV",
+      "passExpectation": true,
+      "ingest": {
+        "supportLinksAdded": 0,
+        "derivationTraceStored": false,
+        "causalLearnerNodesAdded": 0
+      },
+      "ms": 51439
+    },
+    {
+      "id": "S023",
+      "repo": "pylint-dev/pylint",
+      "instance_id": "pylint-dev__pylint-6506",
+      "expected": "wrong",
+      "verdict": "block",
+      "issues": [
+        {
+          "severity": "warn",
+          "code": "COARSE_CHAIN"
+        },
+        {
+          "severity": "warn",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        },
+        {
+          "severity": "fatal",
+          "code": "BROKEN_CHAIN"
+        }
+      ],
+      "goal": "Prevent pylint from printing a traceback when an unrecognized option is passed",
+      "passExpectation": true,
+      "ingest": {
+        "supportLinksAdded": 0,
+        "derivationTraceStored": false,
+        "causalLearnerNodesAdded": 0
+      },
+      "ms": 24264
+    },
+    {
+      "id": "S024",
+      "repo": "mwaskom/seaborn",
+      "instance_id": "mwaskom__seaborn-3010",
+      "expected": "correct_candidate",
+      "verdict": "warn",
+      "issues": [
+        {
+          "severity": "warn",
+          "code": "BROKEN_CHAIN"
+        },
+        {
+          "severity": "warn",
+          "code": "UNDECLARED_RISK"
+        },
+        {
+          "severity": "warn",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        }
+      ],
+      "goal": "Make PolyFit robust to missing data by filtering out NaN values before polynomial fitting.",
+      "passExpectation": true,
+      "ingest": {
+        "derivationTraceId": "DT_RC_a6ccc28406860694_S024",
+        "supportLinksAdded": 3,
+        "derivationTraceStored": true,
+        "causalLearnerNodesAdded": 6
+      },
+      "ms": 45579
+    },
+    {
+      "id": "S025",
+      "repo": "astropy/astropy",
+      "instance_id": "astropy__astropy-12907",
+      "expected": "correct_candidate",
+      "verdict": "block",
+      "issues": [
+        {
+          "severity": "fatal",
+          "code": "NO_SUPPORT"
+        },
+        {
+          "severity": "fatal",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        },
+        {
+          "severity": "fatal",
+          "code": "BROKEN_CHAIN"
+        },
+        {
+          "severity": "warn",
+          "code": "COARSE_CHAIN"
+        },
+        {
+          "severity": "warn",
+          "code": "UNDECLARED_RISK"
+        }
+      ],
+      "goal": "Fix separability_matrix to correctly handle nested CompoundModels created with the & operator",
+      "passExpectation": true,
+      "ingest": {
+        "supportLinksAdded": 0,
+        "derivationTraceStored": false,
+        "causalLearnerNodesAdded": 0
+      },
+      "ms": 89124
+    },
+    {
+      "id": "S026",
+      "repo": "django/django",
+      "instance_id": "django__django-15902",
+      "expected": "correct_candidate",
+      "verdict": "warn",
+      "issues": [
+        {
+          "severity": "warn",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        },
+        {
+          "severity": "warn",
+          "code": "PHANTOM_API"
+        }
+      ],
+      "goal": "Suppress the 'default.html' deprecation warning for formsets' ManagementForm since it only renders hidden inputs and the template choice is irrelevant.",
+      "passExpectation": true,
+      "ingest": {
+        "derivationTraceId": "DT_RC_a3d1fd37acbace4f_S026",
+        "supportLinksAdded": 3,
+        "derivationTraceStored": true,
+        "causalLearnerNodesAdded": 6
+      },
+      "ms": 24325
+    },
+    {
+      "id": "S027",
+      "repo": "sympy/sympy",
+      "instance_id": "sympy__sympy-18189",
+      "expected": "partial",
+      "verdict": "warn",
+      "issues": [
+        {
+          "severity": "warn",
+          "code": "UNDECLARED_RISK"
+        },
+        {
+          "severity": "warn",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        }
+      ],
+      "goal": "Fix diophantine() returning incomplete results when permute=True and syms order differs from internal variable order",
+      "passExpectation": true,
+      "ingest": {
+        "derivationTraceId": "DT_RC_ae8d8291241eafd2_S027",
+        "supportLinksAdded": 3,
+        "derivationTraceStored": true,
+        "causalLearnerNodesAdded": 6
+      },
+      "ms": 22681
+    },
+    {
+      "id": "S028",
+      "repo": "sympy/sympy",
+      "instance_id": "sympy__sympy-19487",
+      "expected": "partial",
+      "verdict": "warn",
+      "issues": [
+        {
+          "severity": "warn",
+          "code": "UNDECLARED_RISK"
+        }
+      ],
+      "goal": "Enable rewriting sign(x) as x/Abs(x) via the .rewrite(Abs) method",
+      "passExpectation": true,
+      "ingest": {
+        "derivationTraceId": "DT_RC_ddfd18f7cd901845_S028",
+        "supportLinksAdded": 3,
+        "derivationTraceStored": true,
+        "causalLearnerNodesAdded": 6
+      },
+      "ms": 22923
+    },
+    {
+      "id": "S029",
+      "repo": "mwaskom/seaborn",
+      "instance_id": "mwaskom__seaborn-3190",
+      "expected": "partial",
+      "verdict": "pass",
+      "issues": [],
+      "goal": "Fix TypeError when using boolean data for color mapping in seaborn plots",
+      "passExpectation": false,
+      "ingest": {
+        "derivationTraceId": "DT_RC_248e9491906ab87a_S029",
+        "supportLinksAdded": 3,
+        "derivationTraceStored": true,
+        "causalLearnerNodesAdded": 6
+      },
+      "ms": 26658
+    },
+    {
+      "id": "S030",
+      "repo": "pytest-dev/pytest",
+      "instance_id": "pytest-dev__pytest-5413",
+      "expected": "partial",
+      "error": "fetch failed",
+      "ms": 2492
+    }
+  ],
+  "agent_verdict": "generalizes"
+}

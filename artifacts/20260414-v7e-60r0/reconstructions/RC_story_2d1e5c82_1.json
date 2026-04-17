@@ -1,0 +1,40 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/reconstruction-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T04:48:52.894Z",
+  "id": "RC_story_2d1e5c82_1",
+  "version": 1,
+  "episode_id": "story_2d1e5c82",
+  "selectedMechanismIds": [
+    "proxy:episode_story_2d1e5c82"
+  ],
+  "mechanism_instance_ids": [],
+  "ontology_snapshot_ref": "ontology_current",
+  "derivation_chain_id": "DC_story_2d1e5c82_173edded",
+  "traceId": "DT_story_2d1e5c82_773dbc9e",
+  "majorChain": [
+    "a_d5cdf2a0"
+  ],
+  "reconstructed_timeline": [
+    {
+      "step": 0,
+      "kind": "initial_condition",
+      "node_ref": "a_d5cdf2a0",
+      "content": "初始锚点: a_d5cdf2a0",
+      "source": "episode_anchored"
+    }
+  ],
+  "fidelity": {
+    "score": 1,
+    "method": "key_node_coverage",
+    "matched_nodes": [
+      "a_d5cdf2a0"
+    ],
+    "missed_nodes": [],
+    "extra_nodes": []
+  },
+  "created_at": "2026-04-14T04:48:52.890Z",
+  "created_by": "pipeline_recordfix_shell",
+  "supersedes": null
+}

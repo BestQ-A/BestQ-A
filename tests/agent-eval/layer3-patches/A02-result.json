@@ -1,0 +1,76 @@
+{
+  "id": "RC_3bc1d514767b4153_mo2pv5ez",
+  "createdAt": "2026-04-17T09:39:49.790Z",
+  "createdBy": "minimax-coding-plan",
+  "schemaVersion": 1,
+  "input": {
+    "patchDigest": "3bc1d514767b4153",
+    "problemStatement": "DurationField shows the wrong format string in its validation error.\nPlease update the user-facing message only.\nKeep the behavioral surface unchanged.\n",
+    "contextFiles": [],
+    "predictedPatch": "diff --git a/django/db/models/fields/duration.py b/django/db/models/fields/duration.py\n--- a/django/db/models/fields/duration.py\n+++ b/django/db/models/fields/duration.py\n@@ -10,7 +10,7 @@ class DurationField(Field):\n-        'invalid': _('\"%(value)s\" value has an invalid format. It must be in ')\n+        'invalid': _('Use [[[DD] [HH:]MM:]SS].')\n"
+  },
+  "goal": "Update DurationField validation error message to show correct format string instead of truncated/incomplete message",
+  "derivationTrace": {
+    "id": "DT_RC_3bc1d514767b4153_mo2pv5ez",
+    "contextKind": "inference",
+    "episodeId": null,
+    "reconstructionId": null,
+    "premiseClaimIds": [],
+    "proof": [],
+    "supportLinks": [],
+    "rejectedClaimIds": [],
+    "totalSteps": 0,
+    "replayableSteps": 0,
+    "chainIntegrity": "complete",
+    "createdAt": "2026-04-17T09:39:49.791Z",
+    "createdBy": "cli-smoke"
+  },
+  "supportLinks": [],
+  "hypotheses": [
+    {
+      "id": "hyp_RC_3bc1d514767b4153_mo2pv5ez_0",
+      "claim": "Format string '[[[DD] [HH:]MM:]SS]' is the correct Django duration format syntax",
+      "confidence": 0.4,
+      "status": "candidate"
+    },
+    {
+      "id": "hyp_RC_3bc1d514767b4153_mo2pv5ez_1",
+      "claim": "The format string bracket syntax '[HH:]MM:]SS' is correctly balanced",
+      "confidence": 0.3,
+      "status": "candidate"
+    }
+  ],
+  "risks": [
+    "If '[[[DD] [HH:]MM:]SS]' is not Django's actual duration format, users will be given wrong guidance",
+    "Removing '%(value)s' interpolation loses context about what value was rejected",
+    "Bracket notation '[HH:]MM:]SS' appears syntactically malformed (extra closing bracket)"
+  ],
+  "verdict": "warn",
+  "issues": [
+    {
+      "severity": "warn",
+      "code": "LOW_CONFIDENCE_HYPOTHESIS",
+      "message": "Cannot verify '[[[DD] [HH:]MM:]SS]' is the correct Django duration format - need Django docs or source verification",
+      "stepNumber": 3
+    },
+    {
+      "severity": "warn",
+      "code": "UNDECLARED_RISK",
+      "message": "Patch removes '%(value)s' from message - user will no longer see what invalid value was rejected",
+      "stepNumber": 1
+    },
+    {
+      "severity": "warn",
+      "code": "LOW_CONFIDENCE_HYPOTHESIS",
+      "message": "Format string '[HH:]MM:]SS' has mismatched brackets - may be a typo, could confuse users",
+      "stepNumber": 1
+    }
+  ],
+  "forceOverridden": false,
+  "persistence": {
+    "supportLinksAdded": 3,
+    "derivationTraceStored": true,
+    "causalLearnerNodesAdded": 6
+  }
+}
+Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), file src\win\async.c, line 76

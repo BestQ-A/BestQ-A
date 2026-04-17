@@ -1,0 +1,14 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/episode-event-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T08:28:30.915Z",
+  "id": "EE_story_d11a6480_4_2dfc52",
+  "episode_id": "story_d11a6480",
+  "seq": 4,
+  "kind": "compile_blocked",
+  "payload": {
+    "reason": "canPromote_failed"
+  },
+  "created_at": "2026-04-14T08:28:30.897Z"
+}

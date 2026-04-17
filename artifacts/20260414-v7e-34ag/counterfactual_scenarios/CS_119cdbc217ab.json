@@ -1,0 +1,52 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/counterfactual-scenario-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T12:14:31.392Z",
+  "id": "CS_119cdbc217ab",
+  "baseEpisodeId": "story_d7432856",
+  "baseReconstructionId": "RC_story_d7432856_1",
+  "modifiedAssumptions": [
+    {
+      "targetRef": "retry_interval_ms",
+      "modification": "set",
+      "fromValue": 100,
+      "toValue": 500,
+      "rationale": "增加重试间隔，模拟熔断器保护场景"
+    }
+  ],
+  "mechanismProgramRefs": [
+    "MP_default_path_projection"
+  ],
+  "predictedTrajectory": [
+    {
+      "step": 0,
+      "kind": "initial_condition",
+      "content": "retry_interval_ms=500",
+      "source": "program_simulated"
+    },
+    {
+      "step": 1,
+      "kind": "latent_phase",
+      "content": "超时频率下降",
+      "source": "program_simulated"
+    },
+    {
+      "step": 2,
+      "kind": "outcome",
+      "content": "服务恢复，错误率降至 <2%",
+      "source": "program_simulated"
+    }
+  ],
+  "predictedObservationSignals": [
+    "error_rate",
+    "latency_p99"
+  ],
+  "predictedOutcome": "服务恢复稳定，超时率显著下降",
+  "divergencePoints": [
+    "step 1：重试间隔增大后超时频率与原轨迹分叉"
+  ],
+  "createdAt": "2026-04-14T12:14:31.392Z",
+  "createdBy": "scripts/export-v7-artifacts.mjs",
+  "status": "draft"
+}

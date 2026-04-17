@@ -1,0 +1,11 @@
+{
+  "id": "S015",
+  "source": "predictions.json + swe-bench-lite.json",
+  "instance_id": "django__django-15400",
+  "problem_statement": "SimpleLazyObject doesn't implement __radd__\nDescription\n\t\nTechnically, there's a whole bunch of magic methods it doesn't implement, compared to a complete proxy implementation, like that of wrapt.ObjectProxy, but __radd__ being missing is the one that's biting me at the moment.\nAs far as I can tell, the implementation can't just be\n__radd__ = new_method_proxy(operator.radd)\nbecause that doesn't exist, which is rubbish.\n__radd__ = new_method_proxy(operator.attrgetter(\"__radd__\"))\nalso won't work because types may not have that attr, and attrgetter doesn't supress the exception (correctly)\nThe minimal implementation I've found that works for me is:\n\tdef __radd__(self, other):\n\t\tif self._wrapped is empty:\n\t\t\tself._setup()\n\t\treturn other + self._wrapped\n",
+  "predicted_patch": "diff --git a/django/utils/functional.py b/django/utils/functional.py\n--- a/django/utils/functional.py\n+++ b/django/utils/functional.py\n@@ -265,6 +265,13 @@ class SimpleLazyObject(LazyObject):\n             self._wrapped = attr\n             return self._wrapped.__dict__[name]\n \n+    def __radd__(self, other):\n+        if self._wrapped is empty:\n+            self._setup()\n+        return other + self._wrapped\n+\n     def __reduce__(self):\n         return (\n             self.__class__,",
+  "gold_patch": "diff --git a/django/utils/functional.py b/django/utils/functional.py\n--- a/django/utils/functional.py\n+++ b/django/utils/functional.py\n@@ -432,6 +432,12 @@ def __deepcopy__(self, memo):\n             return result\n         return copy.deepcopy(self._wrapped, memo)\n \n+    __add__ = new_method_proxy(operator.add)\n+\n+    @new_method_proxy\n+    def __radd__(self, other):\n+        return other + self\n+\n \n def partition(predicate, values):\n     \"\"\"\n",
+  "similarity": 0.405,
+  "verdict": "partial",
+  "notes": ""
+}

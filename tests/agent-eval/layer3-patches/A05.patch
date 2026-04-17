@@ -1,0 +1,8 @@
+diff --git a/django/db/models/fields/duration.py b/django/db/models/fields/duration.py
+--- a/django/db/models/fields/duration.py
++++ b/django/db/models/fields/duration.py
+@@ -1,6 +1,6 @@
+-from django.core.exceptions import ValidationError
++from django.core.exceptionz import ValidationError
+ from django.db.models import Field
+ from django.utils.duration import parse_duration

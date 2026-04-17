@@ -1,0 +1,30 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/ontology-delta-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T09:49:09.264Z",
+  "id": "OD_story_bf48e2ab_120961",
+  "episode_id": "story_bf48e2ab",
+  "reconstruction_id": "RC_story_bf48e2ab_1",
+  "claim_ids": [],
+  "kind": "none",
+  "changes": [],
+  "no_update_reason": {
+    "reason_kind": "ontology_sufficient",
+    "explanation": "当前 Ontology 已能充分解释该 Episode。",
+    "follow_up": null
+  },
+  "fidelity_regression_check": {
+    "episodes_checked": 0,
+    "episodes_skipped": 0,
+    "skipped_ids": [],
+    "min_fidelity_before": 1,
+    "min_fidelity_after": 1,
+    "regression_detected": false,
+    "regressed_episodes": null,
+    "isMonotonic": true
+  },
+  "created_at": "2026-04-14T09:49:09.260Z",
+  "created_by": "pipeline_s7",
+  "applied_at": null
+}

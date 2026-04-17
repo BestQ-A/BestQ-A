@@ -1,0 +1,16 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/observation-model-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T10:15:02.732Z",
+  "id": "OR_story_082f9a4d_0",
+  "episodeId": "story_082f9a4d",
+  "observationModelId": "OM_default_fact_ingest",
+  "t": 0,
+  "source": "submitObservation",
+  "payload": {
+    "atomId": "a_7b9f2eae",
+    "factIndex": 0,
+    "rawInput": "memory usage keeps growing after peak load"
+  }
+}

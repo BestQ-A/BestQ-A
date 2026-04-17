@@ -1,0 +1,16 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/outcome-record-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T10:15:02.751Z",
+  "id": "ORC_5ce0fb5652fe",
+  "episodeId": "story_bba0db09",
+  "causedByActionExecutionId": "AX_3045e4c8dedf",
+  "status": "partial",
+  "summary": "export-v7-artifacts action execution demo",
+  "observedSignals": [],
+  "sideEffects": [],
+  "evidenceRefs": [],
+  "recordedAt": "2026-04-14T10:15:02.743Z",
+  "recordedBy": "scripts/export-v7-artifacts.mjs"
+}

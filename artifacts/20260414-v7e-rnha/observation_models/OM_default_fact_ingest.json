@@ -1,0 +1,31 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/observation-model-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T05:05:42.158Z",
+  "id": "OM_default_fact_ingest",
+  "name": "default_fact_ingest",
+  "description": "通过 submitObservation.ingestFacts 路径从结构化 facts 生成的观测记录。第一轮过渡模型，不携带噪声/偏差建模。",
+  "observedStateRefs": [],
+  "outputSignals": [
+    {
+      "key": "atomId",
+      "valueType": "text",
+      "semantics": "关联 Atom 的 ID"
+    },
+    {
+      "key": "factIndex",
+      "valueType": "number",
+      "semantics": "该观测在 ingestFacts 批次中的序号"
+    }
+  ],
+  "blindSpots": [
+    "latent_states",
+    "unobserved_variables"
+  ],
+  "noiseModel": [],
+  "biasModel": [],
+  "createdAt": "2026-04-14T05:05:42.115Z",
+  "createdBy": "pipeline_system",
+  "status": "current"
+}

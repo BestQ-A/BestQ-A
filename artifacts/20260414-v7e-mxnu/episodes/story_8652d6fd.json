@@ -1,0 +1,28 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/v7-world-model-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T08:17:59.348Z",
+  "id": "story_8652d6fd",
+  "rawInput": "ActionExecution: set_retry_interval_500ms",
+  "context": {},
+  "observationAtomIds": [],
+  "candidatePaths": [],
+  "executedSkillIds": [],
+  "status": "resolved",
+  "outcome": "partial",
+  "outcomeNotes": "export-v7-artifacts action execution demo",
+  "operator": "scripts/export-v7-artifacts.mjs",
+  "createdAt": "2026-04-14T08:17:59.347Z",
+  "resolvedAt": "2026-04-14T08:17:59.348Z",
+  "updatedAt": "2026-04-14T08:17:59.348Z",
+  "episodeId": "story_8652d6fd",
+  "initialConditions": {
+    "observationAtomIds": [],
+    "context": {}
+  },
+  "observationRecordIds": [],
+  "transitionIds": [],
+  "episodeEventIds": [],
+  "outcomeRecordId": "ORC_9af4635804ac"
+}

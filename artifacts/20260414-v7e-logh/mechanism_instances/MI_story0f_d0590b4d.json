@@ -1,0 +1,22 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/mechanism-instance-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T06:53:01.885Z",
+  "id": "MI_story0f_d0590b4d",
+  "mechanism_class_ref": "MC_default_path_projection_0000",
+  "mechanism_program_ref": "MP_default_path_projection",
+  "episode_id": "story_0f05f2d5",
+  "bindings": {
+    "slot_0": "a_3eef75b5"
+  },
+  "source_kind": "path_projection",
+  "source_ref": null,
+  "claim_ids": [],
+  "support_link_refs": [],
+  "status": "rejected",
+  "rejection_reason": "无有效路径",
+  "superseded_by": null,
+  "created_at": "2026-04-14T06:53:01.879Z",
+  "created_by": "pipeline_s4"
+}

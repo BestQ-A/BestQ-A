@@ -1,0 +1,19 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/episode-event-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T05:05:42.148Z",
+  "id": "EE_story_53cf4e54_2_5373f5",
+  "episode_id": "story_53cf4e54",
+  "seq": 2,
+  "kind": "hypothesis_created",
+  "ref_id": "hyp_sg29vcbj",
+  "payload": {
+    "claim": {
+      "fromAtomId": "a_ad8da1d6",
+      "toAtomId": "a_e72bc60e",
+      "kind": "causes"
+    }
+  },
+  "created_at": "2026-04-14T05:05:42.122Z"
+}

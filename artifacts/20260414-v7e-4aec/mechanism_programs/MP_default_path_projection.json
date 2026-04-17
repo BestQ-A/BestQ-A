@@ -1,0 +1,40 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/mechanism-program-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T08:59:28.613Z",
+  "id": "MP_default_path_projection",
+  "mechanismClassRef": "MC_default_path_projection_0000",
+  "name": "default_path_projection",
+  "description": "通过 AtomGraph 路径投影触发的默认机制程序（第一轮过渡模型）。不携带真实 phase 语义，占位用。",
+  "inputStateRefs": [],
+  "contextInputRefs": [],
+  "preconditions": [],
+  "phases": [
+    {
+      "name": "observation_phase",
+      "expectedStateChanges": [],
+      "expectedObservations": [
+        "atomId",
+        "factIndex"
+      ],
+      "thresholdTriggers": []
+    }
+  ],
+  "emittedObservationSignals": [
+    "atomId",
+    "factIndex"
+  ],
+  "outcomes": [
+    "mechanism_confirmed",
+    "mechanism_rejected"
+  ],
+  "interventionPoints": [
+    "observation_phase"
+  ],
+  "validityEnvelope": [],
+  "failsWhen": [],
+  "createdAt": "2026-04-14T08:59:28.590Z",
+  "createdBy": "pipeline_system",
+  "status": "current"
+}

@@ -1,0 +1,45 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/v7-world-model-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T10:15:02.716Z",
+  "id": "story_082f9a4d",
+  "rawInput": "memory usage keeps growing after peak load",
+  "context": {},
+  "observationAtomIds": [
+    "a_7b9f2eae",
+    "a_5b9bd124"
+  ],
+  "candidatePaths": [],
+  "executedSkillIds": [],
+  "status": "open",
+  "operator": "system",
+  "createdAt": "2026-04-14T10:15:02.690Z",
+  "updatedAt": "2026-04-14T10:15:02.690Z",
+  "episodeId": "story_082f9a4d",
+  "initialConditions": {
+    "observationAtomIds": [
+      "a_7b9f2eae",
+      "a_5b9bd124"
+    ],
+    "context": {}
+  },
+  "observationRecordIds": [
+    "OR_story_082f9a4d_0",
+    "OR_story_082f9a4d_1"
+  ],
+  "transitionIds": [],
+  "episodeEventIds": [
+    "EE_story_082f9a4d_1_6c0a53",
+    "EE_story_082f9a4d_2_279c31",
+    "EE_story_082f9a4d_3_ba4908",
+    "EE_story_082f9a4d_4_023bbf",
+    "EE_story_082f9a4d_5_9083be",
+    "EE_story_082f9a4d_6_3638db",
+    "EE_story_082f9a4d_7_e62a05",
+    "EE_story_082f9a4d_8_af237e",
+    "EE_story_082f9a4d_9_3a29ac"
+  ],
+  "acceptedReconstructionId": "RC_story_082f9a4d_1",
+  "ontologyDeltaId": "OD_story_082f9a4d_bff036"
+}

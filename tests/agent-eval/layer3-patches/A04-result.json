@@ -1,0 +1,69 @@
+{
+  "id": "RC_ec7af453a8f6fa12_mo2pwdo8",
+  "createdAt": "2026-04-17T09:40:37.268Z",
+  "createdBy": "minimax-coding-plan",
+  "schemaVersion": 1,
+  "input": {
+    "patchDigest": "ec7af453a8f6fa12",
+    "problemStatement": "\"show_save_as_new\" in admin can add without this permission\nDescription\n\t \n\t\t(last modified by Mariusz Felisiak)\n\t \nAt \"django/contrib/admin/templatetags/admin_modify.py\" file, line 102, I think you must put one more verification for this tag: \"and has_add_permission\", because \"save_as_new\" is a add modification.\nI rewrite this for my project:\n\t\t\t\"show_save_as_new\": not is_popup\n\t\t\tand has_add_permission # This line that I put!!!\n\t\t\tand has_change_permission\n\t\t\tand change\n\t\t\tand save_as,\n",
+    "contextFiles": [],
+    "predictedPatch": "diff --git a/django/contrib/admin/templatetags/admin_modify.py b/django/contrib/admin/templatetags/admin_modify.py\n--- a/django/contrib/admin/templatetags/admin_modify.py\n+++ b/django/contrib/admin/templatetags/admin_modify.py\n@@ -100,7 +100,7 @@ def submit_row(context):\n                 and context.get(\"show_delete\", True)\n             ),\n             \"show_save_as_new\": not is_popup\n-            and has_change_permission\n+            and has_add_permission\n             and change\n             and save_as,\n             \"show_save_and_add_another\": can_save_and_add_another,\n"
+  },
+  "goal": "Fix permission bypass in admin's 'Save as new' button that allowed users without add permission to create new objects",
+  "derivationTrace": {
+    "id": "DT_RC_ec7af453a8f6fa12_mo2pwdo8",
+    "contextKind": "inference",
+    "episodeId": null,
+    "reconstructionId": null,
+    "premiseClaimIds": [],
+    "proof": [],
+    "supportLinks": [],
+    "rejectedClaimIds": [],
+    "totalSteps": 0,
+    "replayableSteps": 0,
+    "chainIntegrity": "complete",
+    "createdAt": "2026-04-17T09:40:37.269Z",
+    "createdBy": "cli-smoke"
+  },
+  "supportLinks": [],
+  "hypotheses": [
+    {
+      "id": "hyp_RC_ec7af453a8f6fa12_mo2pwdo8_0",
+      "claim": "has_add_permission context variable is available in submit_row context (passed from changeform view)",
+      "confidence": 0.9,
+      "status": "candidate"
+    },
+    {
+      "id": "hyp_RC_ec7af453a8f6fa12_mo2pwdo8_1",
+      "claim": "The remaining conditions (change, save_as) correctly filter when button appears",
+      "confidence": 0.95,
+      "status": "candidate"
+    }
+  ],
+  "risks": [
+    "If has_add_permission is not set in the template context, button may be hidden or raise KeyError",
+    "If save_as feature has separate permission handling elsewhere, this change may be redundant"
+  ],
+  "verdict": "warn",
+  "issues": [
+    {
+      "severity": "warn",
+      "code": "LOW_CONFIDENCE_HYPOTHESIS",
+      "message": "Cannot verify exact line where has_add_permission is added to context in changeform view",
+      "stepNumber": 3
+    },
+    {
+      "severity": "warn",
+      "code": "COARSE_CHAIN",
+      "message": "Step 3 relies on general Django permission model knowledge rather than specific file evidence",
+      "stepNumber": 3
+    }
+  ],
+  "forceOverridden": false,
+  "persistence": {
+    "supportLinksAdded": 3,
+    "derivationTraceStored": true,
+    "causalLearnerNodesAdded": 6
+  }
+}
+Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), file src\win\async.c, line 76

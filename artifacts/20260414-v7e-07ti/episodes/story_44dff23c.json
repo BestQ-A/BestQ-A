@@ -1,0 +1,42 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/v7-world-model-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T06:36:20.579Z",
+  "id": "story_44dff23c",
+  "rawInput": "service timeout on login endpoint",
+  "context": {},
+  "observationAtomIds": [
+    "a_72dd8949"
+  ],
+  "candidatePaths": [],
+  "executedSkillIds": [],
+  "status": "resolved",
+  "outcome": "success",
+  "outcomeNotes": "增加重试间隔和熔断器",
+  "operator": "system",
+  "createdAt": "2026-04-14T06:36:20.568Z",
+  "resolvedAt": "2026-04-14T06:36:20.572Z",
+  "updatedAt": "2026-04-14T06:36:20.572Z",
+  "episodeId": "story_44dff23c",
+  "initialConditions": {
+    "observationAtomIds": [
+      "a_72dd8949"
+    ],
+    "context": {}
+  },
+  "observationRecordIds": [
+    "OR_story_44dff23c_0"
+  ],
+  "transitionIds": [],
+  "episodeEventIds": [
+    "EE_story_44dff23c_1_400bb8",
+    "EE_story_44dff23c_2_a2f89e",
+    "EE_story_44dff23c_3_4680f1",
+    "EE_story_44dff23c_4_01ba8e",
+    "EE_story_44dff23c_5_eecbaa",
+    "EE_story_44dff23c_6_327114"
+  ],
+  "acceptedReconstructionId": "RC_story_44dff23c_1",
+  "ontologyDeltaId": "OD_story_44dff23c_f9bd3c"
+}

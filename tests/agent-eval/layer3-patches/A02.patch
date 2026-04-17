@@ -1,0 +1,6 @@
+diff --git a/django/db/models/fields/duration.py b/django/db/models/fields/duration.py
+--- a/django/db/models/fields/duration.py
++++ b/django/db/models/fields/duration.py
+@@ -10,7 +10,7 @@ class DurationField(Field):
+-        'invalid': _('"%(value)s" value has an invalid format. It must be in ')
++        'invalid': _('Use [[[DD] [HH:]MM:]SS].')

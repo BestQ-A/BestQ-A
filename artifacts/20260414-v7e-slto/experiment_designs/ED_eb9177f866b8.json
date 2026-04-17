@@ -1,0 +1,35 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/experiment-design-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T05:06:26.651Z",
+  "id": "ED_eb9177f866b8",
+  "baseEpisodeId": "story_9fa30d1c",
+  "basedOnCounterfactualIds": [
+    "CS_7317ffec9d9a"
+  ],
+  "targetUncertaintyRefs": [
+    "mechanism.retry_backoff",
+    "outcome.service_stability"
+  ],
+  "candidateMeasurements": [
+    "measure_latency_p99",
+    "measure_error_rate"
+  ],
+  "candidateInterventions": [
+    "set_retry_interval_500ms",
+    "enable_circuit_breaker"
+  ],
+  "expectedInformationGain": 0.75,
+  "discriminatingPower": {
+    "MP_default_path_projection": 0.82
+  },
+  "safetyConstraints": [
+    "error_rate < 0.05",
+    "latency_p99 < 2000ms"
+  ],
+  "recommendedAction": "set_retry_interval_500ms",
+  "createdAt": "2026-04-14T05:06:26.651Z",
+  "createdBy": "scripts/export-v7-artifacts.mjs",
+  "status": "draft"
+}
