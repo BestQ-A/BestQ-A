@@ -1,0 +1,14 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/transition-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T10:15:02.761Z",
+  "id": "TR_4e0160368b57",
+  "episodeId": "story_bba0db09",
+  "fromSnapshotId": "SS_283eb6b3528d",
+  "toSnapshotId": "SS_754216bd31e5",
+  "causedByActionId": "AX_3045e4c8dedf",
+  "candidateMechanismIds": [],
+  "createdBy": "scripts/export-v7-artifacts.mjs",
+  "createdAt": "2026-04-14T10:15:02.743Z"
+}

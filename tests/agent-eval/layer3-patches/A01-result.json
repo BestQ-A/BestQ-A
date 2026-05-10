@@ -1,0 +1,94 @@
+{
+  "id": "RC_19cbb2e5c334c666_mo2pumrc",
+  "createdAt": "2026-04-17T09:39:22.130Z",
+  "createdBy": "minimax-coding-plan",
+  "schemaVersion": 1,
+  "input": {
+    "patchDigest": "19cbb2e5c334c666",
+    "problemStatement": "Fix duplicate ORDER BY detection for multiline RawSQL expressions.\nThe change should normalize multiline SQL before the duplicate check.\nAvoid introducing new helper APIs that do not exist in Django.\n",
+    "contextFiles": [],
+    "predictedPatch": "diff --git a/django/db/models/sql/compiler.py b/django/db/models/sql/compiler.py\n--- a/django/db/models/sql/compiler.py\n+++ b/django/db/models/sql/compiler.py\n@@ -1098,6 +1098,10 @@ class SQLCompiler:\n              # A more sophisticated approach would parse the SQL.\n+            sql = sql.normalize_multiline_sql()\n+            if sql.has_duplicate_ordering_parts():\n+                ordering_string = sql.build_ordering_string()\n+\n              without_ordering = self.ordering_parts.search(sql).group(1)\n              ordering_string = sql[len(without_ordering):]\n"
+  },
+  "goal": "Fix duplicate ORDER BY detection for multiline RawSQL expressions by normalizing SQL before checking",
+  "derivationTrace": {
+    "id": "DT_RC_19cbb2e5c334c666_mo2pumrc",
+    "contextKind": "inference",
+    "episodeId": null,
+    "reconstructionId": null,
+    "premiseClaimIds": [],
+    "proof": [],
+    "supportLinks": [],
+    "rejectedClaimIds": [],
+    "totalSteps": 0,
+    "replayableSteps": 0,
+    "chainIntegrity": "complete",
+    "createdAt": "2026-04-17T09:39:22.130Z",
+    "createdBy": "cli-smoke"
+  },
+  "supportLinks": [],
+  "hypotheses": [
+    {
+      "id": "hyp_RC_19cbb2e5c334c666_mo2pumrc_0",
+      "claim": "The methods exist on a custom wrapper object that should wrap `sql` - but no such wrapper is defined in this patch",
+      "confidence": 0.3,
+      "status": "candidate"
+    },
+    {
+      "id": "hyp_RC_19cbb2e5c334c666_mo2pumrc_1",
+      "claim": "The methods were supposed to be free functions taking `sql` as argument",
+      "confidence": 0.2,
+      "status": "candidate"
+    },
+    {
+      "id": "hyp_RC_19cbb2e5c334c666_mo2pumrc_2",
+      "claim": "The patch author incorrectly assumed these methods exist on strings",
+      "confidence": 0.7,
+      "status": "candidate"
+    }
+  ],
+  "risks": [
+    "If hypothesis 1 is wrong, code will raise AttributeError at runtime",
+    "If the methods don't exist, the feature cannot work as intended",
+    "No alternative code path provided if methods are missing"
+  ],
+  "verdict": "block",
+  "issues": [
+    {
+      "severity": "fatal",
+      "code": "PHANTOM_API",
+      "message": "Methods `.normalize_multiline_sql()`, `.has_duplicate_ordering_parts()`, `.build_ordering_string()` do not exist on strings in Django's SQLCompiler context",
+      "stepNumber": 1
+    },
+    {
+      "severity": "fatal",
+      "code": "NO_SUPPORT",
+      "message": "No file:line evidence that these methods exist anywhere in Django codebase referenced by this patch",
+      "stepNumber": 1
+    },
+    {
+      "severity": "warn",
+      "code": "BROKEN_CHAIN",
+      "message": "The original duplicate ORDER BY logic (`ordering_string = sql[len(without_ordering):]`) still exists after the new code, suggesting the fix is either incomplete or the new block is dead code",
+      "stepNumber": 1
+    },
+    {
+      "severity": "fatal",
+      "code": "LLM_SELF_AUDIT",
+      "message": "User explicitly prohibited introducing new helper APIs, yet patch appears to require them",
+      "stepNumber": 1
+    },
+    {
+      "severity": "fatal",
+      "code": "LOW_CONFIDENCE_HYPOTHESIS",
+      "message": "We cannot verify what `sql` type is at line 1101 - if it's not a custom object, all three method calls will fail",
+      "stepNumber": 2
+    }
+  ],
+  "forceOverridden": false,
+  "persistence": {
+    "supportLinksAdded": 0,
+    "derivationTraceStored": false,
+    "causalLearnerNodesAdded": 0
+  }
+}
+Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), file src\win\async.c, line 76

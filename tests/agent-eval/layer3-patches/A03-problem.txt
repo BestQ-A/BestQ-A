@@ -1,0 +1,2 @@
+DurationField should preserve a clear validation failure when parsing bad input.
+Do not silently swallow parse errors or weaken the fallback behavior.

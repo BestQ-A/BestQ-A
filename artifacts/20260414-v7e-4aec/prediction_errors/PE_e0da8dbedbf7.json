@@ -1,0 +1,18 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/prediction-error-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T08:59:28.617Z",
+  "id": "PE_e0da8dbedbf7",
+  "basedOnCounterfactualId": "CS_be53f7f7c9f5",
+  "causedByActionExecutionId": "AX_22594f77a12c",
+  "outcomeRecordId": "ORC_582dc4e216ea",
+  "errorKind": "outcome",
+  "expectedSummary": "unknown expected outcome",
+  "actualSummary": "export-v7-artifacts action execution demo",
+  "deltaSummary": "expected: unknown expected outcome; actual: export-v7-artifacts action execution demo",
+  "severity": "low",
+  "score": null,
+  "recordedAt": "2026-04-14T08:59:28.616Z",
+  "recordedBy": "scripts/export-v7-artifacts.mjs"
+}

@@ -1,0 +1,23 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/mechanism-instance-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T04:10:46.576Z",
+  "id": "MI_epdemo_76bb5bb2",
+  "mechanism_class_ref": "proxy:demo_ep_demo_b95645",
+  "episode_id": "ep_demo_b95645",
+  "bindings": {
+    "slot_0": "atom_18ef5d"
+  },
+  "source_kind": "path_projection",
+  "source_ref": null,
+  "claim_ids": [
+    "hyp_d897ac"
+  ],
+  "support_link_refs": [],
+  "status": "accepted",
+  "rejection_reason": null,
+  "superseded_by": null,
+  "created_at": "2026-04-14T04:10:46.575Z",
+  "created_by": "pipeline_s3"
+}

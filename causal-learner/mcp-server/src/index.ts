@@ -803,6 +803,25 @@ const TOOLS: Tool[] = [
       properties: {},
     },
   },
+  // ===== MVP W1 T1.5: A2 thin-shell — MCP wraps bestqa CLI =====
+  {
+    name: 'bestqa_check',
+    description: 'MVP reasoning-chain guard. Reverse-reason over an LLM-produced patch using MiniMax coding-plan model and return a ReasoningCard (goal / chain / hypotheses / risks / issues / verdict). Dual-brain: Claude writes, MiniMax audits. Thin shell over the bestqa CLI.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        predicted_patch: { type: 'string', description: 'The patch text to review.' },
+        problem_statement: { type: 'string', description: 'Optional problem statement (e.g. SWE-bench issue).' },
+        context_snippets: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Optional context file contents (each prefixed with "# path").',
+        },
+        force: { type: 'boolean', description: 'Escape hatch: downgrade fatal→warn.' },
+      },
+      required: ['predicted_patch'],
+    },
+  },
 ];
 
 // Generate unique observation ID
@@ -1550,6 +1569,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               },
               submitted: results,
             }, null, 2),
+          }],
+        };
+      }
+
+      // ===== MVP W1 T1.5: bestqa_check — thin shell over core reviewer =====
+      case 'bestqa_check': {
+        const a = (args ?? {}) as Record<string, unknown>;
+        const { reviewPatch, mapToReasoningCardFields } = await import('./core/minimax-reviewer.js');
+        const { computeVerdict } = await import('./core/reasoning-card.js');
+        const raw = await reviewPatch({
+          predictedPatch: String(a.predicted_patch ?? ''),
+          problemStatement: a.problem_statement ? String(a.problem_statement) : undefined,
+          contextSnippets: Array.isArray(a.context_snippets) ? (a.context_snippets as string[]) : [],
+        });
+        const mapped = mapToReasoningCardFields(raw);
+        const verdict = computeVerdict(mapped.issues, Boolean(a.force));
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify({ verdict, goal: mapped.goal, chain: raw.chain, hypotheses: raw.hypotheses, risks: mapped.risks, issues: mapped.issues }, null, 2),
           }],
         };
       }

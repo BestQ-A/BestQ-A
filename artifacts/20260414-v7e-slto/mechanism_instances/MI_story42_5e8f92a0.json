@@ -1,0 +1,26 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/mechanism-instance-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T05:06:26.632Z",
+  "id": "MI_story42_5e8f92a0",
+  "mechanism_class_ref": "proxy:hyp_hyp_58lpbrvp",
+  "mechanism_program_ref": "MP_default_path_projection",
+  "episode_id": "story_424d5a15",
+  "bindings": {
+    "slot_0": "a_37df9c50",
+    "slot_1": "a_a9a077bf",
+    "slot_2": "a_05a3d353"
+  },
+  "source_kind": "path_projection",
+  "source_ref": null,
+  "claim_ids": [
+    "hyp_58lpbrvp"
+  ],
+  "support_link_refs": [],
+  "status": "rejected",
+  "rejection_reason": "canPromote 门控未通过",
+  "superseded_by": null,
+  "created_at": "2026-04-14T05:06:26.617Z",
+  "created_by": "pipeline_s4"
+}

@@ -1,0 +1,14 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/review-decision-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T12:14:31.402Z",
+  "id": "RD_b183cd9b7f5b",
+  "proposalRef": "PRP_b45fe0f5f290",
+  "decision": "accepted",
+  "supersededByRef": null,
+  "rationale": "artifact export demo",
+  "generatedDeltaRef": "OD_rv_PRP_b45fe0f5f290_30bc9e",
+  "reviewedAt": "2026-04-14T12:14:31.402Z",
+  "reviewedBy": "export_script"
+}

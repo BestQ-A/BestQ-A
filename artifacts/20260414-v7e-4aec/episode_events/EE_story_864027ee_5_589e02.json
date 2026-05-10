@@ -1,0 +1,15 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/episode-event-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T08:59:28.602Z",
+  "id": "EE_story_864027ee_5_589e02",
+  "episode_id": "story_864027ee",
+  "seq": 5,
+  "kind": "ontology_delta_written",
+  "ref_id": "OD_story_864027ee_26b6e8",
+  "payload": {
+    "kind": "none"
+  },
+  "created_at": "2026-04-14T08:59:28.594Z"
+}

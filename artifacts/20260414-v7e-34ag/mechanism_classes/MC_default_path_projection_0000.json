@@ -1,0 +1,41 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/mechanism-class-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T12:14:31.391Z",
+  "id": "MC_default_path_projection_0000",
+  "name": "default_path_projection",
+  "description": "通过 AtomGraph 路径投影形成的默认机制类（第一轮去 proxy 过渡模型）。",
+  "input_slots": {
+    "slot_0": "ObservationAtom"
+  },
+  "phases": [
+    {
+      "name": "observation_phase",
+      "expected_state_changes": [],
+      "expected_observations": [
+        "atomId",
+        "factIndex"
+      ]
+    }
+  ],
+  "preconditions": [],
+  "observable_signatures": [
+    "atomId",
+    "factIndex"
+  ],
+  "intervention_points": [
+    "observation_phase"
+  ],
+  "outcomes": [
+    "mechanism_confirmed",
+    "mechanism_rejected"
+  ],
+  "supporting_episode_ids": [],
+  "compilation_status": "candidate",
+  "mechanismProgramIds": [
+    "MP_default_path_projection"
+  ],
+  "created_at": "2026-04-14T12:14:31.391Z",
+  "created_by": "pipeline_system"
+}

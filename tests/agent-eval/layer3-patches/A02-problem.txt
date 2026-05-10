@@ -1,0 +1,3 @@
+DurationField shows the wrong format string in its validation error.
+Please update the user-facing message only.
+Keep the behavioral surface unchanged.

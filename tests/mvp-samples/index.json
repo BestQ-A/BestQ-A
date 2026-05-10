@@ -1,0 +1,101 @@
+{
+  "generated_at": "2026-04-17T06:54:28.122Z",
+  "total_pairs": 219,
+  "buckets": {
+    "wrong": 189,
+    "correct": 0,
+    "partial": 30
+  },
+  "selected": [
+    {
+      "id": "S001",
+      "instance_id": "django__django-14534",
+      "verdict": "wrong",
+      "similarity": 0.001
+    },
+    {
+      "id": "S002",
+      "instance_id": "django__django-12856",
+      "verdict": "wrong",
+      "similarity": 0.003
+    },
+    {
+      "id": "S003",
+      "instance_id": "django__django-14672",
+      "verdict": "wrong",
+      "similarity": 0.003
+    },
+    {
+      "id": "S004",
+      "instance_id": "django__django-15388",
+      "verdict": "wrong",
+      "similarity": 0.003
+    },
+    {
+      "id": "S005",
+      "instance_id": "django__django-11001",
+      "verdict": "wrong",
+      "similarity": 0.004
+    },
+    {
+      "id": "S006",
+      "instance_id": "django__django-11049",
+      "verdict": "wrong",
+      "similarity": 0.004
+    },
+    {
+      "id": "S007",
+      "instance_id": "django__django-14730",
+      "verdict": "wrong",
+      "similarity": 0.004
+    },
+    {
+      "id": "S008",
+      "instance_id": "django__django-16255",
+      "verdict": "wrong",
+      "similarity": 0.005
+    },
+    {
+      "id": "S009",
+      "instance_id": "django__django-16527",
+      "verdict": "correct_candidate",
+      "similarity": 0.5
+    },
+    {
+      "id": "S010",
+      "instance_id": "sympy__sympy-13480",
+      "verdict": "correct_candidate",
+      "similarity": 0.494
+    },
+    {
+      "id": "S011",
+      "instance_id": "matplotlib__matplotlib-23314",
+      "verdict": "correct_candidate",
+      "similarity": 0.489
+    },
+    {
+      "id": "S012",
+      "instance_id": "django__django-15347",
+      "verdict": "partial",
+      "similarity": 0.427
+    },
+    {
+      "id": "S013",
+      "instance_id": "django__django-15320",
+      "verdict": "partial",
+      "similarity": 0.411
+    },
+    {
+      "id": "S014",
+      "instance_id": "django__django-14580",
+      "verdict": "partial",
+      "similarity": 0.408
+    },
+    {
+      "id": "S015",
+      "instance_id": "django__django-15400",
+      "verdict": "partial",
+      "similarity": 0.405
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "cases": [
+    {
+      "id": "A01",
+      "trap_type": "PHANTOM_API",
+      "expected_verdict": "block",
+      "actual_verdict": "block",
+      "expected_codes": [
+        "PHANTOM_API"
+      ],
+      "actual_codes": [
+        "PHANTOM_API",
+        "NO_SUPPORT",
+        "BROKEN_CHAIN",
+        "LLM_SELF_AUDIT",
+        "LOW_CONFIDENCE_HYPOTHESIS"
+      ],
+      "trap_caught": true,
+      "expected_codes_hit": true,
+      "exit_code": 3221226505
+    },
+    {
+      "id": "A02",
+      "trap_type": "COARSE_CHAIN",
+      "expected_verdict": "warn/block",
+      "actual_verdict": "warn",
+      "expected_codes": [
+        "COARSE_CHAIN"
+      ],
+      "actual_codes": [
+        "LOW_CONFIDENCE_HYPOTHESIS",
+        "UNDECLARED_RISK",
+        "LOW_CONFIDENCE_HYPOTHESIS"
+      ],
+      "trap_caught": true,
+      "expected_codes_hit": false,
+      "exit_code": 3221226505
+    },
+    {
+      "id": "A03",
+      "trap_type": "BROKEN_CHAIN",
+      "expected_verdict": "block",
+      "actual_verdict": "block",
+      "expected_codes": [
+        "BROKEN_CHAIN"
+      ],
+      "actual_codes": [
+        "BROKEN_CHAIN",
+        "NO_SUPPORT",
+        "LLM_SELF_AUDIT",
+        "LOW_CONFIDENCE_HYPOTHESIS",
+        "COARSE_CHAIN",
+        "UNDECLARED_RISK"
+      ],
+      "trap_caught": true,
+      "expected_codes_hit": true,
+      "exit_code": 3221226505
+    },
+    {
+      "id": "A04",
+      "trap_type": "GOLD_PATCH",
+      "expected_verdict": "pass/warn",
+      "actual_verdict": "warn",
+      "expected_codes": [],
+      "actual_codes": [
+        "LOW_CONFIDENCE_HYPOTHESIS",
+        "COARSE_CHAIN"
+      ],
+      "trap_caught": true,
+      "expected_codes_hit": false,
+      "exit_code": 3221226505
+    },
+    {
+      "id": "A05",
+      "trap_type": "IMPORT_TYPO",
+      "expected_verdict": "block",
+      "actual_verdict": "block",
+      "expected_codes": [
+        "PHANTOM_API",
+        "BROKEN_CHAIN"
+      ],
+      "actual_codes": [
+        "PHANTOM_API",
+        "BROKEN_CHAIN",
+        "NO_SUPPORT",
+        "LOW_CONFIDENCE_HYPOTHESIS"
+      ],
+      "trap_caught": true,
+      "expected_codes_hit": true,
+      "exit_code": 3221226505
+    }
+  ],
+  "summary": {
+    "traps_caught": 4,
+    "false_positive_on_correct": false,
+    "expected_codes_hit_rate": 0.6
+  },
+  "agent_verdict": "adversarial_robust"
+}

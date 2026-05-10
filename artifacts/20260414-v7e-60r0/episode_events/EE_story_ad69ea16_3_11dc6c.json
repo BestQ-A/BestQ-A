@@ -1,0 +1,15 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/episode-event-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T04:48:52.925Z",
+  "id": "EE_story_ad69ea16_3_11dc6c",
+  "episode_id": "story_ad69ea16",
+  "seq": 3,
+  "kind": "hypothesis_validated",
+  "ref_id": "hyp_8f3xglqj",
+  "payload": {
+    "outcome": "mechanism_confirmed"
+  },
+  "created_at": "2026-04-14T04:48:52.893Z"
+}

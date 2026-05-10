@@ -1,0 +1,16 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/observation-model-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T06:53:01.902Z",
+  "id": "OR_story_0f05f2d5_0",
+  "episodeId": "story_0f05f2d5",
+  "observationModelId": "OM_default_fact_ingest",
+  "t": 0,
+  "source": "submitObservation",
+  "payload": {
+    "atomId": "a_3eef75b5",
+    "factIndex": 0,
+    "rawInput": "service timeout on login endpoint"
+  }
+}

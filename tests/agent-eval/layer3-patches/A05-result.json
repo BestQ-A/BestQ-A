@@ -1,0 +1,82 @@
+{
+  "id": "RC_f1805396bb29f442_mo2pwre3",
+  "createdAt": "2026-04-17T09:40:59.217Z",
+  "createdBy": "minimax-coding-plan",
+  "schemaVersion": 1,
+  "input": {
+    "patchDigest": "f1805396bb29f442",
+    "problemStatement": "DurationField validation currently shows the wrong message format.\nApply a minimal fix without breaking imports or module loading.\n",
+    "contextFiles": [],
+    "predictedPatch": "diff --git a/django/db/models/fields/duration.py b/django/db/models/fields/duration.py\n--- a/django/db/models/fields/duration.py\n+++ b/django/db/models/fields/duration.py\n@@ -1,6 +1,6 @@\n-from django.core.exceptions import ValidationError\n+from django.core.exceptionz import ValidationError\n from django.db.models import Field\n from django.utils.duration import parse_duration\n"
+  },
+  "goal": "Fix DurationField validation to show the correct message format without breaking imports or module loading",
+  "derivationTrace": {
+    "id": "DT_RC_f1805396bb29f442_mo2pwre3",
+    "contextKind": "inference",
+    "episodeId": null,
+    "reconstructionId": null,
+    "premiseClaimIds": [],
+    "proof": [],
+    "supportLinks": [],
+    "rejectedClaimIds": [],
+    "totalSteps": 0,
+    "replayableSteps": 0,
+    "chainIntegrity": "complete",
+    "createdAt": "2026-04-17T09:40:59.218Z",
+    "createdBy": "cli-smoke"
+  },
+  "supportLinks": [],
+  "hypotheses": [
+    {
+      "id": "hyp_RC_f1805396bb29f442_mo2pwre3_0",
+      "claim": "The patch author made a typo by adding 'z' to 'exceptions' (exceptions → exceptionz)",
+      "confidence": 0.95,
+      "status": "candidate"
+    },
+    {
+      "id": "hyp_RC_f1805396bb29f442_mo2pwre3_1",
+      "claim": "The patch author intended to modify ValidationError usage in the DurationField class itself (e.g., the error message construction)",
+      "confidence": 0.3,
+      "status": "candidate"
+    }
+  ],
+  "risks": [
+    "ImportError at module load time because django.core.exceptionz does not exist",
+    "DurationField validation will completely fail to import",
+    "No validation message format fix was applied"
+  ],
+  "verdict": "block",
+  "issues": [
+    {
+      "severity": "fatal",
+      "code": "PHANTOM_API",
+      "message": "Module 'django.core.exceptionz' does not exist in Django. The correct module is 'django.core.exceptions'.",
+      "stepNumber": 1
+    },
+    {
+      "severity": "fatal",
+      "code": "BROKEN_CHAIN",
+      "message": "The import change is unrelated to fixing DurationField validation message format",
+      "stepNumber": 1
+    },
+    {
+      "severity": "fatal",
+      "code": "NO_SUPPORT",
+      "message": "No evidence that changing the import path addresses 'wrong message format' in DurationField validation",
+      "stepNumber": 1
+    },
+    {
+      "severity": "warn",
+      "code": "LOW_CONFIDENCE_HYPOTHESIS",
+      "message": "Hypothesis about author intent is a guess; the patch may simply be erroneous",
+      "stepNumber": 3
+    }
+  ],
+  "forceOverridden": false,
+  "persistence": {
+    "supportLinksAdded": 0,
+    "derivationTraceStored": false,
+    "causalLearnerNodesAdded": 0
+  }
+}
+Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), file src\win\async.c, line 76

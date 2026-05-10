@@ -1,0 +1,15 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/support-link-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T04:50:05.412Z",
+  "id": "SL_demo_5ef7f300",
+  "observationRecordId": "OR_story_b1b76e9f_0",
+  "claimId": "hyp_demo_ef407acb",
+  "polarity": "supports",
+  "weight": 0.75,
+  "sourceKind": "pipeline",
+  "sourceRef": "export-v7-artifacts:demo",
+  "createdAt": "2026-04-14T04:50:05.412Z",
+  "createdBy": "scripts/export-v7-artifacts.mjs"
+}

@@ -6,6 +6,15 @@
       "env": {
         "CAUSAL_DB_PATH": "/mnt/e/1_agents_space/9_AGI/BestQ-A/causal-learner/data/causal.db"
       }
+    },
+    "zvec": {
+      "command": "uvx",
+      "args": ["zvec-mcp-server"],
+      "env": {
+        "OPENAI_API_KEY": "${OPENAI_API_KEY}",
+        "OPENAI_BASE_URL": "https://api.openai.com/v1",
+        "OPENAI_EMBEDDING_MODEL": "text-embedding-3-small"
+      }
     }
   }
 }

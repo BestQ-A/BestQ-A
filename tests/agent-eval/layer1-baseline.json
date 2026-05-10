@@ -1,0 +1,462 @@
+{
+  "generated_at": "2026-04-17T09:14:43.559Z",
+  "total_samples": 15,
+  "errors": 0,
+  "durable_assets": {
+    "min_support_links_per_card": 3,
+    "min_support_links_target": 1,
+    "min_support_links_pass": true,
+    "derivation_traces_stored": 9,
+    "total_support_links": 31,
+    "total_nodes": 62,
+    "total_nodes_target_3wks": 50,
+    "total_nodes_pass": true
+  },
+  "metrics": {
+    "hit_rate": 1,
+    "hit_rate_target": 0.7,
+    "hit_rate_pass": true,
+    "false_positive_rate": 0,
+    "false_positive_target": 0.2,
+    "false_positive_pass": true,
+    "grading_accuracy": 1,
+    "grading_accuracy_target": 0.8,
+    "grading_accuracy_pass": true
+  },
+  "buckets": {
+    "wrong_or_partial": 14,
+    "correct": 1
+  },
+  "verdict_distribution": {
+    "block": 6,
+    "warn": 8,
+    "pass": 1
+  },
+  "results": [
+    {
+      "id": "S001",
+      "instance_id": "django__django-14534",
+      "expected": "wrong",
+      "verdict": "block",
+      "issues": [
+        {
+          "severity": "fatal",
+          "code": "NO_SUPPORT"
+        },
+        {
+          "severity": "fatal",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        },
+        {
+          "severity": "warn",
+          "code": "BROKEN_CHAIN"
+        }
+      ],
+      "goal": "Fix BoundWidget.id_for_label to use the id from widget attrs instead of generating its own",
+      "passExpectation": true,
+      "ingest": {
+        "supportLinksAdded": 0,
+        "derivationTraceStored": false,
+        "causalLearnerNodesAdded": 0
+      },
+      "ms": 32542
+    },
+    {
+      "id": "S002",
+      "instance_id": "django__django-12856",
+      "expected": "wrong",
+      "verdict": "warn",
+      "issues": [
+        {
+          "severity": "warn",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        },
+        {
+          "severity": "warn",
+          "code": "COARSE_CHAIN"
+        }
+      ],
+      "goal": "Add validation for UniqueConstraint fields to raise E012 when fields don't exist, matching unique_together behavior.",
+      "passExpectation": true,
+      "ingest": {
+        "derivationTraceId": "DT_RC_4573dffeee001eff_S002",
+        "supportLinksAdded": 4,
+        "derivationTraceStored": true,
+        "causalLearnerNodesAdded": 8
+      },
+      "ms": 23210
+    },
+    {
+      "id": "S003",
+      "instance_id": "django__django-14672",
+      "expected": "wrong",
+      "verdict": "warn",
+      "issues": [
+        {
+          "severity": "warn",
+          "code": "COARSE_CHAIN"
+        },
+        {
+          "severity": "warn",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        },
+        {
+          "severity": "warn",
+          "code": "UNDECLARED_RISK"
+        }
+      ],
+      "goal": "Fix TypeError when through_fields (a list) is used in ManyToManyRel with proxy models by wrapping through_fields and identity with make_hashable",
+      "passExpectation": true,
+      "ingest": {
+        "derivationTraceId": "DT_RC_43d01484756910c4_S003",
+        "supportLinksAdded": 6,
+        "derivationTraceStored": true,
+        "causalLearnerNodesAdded": 12
+      },
+      "ms": 37982
+    },
+    {
+      "id": "S004",
+      "instance_id": "django__django-15388",
+      "expected": "wrong",
+      "verdict": "block",
+      "issues": [
+        {
+          "severity": "fatal",
+          "code": "NO_SUPPORT"
+        },
+        {
+          "severity": "warn",
+          "code": "BROKEN_CHAIN"
+        },
+        {
+          "severity": "fatal",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        },
+        {
+          "severity": "warn",
+          "code": "COARSE_CHAIN"
+        },
+        {
+          "severity": "warn",
+          "code": "LLM_SELF_AUDIT"
+        }
+      ],
+      "goal": "Fix the dev server autoreload mechanism to properly restart when BASE_DIR is added to TEMPLATES[0]['DIRS'] without blocking reloads for non-template files in that directory.",
+      "passExpectation": true,
+      "ingest": {
+        "supportLinksAdded": 0,
+        "derivationTraceStored": false,
+        "causalLearnerNodesAdded": 0
+      },
+      "ms": 40069
+    },
+    {
+      "id": "S005",
+      "instance_id": "django__django-11001",
+      "expected": "wrong",
+      "verdict": "warn",
+      "issues": [
+        {
+          "severity": "warn",
+          "code": "COARSE_CHAIN"
+        },
+        {
+          "severity": "warn",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        },
+        {
+          "severity": "warn",
+          "code": "UNDECLARED_RISK"
+        }
+      ],
+      "goal": "Fix incorrect removal of order_by clauses when RawSQL expressions span multiple lines and have similar ending substrings",
+      "passExpectation": true,
+      "ingest": {
+        "derivationTraceId": "DT_RC_f51f55540635c662_S005",
+        "supportLinksAdded": 3,
+        "derivationTraceStored": true,
+        "causalLearnerNodesAdded": 6
+      },
+      "ms": 29429
+    },
+    {
+      "id": "S006",
+      "instance_id": "django__django-11049",
+      "expected": "wrong",
+      "verdict": "block",
+      "issues": [
+        {
+          "severity": "fatal",
+          "code": "NO_SUPPORT"
+        },
+        {
+          "severity": "fatal",
+          "code": "BROKEN_CHAIN"
+        },
+        {
+          "severity": "fatal",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        },
+        {
+          "severity": "fatal",
+          "code": "BROKEN_CHAIN"
+        },
+        {
+          "severity": "warn",
+          "code": "BROKEN_CHAIN"
+        },
+        {
+          "severity": "warn",
+          "code": "LLM_SELF_AUDIT"
+        }
+      ],
+      "goal": "Correct DurationField error message format string from '[DD] [HH:[MM:]]ss[.uuuuuu]' to '[DD] [[HH:]MM:]ss[.uuuuuu]'",
+      "passExpectation": true,
+      "ingest": {
+        "supportLinksAdded": 0,
+        "derivationTraceStored": false,
+        "causalLearnerNodesAdded": 0
+      },
+      "ms": 45502
+    },
+    {
+      "id": "S007",
+      "instance_id": "django__django-14730",
+      "expected": "wrong",
+      "verdict": "block",
+      "issues": [
+        {
+          "severity": "fatal",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        },
+        {
+          "severity": "warn",
+          "code": "BROKEN_CHAIN"
+        },
+        {
+          "severity": "warn",
+          "code": "COARSE_CHAIN"
+        }
+      ],
+      "goal": "Prevent developers from defining a related_name on symmetrical or self-referential ManyToManyFields by raising a system check error",
+      "passExpectation": true,
+      "ingest": {
+        "supportLinksAdded": 0,
+        "derivationTraceStored": false,
+        "causalLearnerNodesAdded": 0
+      },
+      "ms": 86677
+    },
+    {
+      "id": "S008",
+      "instance_id": "django__django-16255",
+      "expected": "wrong",
+      "verdict": "warn",
+      "issues": [
+        {
+          "severity": "warn",
+          "code": "NO_SUPPORT"
+        },
+        {
+          "severity": "warn",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        }
+      ],
+      "goal": "Fix ValueError when sitemap with callable lastmod has no items by using max()'s default parameter",
+      "passExpectation": true,
+      "ingest": {
+        "derivationTraceId": "DT_RC_715fda44d2d991ef_S008",
+        "supportLinksAdded": 3,
+        "derivationTraceStored": true,
+        "causalLearnerNodesAdded": 6
+      },
+      "ms": 24285
+    },
+    {
+      "id": "S009",
+      "instance_id": "django__django-16527",
+      "expected": "correct",
+      "verdict": "pass",
+      "issues": [],
+      "goal": "Fix security vulnerability where users with change but not add permission could still see the 'Save as new' button, which would allow creating new objects without add permission.",
+      "passExpectation": true,
+      "ingest": {
+        "derivationTraceId": "DT_RC_e02d0b3b5f831c60_S009",
+        "supportLinksAdded": 3,
+        "derivationTraceStored": true,
+        "causalLearnerNodesAdded": 6
+      },
+      "ms": 22761
+    },
+    {
+      "id": "S010",
+      "instance_id": "sympy__sympy-13480",
+      "expected": "wrong",
+      "verdict": "warn",
+      "issues": [
+        {
+          "severity": "warn",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        },
+        {
+          "severity": "warn",
+          "code": "COARSE_CHAIN"
+        }
+      ],
+      "goal": "Fix NameError when substituting integer values into coth(log(tan(x))) by correcting a typo in hyperbolic.py",
+      "passExpectation": true,
+      "ingest": {
+        "derivationTraceId": "DT_RC_d60e110f113fabbf_S010",
+        "supportLinksAdded": 3,
+        "derivationTraceStored": true,
+        "causalLearnerNodesAdded": 6
+      },
+      "ms": 25585
+    },
+    {
+      "id": "S011",
+      "instance_id": "matplotlib__matplotlib-23314",
+      "expected": "wrong",
+      "verdict": "block",
+      "issues": [
+        {
+          "severity": "warn",
+          "code": "COARSE_CHAIN"
+        },
+        {
+          "severity": "fatal",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        },
+        {
+          "severity": "warn",
+          "code": "NO_SUPPORT"
+        },
+        {
+          "severity": "warn",
+          "code": "UNDECLARED_RISK"
+        }
+      ],
+      "goal": "Fix set_visible(False) not working for 3D projection subplots in matplotlib",
+      "passExpectation": true,
+      "ingest": {
+        "supportLinksAdded": 0,
+        "derivationTraceStored": false,
+        "causalLearnerNodesAdded": 0
+      },
+      "ms": 29957
+    },
+    {
+      "id": "S012",
+      "instance_id": "django__django-15347",
+      "expected": "partial",
+      "verdict": "warn",
+      "issues": [
+        {
+          "severity": "warn",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        },
+        {
+          "severity": "warn",
+          "code": "COARSE_CHAIN"
+        },
+        {
+          "severity": "warn",
+          "code": "UNDECLARED_RISK"
+        }
+      ],
+      "goal": "Fix MessageEncoder to preserve empty string extra_tags instead of converting it to None during JSON serialization/deserialization",
+      "passExpectation": true,
+      "ingest": {
+        "derivationTraceId": "DT_RC_08dcb98c23455fab_S012",
+        "supportLinksAdded": 3,
+        "derivationTraceStored": true,
+        "causalLearnerNodesAdded": 6
+      },
+      "ms": 61060
+    },
+    {
+      "id": "S013",
+      "instance_id": "django__django-15320",
+      "expected": "partial",
+      "verdict": "warn",
+      "issues": [
+        {
+          "severity": "warn",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        },
+        {
+          "severity": "warn",
+          "code": "COARSE_CHAIN"
+        }
+      ],
+      "goal": "Fix Subquery.as_sql() to generate valid SQL with correct brackets by ensuring subquery attribute is set in constructor",
+      "passExpectation": true,
+      "ingest": {
+        "derivationTraceId": "DT_RC_332b79ccb3d2ce3b_S013",
+        "supportLinksAdded": 3,
+        "derivationTraceStored": true,
+        "causalLearnerNodesAdded": 6
+      },
+      "ms": 21328
+    },
+    {
+      "id": "S014",
+      "instance_id": "django__django-14580",
+      "expected": "partial",
+      "verdict": "block",
+      "issues": [
+        {
+          "severity": "fatal",
+          "code": "NO_SUPPORT"
+        },
+        {
+          "severity": "warn",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        },
+        {
+          "severity": "warn",
+          "code": "PHANTOM_API"
+        },
+        {
+          "severity": "warn",
+          "code": "COARSE_CHAIN"
+        }
+      ],
+      "goal": "Fix missing import for models.Model in generated migrations when a custom model uses mixins",
+      "passExpectation": true,
+      "ingest": {
+        "supportLinksAdded": 0,
+        "derivationTraceStored": false,
+        "causalLearnerNodesAdded": 0
+      },
+      "ms": 24687
+    },
+    {
+      "id": "S015",
+      "instance_id": "django__django-15400",
+      "expected": "partial",
+      "verdict": "warn",
+      "issues": [
+        {
+          "severity": "warn",
+          "code": "COARSE_CHAIN"
+        },
+        {
+          "severity": "warn",
+          "code": "LOW_CONFIDENCE_HYPOTHESIS"
+        }
+      ],
+      "goal": "Add __radd__ support to SimpleLazyObject so that expressions like 'something + lazy_object' work correctly",
+      "passExpectation": true,
+      "ingest": {
+        "derivationTraceId": "DT_RC_7ea5fcd6100c5a5c_S015",
+        "supportLinksAdded": 3,
+        "derivationTraceStored": true,
+        "causalLearnerNodesAdded": 6
+      },
+      "ms": 28417
+    }
+  ],
+  "agent_verdict": "regression_pass"
+}

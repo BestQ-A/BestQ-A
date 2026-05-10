@@ -1,0 +1,16 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/episode-event-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T04:48:52.931Z",
+  "id": "EE_story_ad69ea16_7_edd68e",
+  "episode_id": "story_ad69ea16",
+  "seq": 7,
+  "kind": "reconstruction_written",
+  "ref_id": "RC_story_ad69ea16_1",
+  "payload": {
+    "traceId": "DT_story_ad69ea16_1c35f6ac",
+    "fidelityScore": 1
+  },
+  "created_at": "2026-04-14T04:48:52.893Z"
+}

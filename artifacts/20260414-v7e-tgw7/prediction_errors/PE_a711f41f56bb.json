@@ -1,0 +1,18 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/prediction-error-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T10:15:02.752Z",
+  "id": "PE_a711f41f56bb",
+  "basedOnCounterfactualId": "CS_e9ab4dc86c44",
+  "causedByActionExecutionId": "AX_3045e4c8dedf",
+  "outcomeRecordId": "ORC_5ce0fb5652fe",
+  "errorKind": "outcome",
+  "expectedSummary": "missing counterfactual predictedOutcome",
+  "actualSummary": "export-v7-artifacts action execution demo",
+  "deltaSummary": "expected: missing counterfactual predictedOutcome; actual: export-v7-artifacts action execution demo",
+  "severity": "low",
+  "score": null,
+  "recordedAt": "2026-04-14T10:15:02.743Z",
+  "recordedBy": "scripts/export-v7-artifacts.mjs"
+}

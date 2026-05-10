@@ -1,0 +1,2 @@
+DurationField validation currently shows the wrong message format.
+Apply a minimal fix without breaking imports or module loading.

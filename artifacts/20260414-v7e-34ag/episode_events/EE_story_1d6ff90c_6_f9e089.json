@@ -1,0 +1,15 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/episode-event-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T12:14:31.381Z",
+  "id": "EE_story_1d6ff90c_6_f9e089",
+  "episode_id": "story_1d6ff90c",
+  "seq": 6,
+  "kind": "mechanism_instance_rejected",
+  "ref_id": "MI_story1d_94201e62",
+  "payload": {
+    "status": "rejected"
+  },
+  "created_at": "2026-04-14T12:14:31.359Z"
+}

@@ -1,0 +1,58 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/reconstruction-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T04:50:04.896Z",
+  "id": "RC_story_0ba769ab_1",
+  "version": 1,
+  "episode_id": "story_0ba769ab",
+  "selectedMechanismIds": [
+    "proxy:hyp_hyp_9vrr075v"
+  ],
+  "mechanism_instance_ids": [],
+  "ontology_snapshot_ref": "ontology_current",
+  "derivation_chain_id": "DC_story_0ba769ab_hyp_9vrr075v",
+  "traceId": "DT_story_0ba769ab_781250f0",
+  "majorChain": [
+    "a_d4bb45a3",
+    "a_c1d66b89",
+    "a_0f5660b1"
+  ],
+  "reconstructed_timeline": [
+    {
+      "step": 0,
+      "kind": "initial_condition",
+      "node_ref": "a_d4bb45a3",
+      "content": "初始锚点: a_d4bb45a3",
+      "source": "episode_anchored"
+    },
+    {
+      "step": 1,
+      "kind": "observable",
+      "node_ref": "a_c1d66b89",
+      "content": "重建过程节点: a_c1d66b89",
+      "source": "ontology_derived"
+    },
+    {
+      "step": 2,
+      "kind": "outcome",
+      "node_ref": "a_0f5660b1",
+      "content": "结果收敛: a_0f5660b1",
+      "source": "ontology_derived"
+    }
+  ],
+  "fidelity": {
+    "score": 1,
+    "method": "key_node_coverage",
+    "matched_nodes": [
+      "a_d4bb45a3",
+      "a_c1d66b89",
+      "a_0f5660b1"
+    ],
+    "missed_nodes": [],
+    "extra_nodes": []
+  },
+  "created_at": "2026-04-14T04:50:04.584Z",
+  "created_by": "pipeline_recordfix_shell",
+  "supersedes": null
+}

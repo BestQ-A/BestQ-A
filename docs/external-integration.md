@@ -42,6 +42,7 @@ describes: "外部仓库接入边界与 SSOT 裁决"
 | 11 | `opencode` | github.com/anomalyco/opencode | 开源 AI coding agent（Claude Code 同类）+ **Phase 5 长期集成目标** | **长期集成**（仅参考 → Phase 5 转 MCP+plugin 双通道） | 现阶段：读其 `packages/plugin` 的 plugin API 实现；Phase 5：BestQA 作为 opencode plugin 分发 | 宿主运行时 = opencode（与 Claude Code MCP 并列），BestQA 领域智能为插件载荷 |
 | 12 | `skills` (Markdown Viewer Agent Skills) | agentskills.io | Markdown 图表 / 可视化技能包（13 个） | 生成物 | 输入：BestQA artifacts / metrics.json / knowledge graph；输出：Phase 4 dashboard 的 mermaid / 数据图、llm_wiki 视图增强 | 仅用于**生成视图资产**，不得写回 `docs/current/` 契约文档；产出落到 `website/` 或 `artifacts/<run_id>/` |
 | 13 | `oh-my-openagent` | github.com/code-yeongyu/oh-my-openagent | opencode 生态的 agent 编排层（"OMC 之于 Claude Code" = "oh-my-opencode 之于 opencode"） | **架构参考** | 研究其 plugin 形态、tool 注册、context 注入 hook、session 生命周期绑定；Phase 5 的 plugin surface 设计以此为模板 | **定位正交**：oh-my-openagent 做 agent 编排，BestQA 做领域智能（因果/案例/解法树），两者共生而非竞争；BestQA 插件可被 oh-my-openagent 生态消费 |
+| 14 | `zvec` | github.com/alibaba/zvec (+ `zvec-ai/zvec-mcp-server`) | 高性能嵌入式向量数据库 / 语义召回（Evidence / Regulation embedding 存储与检索） | **MCP** + Python/Node.js 包 | Skill 入口：[skills/zvec/SKILL.md](causal-learner/skills/zvec/SKILL.md)；MCP 注册：`causal-learner/.mcp.json` | **向量存储 SSOT = zvec**（`.zvec/` 数据文件）；结构化 facts SSOT = causal-learner SQLite（不变）；与 SimpleMem（对话压缩记忆）功能正交，无冲突 |
 
 ## 冲突裁决
 

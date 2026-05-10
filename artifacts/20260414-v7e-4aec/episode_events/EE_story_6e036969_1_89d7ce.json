@@ -1,0 +1,19 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/episode-event-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T08:59:28.606Z",
+  "id": "EE_story_6e036969_1_89d7ce",
+  "episode_id": "story_6e036969",
+  "seq": 1,
+  "kind": "observation_recorded",
+  "ref_id": "story_6e036969",
+  "payload": {
+    "atomCount": 2,
+    "observationRecordIds": [
+      "OR_story_6e036969_0",
+      "OR_story_6e036969_1"
+    ]
+  },
+  "created_at": "2026-04-14T08:59:28.594Z"
+}

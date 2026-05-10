@@ -1,0 +1,32 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/ontology-delta-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T08:28:30.910Z",
+  "id": "OD_story_d11a6480_1d6e7c",
+  "episode_id": "story_d11a6480",
+  "reconstruction_id": "RC_story_d11a6480_1",
+  "claim_ids": [
+    "hyp_xadrpfrx"
+  ],
+  "kind": "none",
+  "changes": [],
+  "no_update_reason": {
+    "reason_kind": "pending_more_evidence",
+    "explanation": "已生成 Reconstruction，但现有证据不足以安全提交 OntologyDelta。",
+    "follow_up": "补充更多已接受的 claim 或更明确的证据再重试。"
+  },
+  "fidelity_regression_check": {
+    "episodes_checked": 0,
+    "episodes_skipped": 0,
+    "skipped_ids": [],
+    "min_fidelity_before": 1,
+    "min_fidelity_after": 1,
+    "regression_detected": false,
+    "regressed_episodes": null,
+    "isMonotonic": true
+  },
+  "created_at": "2026-04-14T08:28:30.897Z",
+  "created_by": "pipeline_s7",
+  "applied_at": null
+}

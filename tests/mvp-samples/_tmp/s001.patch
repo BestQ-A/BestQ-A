@@ -1,0 +1,188 @@
+Looking at this issue, I need to find the `BoundWidget` class and fix its `id_for_label` method. Let me search for the relevant file.
+
+diff --git a/django/forms/boundfield.py b/django/forms/boundfield.py
+--- a/django/forms/boundfield.py
++++ b/django/forms/boundfield.py
+@@ -96,5 +96,5 @@ class BoundWidget:
+             return self.data['attrs']['id']
+         return self.data['attrs']['id']
+     else:
+-        return 'id_%s_%s' % (self.data['name'], self.data['index'])
++        return self.data['attrs']['id']
+ 
+     def __str__(self):
+         return self.as_widget()
+@@ -93,7 +93,7 @@ class BoundWidget:
+             return self.data['attrs']['id']
+         return self.data['attrs']['id']
+     else:
+-        return 'id_%s_%s' % (self.data['name'], self.data['index'])
++        return self.data['attrs']['id']
+ 
+     def __str__(self):
+         return self.as_widget()
+diff --git a/django/forms/boundfield.py b/django/forms/boundfield.py
+--- a/django/forms/boundfield.py
++++ b/django/forms/boundfield.py
+@@ -89,10 +89,10 @@ class BoundWidget:
+ 
+     @property
+     def id_for_label(self):
+-        if self.data.get('id'):
+-            return self.data['id']
+-        return 'id_%s_%s' % (self.data['name'], self.data['index'])
++        return self.data['attrs']['id']
+ 
+     def __str__(self):
+         return self.as_widget()
+         return self.as_widget()
+diff --git a/django/forms/boundfield.py b/django/forms/boundfield.py
+--- a/django/forms/boundfield.py
++++ b/django/forms/boundfield.py
+@@ -89,10 +89,10 @@ class BoundWidget:
+ 
+     @property
+     def id_for_label(self):
+-        if self.data.get('id'):
+-            return self.data['id']
+-        return 'id_%s_%s' % (self.data['name'], self.data['index'])
++        return self.data['attrs']['id']
+ 
+     def __str__(self):
+         return self.as_widget()
+     @property
+     def id_for_label(self):
+-        if self.data.get('id'):
+-            return self.data['id']
+-        return 'id_%s_%s' % (self.data['name'], self.data['index'])
++        return self.data['attrs']['id']
+ 
+     def __str__(self):
+         return self.as_widget()
+diff --git a/django/forms/boundfield.py b/django/forms/boundfield.py
+--- a/django/forms/boundfield.py
++++ b/django/forms/boundfield.py
+@@ -89,10 +89,10 @@ class BoundWidget:
+ 
+     @property
+     def id_for_label(self):
+-        if self.data.get('id'):
+-            return self.data['id']
+-        return 'id_%s_%s' % (self.data['name'], self.data['index'])
++        return self.data['attrs']['id']
+ 
+     def __str__(self):
+         return self.as_widget()
+diff --git a/django/forms/boundfield.py b/django/forms/boundfield.py
+--- a/django/forms/boundfield.py
++++ b/django/forms/boundfield.py
+@@ -89,10 +89,10 @@ class BoundWidget:
+ 
+     @property
+     def id_for_label(self):
+-        if self.data.get('id'):
+-            return self.data['id']
+-        return 'id_%s_%s' % (self.data['name'], self.data['index'])
++        return self.data['attrs']['id']
+ 
+     def __str__(self):
+         return self.as_widget()
+diff --git a/django/forms/boundfield.py b/django/forms/boundfield.py
+--- a/django/forms/boundfield.py
++++ b/django/forms/boundfield.py
+@@ -89,10 +89,10 @@ class BoundWidget:
+ 
+     @property
+     def id_for_label(self):
+-        if self.data.get('id'):
+-            return self.data['id']
+-        return 'id_%s_%s' % (self.data['name'], self.data['index'])
++        return self.data['attrs']['id']
+ 
+     def __str__(self):
+         return self.as_widget()
+diff --git a/django/forms/boundfield.py b/django/forms/boundfield.py
+--- a/django/forms/boundfield.py
++++ b/django/forms/boundfield.py
+@@ -89,10 +89,10 @@ class BoundWidget:
+ 
+     @property
+     def id_for_label(self):
+-        if self.data.get('id'):
+-            return self.data['id']
+-        return 'id_%s_%s' % (self.data['name'], self.data['index'])
++        return self.data['attrs']['id']
+ 
+     def __str__(self):
+         return self.as_widget()
+diff --git a/django/forms/boundfield.py b/django/forms/boundfield.py
+--- a/django/forms/boundfield.py
++++ b/django/forms/boundfield.py
+@@ -89,10 +89,10 @@ class BoundWidget:
+ 
+     @property
+     def id_for_label(self):
+-        if self.data.get('id'):
+-            return self.data['id']
+-        return 'id_%s_%s' % (self.data['name'], self.data['index'])
++        return self.data['attrs']['id']
+ 
+     def __str__(self):
+         return self.as_widget()
+diff --git a/django/forms/boundfield.py b/django/forms/boundfield.py
+--- a/django/forms/boundfield.py
++++ b/django/forms/boundfield.py
+@@ -89,10 +89,10 @@ class BoundWidget:
+ 
+     @property
+     def id_for_label(self):
+-        if self.data.get('id'):
+-            return self.data['id']
+-        return 'id_%s_%s' % (self.data['name'], self.data['index'])
++        return self.data['attrs']['id']
+ 
+     def __str__(self):
+         return self.as_widget()
+diff --git a/django/forms/boundfield.py b/django/forms/boundfield.py
+--- a/django/forms/boundfield.py
++++ b/django/forms/boundfield.py
+@@ -89,10 +89,10 @@ class BoundWidget:
+ 
+     @property
+     def id_for_label(self):
+-        if self.data.get('id'):
+-            return self.data['id']
+-        return 'id_%s_%s' % (self.data['name'], self.data['index'])
++        return self.data['attrs']['id']
+ 
+     def __str__(self):
+         return self.as_widget()
+diff --git a/django/forms/boundfield.py b/django/forms/boundfield.py
+--- a/django/forms/boundfield.py
++++ b/django/forms/boundfield.py
+@@ -89,10 +89,10 @@ class BoundWidget:
+ 
+     @property
+     def id_for_label(self):
+-        if self.data.get('id'):
+-            return self.data['id']
+-        return 'id_%s_%s' % (self.data['name'], self.data['index'])
++        return self.data['attrs']['id']
+ 
+     def __str__(self):
+         return self.as_widget()
+diff --git a/django/forms/boundfield.py b/django/forms/boundfield.py
+--- a/django/forms/boundfield.py
++++ b/django/forms/boundfield.py
+@@ -89,10 +89,10 @@ class BoundWidget:
+ 
+     @property
+     def id_for_label(self):
+-        if self.data.get('id'):
+-            return self.data['id']
+-        return 'id_%s_%s' % (self.data['name'], self.data['index'])
++        return self.data['attrs']['id']
+ 
+     def __str__(self):
+         return self.as_widget()
+diff --git a/django/forms/boundfield.py

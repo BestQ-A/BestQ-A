@@ -1038,3 +1038,18 @@ export {
   createProbabilitySemiring,
   createTopKSemiring,
 } from './provenance-semiring.js';
+
+// =============================================================================
+// Local Embedding（Transformers.js — 完全本地，无需 API key）
+// =============================================================================
+
+export {
+  LocalEmbedding,
+  warmupEmbeddings,
+  EMBEDDING_MODELS,
+} from './embedding.js';
+
+export type {
+  EmbeddingModelName,
+  EmbeddingResult,
+} from './embedding.js';

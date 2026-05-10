@@ -1037,6 +1037,8 @@ export class CausalPipeline {
     }
 
     // MEDIUM 6/7 修复：从 candidatePaths + chosenPath + failedPaths 派生 BranchPoint 分叉治理
+    // v13 G5 追加：记住本次生成的 pruned future branches，Step 9c 据此派生 PBR
+    const derivedPrunedBranches: Array<{ futureBranch: import('./branch-point.js').FutureBranch; branchPointLocation: string }> = [];
     if (storySnapshot.candidatePaths.length > 0 || (input.failedPathAtomIds && input.failedPathAtomIds.length > 0)) {
       try {
         const allPaths = storySnapshot.candidatePaths;
@@ -1072,7 +1074,10 @@ export class CausalPipeline {
         const finalBp = { ...bp, chosenBranchId: chosenBranch.id };
         this.branchPoints.saveBranchPoint(finalBp);
         this.branchPoints.saveFutureBranch(chosenBranch);
-        for (const pb of prunedBranches) this.branchPoints.saveFutureBranch(pb);
+        for (const pb of prunedBranches) {
+          this.branchPoints.saveFutureBranch(pb);
+          derivedPrunedBranches.push({ futureBranch: pb, branchPointLocation: finalBp.locationDescription });
+        }
       } catch (error) {
         this.warnBestEffortFailure('recordFix.branchPoint', error, { storyId: input.storyId });
       }
@@ -1243,6 +1248,27 @@ export class CausalPipeline {
         this.historicalCompressionRecords.save(hcr);
       } catch (hcrError) {
         this.warnBestEffortFailure('recordFix.historicalCompressionRecord', hcrError, { storyId: input.storyId });
+      }
+
+      // Step 9c: v13 G5 — 为本次 recordFix 派生的 pruned future branches 自动生成 PrunedBranchRecord
+      // 每一条被剪分支都绑定到刚 save 的 PresentSlice，保持 lineage 可追溯
+      try {
+        for (const { futureBranch, branchPointLocation } of derivedPrunedBranches) {
+          const pathPreview = futureBranch.pathAtomIds.slice(0, 3).join(' → ');
+          const truncated = futureBranch.pathAtomIds.length > 3 ? '…' : '';
+          const pbr = createPrunedBranchRecord({
+            branchDescription: `被剪分支 @ ${branchPointLocation}: ${pathPreview}${truncated}`,
+            prunedBy: ['failure'],
+            presentSliceRef: presentSlice.id,
+            definingEpisodeIds: [input.storyId],
+            evidenceAtomIds: futureBranch.pathAtomIds,
+            rationale: futureBranch.pruneReason ?? 'compile 验证失败或被操作者排除',
+            prunedByActor: input.operator ?? 'pipeline_recordfix',
+          });
+          this.prunedBranchRecords.save(pbr);
+        }
+      } catch (pbrError) {
+        this.warnBestEffortFailure('recordFix.prunedBranchRecord', pbrError, { storyId: input.storyId });
       }
     } catch (error) {
       this.warnBestEffortFailure('recordFix.presentSlice', error, { storyId: input.storyId });

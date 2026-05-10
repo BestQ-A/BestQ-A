@@ -1,0 +1,11 @@
+diff --git a/django/db/models/sql/compiler.py b/django/db/models/sql/compiler.py
+--- a/django/db/models/sql/compiler.py
++++ b/django/db/models/sql/compiler.py
+@@ -1098,6 +1098,10 @@ class SQLCompiler:
+              # A more sophisticated approach would parse the SQL.
++            sql = sql.normalize_multiline_sql()
++            if sql.has_duplicate_ordering_parts():
++                ordering_string = sql.build_ordering_string()
++
+              without_ordering = self.ordering_parts.search(sql).group(1)
+              ordering_string = sql[len(without_ordering):]

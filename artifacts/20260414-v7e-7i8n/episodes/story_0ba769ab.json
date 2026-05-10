@@ -1,0 +1,48 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/v7-world-model-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T04:50:05.012Z",
+  "id": "story_0ba769ab",
+  "rawInput": "memory usage keeps growing after peak load",
+  "context": {},
+  "observationAtomIds": [
+    "a_d4bb45a3",
+    "a_c1d66b89"
+  ],
+  "candidatePaths": [],
+  "executedSkillIds": [],
+  "status": "resolved",
+  "outcome": "partial",
+  "outcomeNotes": "编译未通过：canPromote 门控未通过",
+  "operator": "system",
+  "createdAt": "2026-04-14T04:50:04.582Z",
+  "resolvedAt": "2026-04-14T04:50:04.584Z",
+  "updatedAt": "2026-04-14T04:50:04.585Z",
+  "episodeId": "story_0ba769ab",
+  "initialConditions": {
+    "observationAtomIds": [
+      "a_d4bb45a3",
+      "a_c1d66b89"
+    ],
+    "context": {}
+  },
+  "observationRecordIds": [
+    "OR_story_0ba769ab_0",
+    "OR_story_0ba769ab_1"
+  ],
+  "transitionIds": [],
+  "episodeEventIds": [
+    "EE_story_0ba769ab_1_6199d1",
+    "EE_story_0ba769ab_2_8c3424",
+    "EE_story_0ba769ab_3_7c424f",
+    "EE_story_0ba769ab_4_71a92b",
+    "EE_story_0ba769ab_5_4db369",
+    "EE_story_0ba769ab_6_fe8a66",
+    "EE_story_0ba769ab_7_eba89e",
+    "EE_story_0ba769ab_8_794435",
+    "EE_story_0ba769ab_9_356df4"
+  ],
+  "acceptedReconstructionId": "RC_story_0ba769ab_1",
+  "ontologyDeltaId": "OD_story_0ba769ab_337fc6"
+}

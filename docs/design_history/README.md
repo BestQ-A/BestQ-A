@@ -7,7 +7,7 @@
 
 ## 这个目录是做什么的
 
-- 记录从 `v1` 到 `v12*` 的设计演化轨迹。
+- 记录从 `v1` 到 `v13` 的设计演化轨迹。
 - 保留已经被后续版本超越的上行视野，避免把历史意图误读为当前 contract。
 - 为 `docs/current/` 提供来源背景，但不替代 `docs/current/` 的现行语义与操作契约。
 
@@ -28,11 +28,12 @@
 
 ### 看 bridge set
 
-1. [v12_convergence_to_current_boundary.md](./v12_convergence_to_current_boundary.md)：给出“今天到底应该怎么读整个项目”的总收敛结论。
+1. [v12_convergence_to_current_boundary.md](./v12_convergence_to_current_boundary.md)：给出"今天到底应该怎么读整个项目"的总收敛结论。
 2. [v12a_objectization_of_v7.md](./v12a_objectization_of_v7.md)：解释 `v7` 如何拆成当前 object/contract 栈。
 3. [v12b_selective_v8_absorption.md](./v12b_selective_v8_absorption.md)：解释 `v8` 哪些部分被吸收，哪些仍停留在 draft/horizon。
 4. [v12c_deferred_layers_v9_to_v11.md](./v12c_deferred_layers_v9_to_v11.md)：明确 `v9-v11` 为什么被保留为延后层，而不是当前能力。
-5. [current-boundary-map.md](./current-boundary-map.md)：把设计史节点逐个映射到 `docs/current/` 合同状态与可辩护实现现实。
+5. [v13_historical_generative_ontology.md](./v13_historical_generative_ontology.md)：在 v12 收敛之上的历史生成式本体层。
+6. [current-boundary-map.md](./current-boundary-map.md)：把设计史节点逐个映射到 `docs/current/` 合同状态与可辩护实现现实。
 
 ## 版本分层
 
@@ -67,6 +68,10 @@
 - [v12b_selective_v8_absorption.md](./v12b_selective_v8_absorption.md)：界定 `v8` 中哪些能力进入当前边界，哪些仍明确延后。
 - [v12c_deferred_layers_v9_to_v11.md](./v12c_deferred_layers_v9_to_v11.md)：把 `v9-v11` 明确标成 deferred horizon，并给出进入条件思路。
 
+### v13：历史生成式本体
+
+- [v13_historical_generative_ontology.md](./v13_historical_generative_ontology.md)：在 v12 收敛之上的历史生成式本体层。
+
 ### docs/current：当前锚点
 
 - [`../current/metamodel.md`](../current/metamodel.md)：当前语义锚点，不是设计史版本文件，但它是 `v1-v6` 收敛到现行 contract 语言的核心入口。
@@ -74,17 +79,18 @@
 
 ## Bridge Set 一句话说明
 
-- [v12_convergence_to_current_boundary.md](./v12_convergence_to_current_boundary.md)：回答“历史设计最终在今天该如何被解释”。
-- [v12a_objectization_of_v7.md](./v12a_objectization_of_v7.md)：回答“`v7` 主干怎样落到现在这组对象与合同上”。
-- [v12b_selective_v8_absorption.md](./v12b_selective_v8_absorption.md)：回答“`v8` 只吸收了哪一小部分，边界卡在哪里”。
-- [v12c_deferred_layers_v9_to_v11.md](./v12c_deferred_layers_v9_to_v11.md)：回答“为什么 `v9-v11` 仍是 horizon，而不是当前能力声明”。
-- [current-boundary-map.md](./current-boundary-map.md)：回答“每个历史节点在 `docs/current/` 中到底对应什么状态”。
+- [v12_convergence_to_current_boundary.md](./v12_convergence_to_current_boundary.md)：回答"历史设计最终在今天该如何被解释"。
+- [v12a_objectization_of_v7.md](./v12a_objectization_of_v7.md)：回答"`v7` 主干怎样落到现在这组对象与合同上"。
+- [v12b_selective_v8_absorption.md](./v12b_selective_v8_absorption.md)：回答"`v8` 只吸收了哪一小部分，边界卡在哪里"。
+- [v12c_deferred_layers_v9_to_v11.md](./v12c_deferred_layers_v9_to_v11.md)：回答"为什么 `v9-v11` 仍是 horizon，而不是当前能力声明"。
+- [v13_historical_generative_ontology.md](./v13_historical_generative_ontology.md)：回答"在 v12 收敛稳定之后，如何把历史本身当作生成式对象来治理"。
+- [current-boundary-map.md](./current-boundary-map.md)：回答"每个历史节点在 `docs/current/` 中到底对应什么状态"。
 
 ## 与 `docs/current/` 的关系
 
-- `docs/design_history/`：保存设计演化、架构意图、 horizon 与收敛过程。
+- `docs/design_history/`：保存设计演化、架构意图、horizon 与收敛过程。
 - `docs/current/`：定义当前 semantic contract、operational contract、draft/current/deferred 边界。
-- `v12*` 与 [current-boundary-map.md](./current-boundary-map.md)：负责把这两层接起来，避免把历史愿景误读为现行承诺。
+- `v12*` / `v13` 与 [current-boundary-map.md](./current-boundary-map.md)：负责把这两层接起来，避免把历史愿景误读为现行承诺。
 
 ## 当前能力边界
 
@@ -95,4 +101,4 @@
 - 读 `design_history/` 时，把它当作 append-only 设计史，而不是版本化产品说明书。
 - 读 `docs/current/` 时，把它当作当前 contract surface；`current`、`draft`、`deferred` 标签比历史版本标题更重要。
 - 当历史文本与当前 contract 看起来不一致时，先查 [`../current/metamodel.md`](../current/metamodel.md) 和 [current-boundary-map.md](./current-boundary-map.md)。
-- 若目标是理解当前系统，优先走“`metamodel -> current-boundary-map -> v12*`”这条路径，而不是直接从 `v8-v11` 倒推现状。
+- 若目标是理解当前系统，优先走"`metamodel -> current-boundary-map -> v12* -> v13`"这条路径，而不是直接从 `v8-v11` 倒推现状。

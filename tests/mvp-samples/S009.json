@@ -1,0 +1,12 @@
+{
+  "id": "S009",
+  "source": "predictions.json + swe-bench-lite.json",
+  "instance_id": "django__django-16527",
+  "problem_statement": "\"show_save_as_new\" in admin can add without this permission\nDescription\n\t \n\t\t(last modified by Mariusz Felisiak)\n\t \nAt \"django/contrib/admin/templatetags/admin_modify.py\" file, line 102, I think you must put one more verification for this tag: \"and has_add_permission\", because \"save_as_new\" is a add modification.\nI rewrite this for my project:\n\t\t\t\"show_save_as_new\": not is_popup\n\t\t\tand has_add_permission # This line that I put!!!\n\t\t\tand has_change_permission\n\t\t\tand change\n\t\t\tand save_as,\n",
+  "predicted_patch": "diff --git a/django/contrib/admin/templatetags/admin_modify.py b/django/contrib/admin/templatetags/admin_modify.py\n--- a/django/contrib/admin/templatetags/admin_modify.py\n+++ b/django/contrib/admin/templatetags/admin_modify.py\n@@ -96,6 +96,7 @@ def submit_row(context):\n         \"show_save_as_new\": not is_popup\n         and has_change_permission\n         and change\n+        and has_add_permission\n         and save_as,\n         \"show_save_and_continue\": not is_popup\n         and has_change_permission",
+  "gold_patch": "diff --git a/django/contrib/admin/templatetags/admin_modify.py b/django/contrib/admin/templatetags/admin_modify.py\n--- a/django/contrib/admin/templatetags/admin_modify.py\n+++ b/django/contrib/admin/templatetags/admin_modify.py\n@@ -100,7 +100,7 @@ def submit_row(context):\n                 and context.get(\"show_delete\", True)\n             ),\n             \"show_save_as_new\": not is_popup\n-            and has_change_permission\n+            and has_add_permission\n             and change\n             and save_as,\n             \"show_save_and_add_another\": can_save_and_add_another,\n",
+  "similarity": 0.5,
+  "verdict": "correct_candidate",
+  "notes": "Predicted adds has_add_permission check — semantically correct fix despite layout diff",
+  "verified_verdict": "correct"
+}

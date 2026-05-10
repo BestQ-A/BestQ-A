@@ -1,0 +1,3 @@
+Fix duplicate ORDER BY detection for multiline RawSQL expressions.
+The change should normalize multiline SQL before the duplicate check.
+Avoid introducing new helper APIs that do not exist in Django.

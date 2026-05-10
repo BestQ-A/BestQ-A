@@ -1,0 +1,16 @@
+{
+  "$kind": "instance",
+  "$conforms_to": "docs/current/state-snapshot-contract.md",
+  "$generated_by": "scripts/export-v7-artifacts.mjs",
+  "$generated_at": "2026-04-14T12:14:31.403Z",
+  "id": "SS_e5ba7ec6ebaa",
+  "episodeId": "story_d7432856",
+  "t": 0,
+  "values": {
+    "rawInput": "service timeout on login endpoint",
+    "factCount": 1,
+    "context": {}
+  },
+  "createdBy": "pipeline_submit_observation",
+  "createdAt": "2026-04-14T12:14:31.356Z"
+}
