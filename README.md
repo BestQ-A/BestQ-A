@@ -4,6 +4,8 @@ BestQ-A 当前应被理解为一个以证据驱动的 world modeling / reasoning
 
 ## 当前系统如何工作
 
+长期产品目标：做一个免费开源、local-first、无默认遥测的 **Clear AI for controlled software engineering** VS Code 插件，让 AI coding agent 的计划、证据、执行、验证和记忆都变得可见、可控、可复用。
+
 系统的现行结构可概括为四层：
 
 - **接口层**：对外暴露工具、兼容接口与调用入口。
@@ -70,3 +72,10 @@ BestQ-A 当前应被理解为一个以证据驱动的 world modeling / reasoning
 - 先区分 **当前 contract** 与 **历史地平线**：前者看 `docs/current/`，后者看 `docs/design_history/`。
 - 先用语义对象理解系统，再用版本名理解其来源；不要直接从 `v8-v11` 倒推现状。
 - 任何超出 `docs/current/` 已收敛合同的表述，都应默认视为设计方向，而不是当前能力声明。
+
+## ClearLoop 产品记录
+
+- `docs/records/2026-05-10-relevance-to-causality.md`：定义“因果性，是被结构化后可复用的相关性”。
+- `docs/records/2026-05-10-codesail-repo-split.md`：记录 VS Code 产品从旧 CodeSail 原型拆分并命名为 ClearLoop。
+- `docs/records/2026-05-10-session-refactoring.md`：定义如何把一次 AI/CLI session 重构为可复用的 Best Question、Best Answer 与 causal pattern。
+- `specs/006-vscode-explicit-reasoning-control-plane.md`：描述 BestQ-A 与 ClearLoop 组合成显式推理控制面的下一步切片。
