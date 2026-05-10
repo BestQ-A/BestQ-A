@@ -77,4 +77,5 @@ BestQ-A 当前应被理解为一个以证据驱动的 world modeling / reasoning
 
 - `docs/records/2026-05-10-relevance-to-causality.md`：定义“因果性，是被结构化后可复用的相关性”。
 - `docs/records/2026-05-10-codesail-repo-split.md`：记录 VS Code 产品从旧 CodeSail 原型拆分并命名为 ClearLoop。
+- `docs/records/2026-05-10-session-refactoring.md`：定义如何把一次 AI/CLI session 重构为可复用的 Best Question、Best Answer 与 causal pattern。
 - `specs/006-vscode-explicit-reasoning-control-plane.md`：描述 BestQ-A 与 ClearLoop 组合成显式推理控制面的下一步切片。
